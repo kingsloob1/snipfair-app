@@ -1,0 +1,636 @@
+<?php
+
+namespace App\Http\Controllers\Stylist;
+
+use App\Http\Controllers\Controller;
+use App\Models\Appointment;
+use App\Events\AppointmentStatusUpdated;
+use App\Helpers\AdminNotificationHelper;
+use App\Helpers\NotificationHelper;
+use App\Mail\AppointmentDisputeEmail;
+use App\Mail\BookingSuccessfulCustomerEmail;
+use App\Models\Admin;
+use App\Models\AppointmentDispute;
+use App\Models\AppointmentPouch;
+use App\Models\AppointmentProof;
+use App\Models\Transaction;
+use Carbon\Carbon;
+use DateTime;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Inertia\Inertia;
+use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Mail;
+
+class AppointmentController extends Controller
+{
+    public function index(Request $request){
+        $appointments = Appointment::where('stylist_id', $request->user()->id)->whereIn('status', ['processing', 'pending', 'approved'])->with([
+            'customer',
+            'portfolio.category'
+        ])->orderBy('created_at', 'desc')->get()->map(function ($appointment) {
+            return [
+                'appointment' => $appointment->id,
+                'name' => $appointment->customer->name,
+                'stylist_id' => $appointment->stylist_id,
+                'customer_id' => $appointment->customer_id,
+                'service' => $appointment->portfolio->category->name,
+                'amount' => (float) $appointment->amount,
+                'status' => $appointment->status,
+                'date' => $appointment->created_at->format('M j, Y'),
+                'time' => $appointment->created_at->format('g:i A') . ' (' . $appointment->created_at->diffForHumans() . ')',
+                'imageUrl' => $appointment->customer->avatar ?? null,
+            ];
+        });
+
+        $todayEarnings = $request->user()->transactions()
+            ->whereBetween('created_at', $this->getRanges('daily'))
+            ->where('type', 'earning')
+            ->where('status', 'completed')
+            ->sum('amount') ?? 0;
+        $appointmentsCount = $request->user()->stylistAppointments()
+            ->whereBetween('created_at', $this->getRanges('daily'))
+            ->where('status', 'confirmed')
+            ->count();
+        $appointmentsPending = $request->user()->stylistAppointments()
+            ->whereBetween('created_at', $this->getRanges('daily'))
+            ->where('status', 'pending')
+            ->count();
+
+        return Inertia::render('Stylist/Appointments/Index', [
+            'appointments' => $appointments,
+            'statistics' => [
+                'today_earnings' => $todayEarnings,
+                'today_appointments' => $appointmentsCount,
+                'total_requests' => $appointmentsPending,
+            ],
+        ]);
+    }
+
+    public function fullSchedules(Request $request){
+        $appointments = Appointment::where('stylist_id', $request->user()->id)->with([
+            'customer',
+            'portfolio.category'
+        ])->orderBy('created_at', 'desc')->get()->map(function ($appointment) {
+            return [
+                'name' => $appointment->customer->name,
+                'service' => $appointment->portfolio->category->name,
+                'amount' => (float) $appointment->amount,
+                'status' => $appointment->status,
+                'date' => $appointment->created_at->format('M j, Y'),
+                'time' => $appointment->created_at->format('g:i A') . ' (' . $appointment->created_at->diffForHumans() . ')',
+                'imageUrl' => $appointment->customer->avatar ?? null,
+                'appointment' => $appointment->id,
+                'stylist_id' => $appointment->stylist_id,
+                'customer_id' => $appointment->customer_id,
+            ];
+        });
+        return Inertia::render('Stylist/Schedules/FullSchedules', [
+            'appointments' => $appointments,
+        ]);
+    }
+
+    public function getSchedules(Request $request){
+        $user = $request->user();
+
+        $schedules = $user->stylistSchedules()
+            ->with('slots')
+            ->get()
+            ->map(function ($schedule) {
+            return [
+                'day' => ucfirst($schedule->day),
+                'available' => $schedule->available,
+                'timeSlots' => $schedule->slots->map(function ($slot) {
+                    return [
+                        'id' => $slot->id,
+                        'from' => Carbon::parse($slot->from)->format('H:i'),
+                        'to' => Carbon::parse($slot->to)->format('H:i'),
+                    ];
+                }),
+            ];
+        });
+
+        return Inertia::render('Stylist/Appointments/Availability', [
+            'stylist_schedules' => $schedules,
+            'settings' => [
+                'use_location' => $user->use_location ?? false,
+                'country' => $user->country ?? '',
+            ],
+        ]);
+    }
+
+    public function updateSchedules(Request $request)
+    {
+        $user = $request->user();
+        $messages = [
+            'schedules.*.timeSlots.*.id.required' => 'Each time slot must have a valid ID.',
+            'schedules.*.timeSlots.*.from.required' => 'Each time slot must have a start time.',
+            'schedules.*.timeSlots.*.to.after' => 'The end time must be after the start time.',
+        ];
+
+        $data = $request->validate([
+            'schedules' => 'required|array',
+            'schedules.*.day' => [
+                'required',
+                'string',
+                Rule::in(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']),
+            ],
+            'schedules.*.available' => 'required|boolean',
+            'schedules.*.timeSlots' => 'nullable|array',
+            'schedules.*.timeSlots.*.id' => 'required',
+            'schedules.*.timeSlots.*.from' => 'required|date_format:H:i',
+            'schedules.*.timeSlots.*.to' => 'required|date_format:H:i|after:schedules.*.timeSlots.*.from',
+        ], $messages);
+
+        foreach ($data['schedules'] as $dayData) {
+            $schedule = $user->stylistSchedules()->where('day', strtolower($dayData['day']))->first();
+            if ($schedule) {
+                $schedule->update(['available' => $dayData['available']]);
+                $schedule->slots()->delete();
+                if (isset($dayData['timeSlots']) && is_array($dayData['timeSlots']) && !empty($dayData['timeSlots'])) {
+                    foreach ($dayData['timeSlots'] as $slot) {
+                        try {
+                            $schedule->slots()->create([
+                                'from' => $slot['from'] . ':00', // Add seconds if needed
+                                'to' => $slot['to'] . ':00',     // Add seconds if needed
+                            ]);
+                        } catch (\Exception $e) {
+                            Log::error('Failed to create slot', [
+                                'error' => $e->getMessage(),
+                                'slot' => $slot,
+                                'schedule_id' => $schedule->id
+                            ]);
+                        }
+                    }
+                } else {
+                    Log::info('No timeSlots to process for day: ' . $dayData['day']);
+                }
+            } else {
+                Log::warning('Schedule not found for day: ' . $dayData['day']);
+            }
+        }
+
+        return back()->with('success', 'Schedule updated successfully.');
+    }
+
+    public function getCalendar(Request $request){
+        $appointments = Appointment::with(['portfolio.category', 'customer'])
+        ->get();
+
+        $formatted = [];
+
+        foreach ($appointments as $appointment) {
+            // $startTime = Carbon::parse($appointment->created_at);
+            $startTime = Carbon::parse(
+                $appointment->appointment_date . ' ' . $appointment->appointment_time
+            );
+            $durationInHours = (float) str_replace(['h', 'hr', 'hrs'], '', strtolower($appointment->duration));
+            $endTime = (clone $startTime)->addHours((int) $durationInHours);
+
+            // Determine color
+            $color = in_array($appointment->status, ['completed', 'canceled', 'escalated']) ? 'purple' : 'orange';
+
+            // Format record
+            $dateKey = $startTime->format('Y-m-d');
+
+            $formatted[$dateKey][] = [
+                'id' => (string) $appointment->id,
+                'title' => optional($appointment->portfolio->category)->name ?? 'None',
+                'startTime' => $startTime->format('h:i A'),
+                'endTime' => $endTime->format('h:i A'),
+                'color' => $color,
+                'date' => $dateKey,
+                'recipient' => optional($appointment->customer)->name,
+            ];
+        }
+
+        return Inertia::render('Stylist/Appointments/Calendar', [
+            'events' => $formatted,
+        ]);
+    }
+
+
+    private function getRanges($range)
+    {
+        switch ($range) {
+            case 'daily':
+                return [now()->startOfDay(), now()->endOfDay()];
+            case 'weekly':
+                return [now()->startOfWeek(Carbon::SUNDAY), now()->endOfWeek(Carbon::SATURDAY)];
+            case 'monthly':
+                return [now()->startOfMonth(), now()->endOfMonth()];
+            case 'yearly':
+                return [now()->startOfYear(), now()->endOfYear()];
+            default:
+                return null;
+        }
+    }
+
+    public function appointment(Request $request, $id)
+    {
+        $appointment = Appointment::with(['customer', 'stylist', 'stylist.stylist_profile', 'portfolio', 'portfolio.category', 'customer.location_service'])
+            ->where('id', $id)
+            ->firstOrFail();
+
+        if ($appointment->status === 'processing'){
+            return back()->with('warning', 'Appointment details are still being confirmed, try again in a few seconds.');
+        }
+
+        $locationService = $appointment->customer->location_service;
+        $targetLocationService = $appointment->stylist->location_service;
+        if (!$locationService || !$locationService->hasLocation() || !$targetLocationService || !$targetLocationService->hasLocation()) {
+            $distance = null;
+        } else {
+            $distance = $locationService->distanceTo($targetLocationService);
+            $distance = $distance !== null ? round($distance, 2). 'km away' : null;
+        }
+
+        $appointment_details = [
+            'orderTime' => $appointment->created_at->format('M j, Y'),
+            'bookingId' => $appointment->booking_id,
+            'beautician' => [
+                'name' => $appointment->stylist->name,
+                'avatar' => $appointment->stylist->avatar ?? null,
+            ],
+            'customer' => [
+                'name' => $appointment->customer->name,
+                'avatar' => $appointment->customer->avatar ?? null,
+            ],
+            'date' => friendly_date_label($appointment->appointment_date),
+            'day' => (new DateTime($appointment->appointment_date))->format('M j'),
+            'distance' => $distance,
+            'time' => Carbon::createFromFormat('H:i:s', $appointment->appointment_time)->format('g:i A'),
+            'duration' => $appointment->duration,
+            'location' => $appointment->customer->country ?? 'Not specified',
+            'phone' => $appointment->customer->phone ?? 'Not provided',
+            'total_appointments' => $appointment->customer->customerAppointments()->count() ?? 0,
+            'total_cancellations' => $appointment->customer->customerAppointments()->where('status', 'canceled')->count() ?? 0,
+            'total_no_show_rate' => $appointment->customer->customerAppointments()->where('status', 'escalated')->count() ?? 0,
+        ];
+
+        return Inertia::render('Stylist/Appointments/Appointment', [
+            'appointment' => $appointment,
+            'appointment_details' => $appointment_details,
+        ]);
+    }
+
+    public function getAppointment(Request $request, $appointmentId)
+    {
+        $appointment = Appointment::with(['customer', 'stylist', 'stylist.stylist_profile', 'portfolio', 'portfolio.category', 'customer.location_service', 'proof', 'disputes'])
+            ->where('id', $appointmentId)
+            ->firstOrFail();
+
+        $appointment->first_dispute = $appointment->disputes()->exists() ? $appointment->disputes()->first() : null;
+
+            return response()->json([
+                'success' => true,
+                'appointment' => $appointment,
+            ]);
+    }
+
+    public function updateAppointment(Request $request)
+    {
+        $request->validate([
+            'appointment_id' => 'required|exists:appointments,id',
+            'verdict' => 'required|in:processing,pending,approved,rescheduled,confirmed,completed,canceled,escalated',
+        ]);
+
+        //approved,canceled
+        $appointment = Appointment::find($request->appointment_id);
+        if($request->verdict === 'approved'){
+            if(!$appointment || ($appointment->amount > $appointment->customer->balance)){
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Appointment not found or failed payment.',
+                ], 404);
+            }
+            $appointment->customer->update([
+                'balance' => $appointment->customer->balance - $appointment->amount,
+            ]);
+            $amount_to_stylist = $appointment->amount * (1 - getAdminConfig('commission_rate') / 100);
+            AppointmentPouch::create([
+                'appointment_id' => $appointment->id,
+                'amount' => $amount_to_stylist,
+                'status' => 'holding',
+                'user_id' => $appointment->stylist_id,
+            ]);
+            Transaction::create([
+                'user_id' => $appointment->stylist_id,
+                'appointment_id' => $appointment->id,
+                'amount' => $appointment->amount * (getAdminConfig('commission_rate') / 100),
+                'type' => 'other',
+                'status' => 'completed',
+                'ref' => 'AdminCommission',
+                'description' => 'Commission for cancellation',
+            ]);
+            sendNotification(
+                $appointment->customer_id,
+                route('customer.appointment.show', $appointment->id),
+                'Appointment Approved',
+                'Your appointment with ' . $appointment->stylist->name . ' has been accepted.',
+                'normal',
+            );
+
+            $appointment->update(['status' => 'approved']);
+            Mail::to($appointment->customer->email)->send(new BookingSuccessfulCustomerEmail(
+                appointment: $appointment,
+                customer: $appointment->customer,
+                stylist: $appointment->stylist
+            ));
+
+        } else if($request->verdict === 'canceled'){
+             $appointment->update(['status' => 'canceled']);
+        }
+
+        return response()->json([
+            'success' => true,
+            'appointment' => $appointment,
+            'message' => 'Appointment updated successfully.',
+        ]);
+    }
+
+    public function update(Request $request, $appointmentId)
+    {
+        $request->validate([
+            'variant' => 'required|in:confirmed,completed',
+            'name' => 'required|exists:users,name',
+            'code' => 'required|string',
+        ]);
+
+        $appointment = Appointment::findOrFail($appointmentId);
+
+        if ($request->variant === 'confirmed') {
+            if($appointment->appointment_code == $request->code){
+                $appointment->update(['status' => 'confirmed']);
+            }
+            else {
+                return back()->withErrors(['code' => 'Invalid verification code.']);
+            }
+        }
+        else if ($request->variant === 'completed') {
+            if($appointment->completion_code == $request->code){
+                $appointment->transactions()->update(['status' => 'completed']);
+                $appointment->update([
+                    'status' => 'completed',
+                ]);
+            }
+            else {
+                return back()->withErrors(['code' => 'Invalid completion code.']);
+            }
+        }
+
+        return back()->with('success', 'Appointment updated successfully.');
+    }
+
+    public function forms(Request $request, $appointmentId)
+    {
+        $validated = $request->validate([
+            'variant' => 'required|string|in:dispute,proof',
+            'customer' => 'required|string|max:255',
+            'comment' => 'required|string',
+            'images' => 'required|array|max:10',
+            'images.*' => 'file|mimes:jpg,jpeg,png|max:5120',
+        ]);
+
+        $imagePaths = [];
+
+        if ($request->hasFile('images')) {
+            foreach ($request->file('images') as $file) {
+                $imagePaths[] = $file->store('works/'.$request->variant, 'public');
+            }
+        }
+
+        if($request->variant === 'dispute'){
+            $appointment = Appointment::findOrFail($appointmentId);
+            $task = AppointmentDispute::create([
+                'appointment_id' => $appointment->id,
+                'customer_id' => $appointment->customer_id,
+                'stylist_id' => $appointment->stylist_id,
+                'from' => 'stylist',
+                'comment' => $validated['comment'],
+                'image_urls' => $imagePaths,
+                'status' => 'open',
+                'priority' => 'low',
+                'ref_id' => $appointment->id,
+                'resolution_amount' => $appointment->amount,
+            ]);
+            $appointment->update(['status' => 'escalated']);
+            Mail::to('admin@snipfair.com')->send(new AppointmentDisputeEmail(
+                dispute: $task,
+                appointment: $appointment,
+                recipient: null, // admin doesn't need recipient object
+                recipientType: 'admin'
+            ));
+            $superAdmins = Admin::where('role', 'super-admin')
+                ->where('is_active', true)
+                ->get();
+
+            foreach ($superAdmins as $admin) {
+                AdminNotificationHelper::create(
+                    $admin->id,
+                    route('admin.disputes.show', $task->id),
+                    'New Dispute from ' . $appointment->stylist->name,
+                    "Email: {$appointment->stylist->email}\nMessage: " . substr($validated['comment'], 0, 100) . '...',
+                    'normal'
+                );
+            }
+
+        }
+        else if($request->variant === 'proof'){
+            $task = AppointmentProof::create([
+                'appointment_id' => $appointmentId,
+                'user_id' => $request->user()->id,
+                'comment' => $validated['comment'],
+                'media_urls' => $imagePaths,
+            ]);
+        }
+
+        if($task) return redirect()->route('stylist.dashboard')->with('message', 'Request created successfully!');
+        else return back()->with('message', 'Something went wrong');
+    }
+
+    public function approveAppointment(Request $request)
+    {
+        $request->validate([
+            'appointment_id' => 'required|exists:appointments,id',
+            'status' => 'required|in:approved,rejected',
+            'stylist_note' => 'nullable|string',
+        ]);
+
+        $stylist = $request->user();
+        $appointment = Appointment::with(['customer', 'stylist', 'portfolio'])
+            ->where('stylist_id', $stylist->id)
+            ->where('status', 'pending')
+            ->findOrFail($request->appointment_id);
+
+        $previousStatus = $appointment->status;
+
+        if ($request->status === 'approved') {
+            $appointment->update([
+                'status' => 'approved',
+                'stylist_note' => $request->stylist_note,
+            ]);
+
+            broadcast(new AppointmentStatusUpdated($appointment, $previousStatus));
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Appointment approved successfully.',
+            ]);
+        } else {
+            $appointment->update([
+                'status' => 'canceled',
+                'stylist_note' => $request->stylist_note,
+            ]);
+
+            // Refund customer
+            $appointment->customer->update([
+                'balance' => $appointment->customer->balance + $appointment->amount
+            ]);
+
+            // Create refund transaction
+            \App\Models\Transaction::create([
+                'user_id' => $appointment->customer_id,
+                'appointment_id' => $appointment->id,
+                'amount' => $appointment->amount,
+                'type' => 'refund',
+                'status' => 'completed',
+                'reference' => 'REF-' . time(),
+            ]);
+
+            broadcast(new AppointmentStatusUpdated($appointment, $previousStatus));
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Appointment rejected. Customer has been refunded.',
+            ]);
+        }
+    }
+
+    public function confirmMeetup(Request $request)
+    {
+        $request->validate([
+            'appointment_id' => 'required|exists:appointments,id',
+            'appointment_code' => 'required|string',
+        ]);
+
+        $stylist = $request->user();
+        $appointment = Appointment::with(['customer', 'stylist', 'portfolio'])
+            ->where('stylist_id', $stylist->id)
+            ->where('status', 'approved')
+            ->findOrFail($request->appointment_id);
+
+        if ($appointment->appointment_code !== $request->appointment_code) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid appointment code.',
+            ], 400);
+        }
+
+        $previousStatus = $appointment->status;
+        $appointment->update(['status' => 'confirmed']);
+
+        broadcast(new AppointmentStatusUpdated($appointment, $previousStatus));
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Appointment confirmed. Service can begin.',
+            'completion_code' => $appointment->completion_code,
+        ]);
+    }
+
+    public function completeAppointment(Request $request)
+    {
+        $request->validate([
+            'appointment_id' => 'required|exists:appointments,id',
+            'completion_code' => 'required|string',
+            'service_notes' => 'nullable|string',
+        ]);
+
+        $stylist = $request->user();
+        $appointment = Appointment::with(['customer', 'stylist', 'portfolio'])
+            ->where('stylist_id', $stylist->id)
+            ->where('status', 'confirmed')
+            ->findOrFail($request->appointment_id);
+
+        if ($appointment->completion_code !== $request->completion_code) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid completion code.',
+            ], 400);
+        }
+
+        $previousStatus = $appointment->status;
+        $appointment->update([
+            'status' => 'completed',
+            'service_notes' => $request->service_notes,
+            'completed_at' => now(),
+        ]);
+
+        // Create earning transaction for stylist
+        \App\Models\Transaction::create([
+            'user_id' => $stylist->id,
+            'appointment_id' => $appointment->id,
+            'amount' => $appointment->amount * 0.85, // 85% goes to stylist
+            'type' => 'earning',
+            'status' => 'completed',
+            'reference' => 'EARN-' . time(),
+        ]);
+
+        // Update stylist balance
+        $stylist->update([
+            'balance' => $stylist->balance + ($appointment->amount * 0.85)
+        ]);
+
+        broadcast(new AppointmentStatusUpdated($appointment, $previousStatus));
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Appointment completed successfully.',
+        ]);
+    }
+
+    public function getPendingAppointments(Request $request)
+    {
+        $stylist = $request->user();
+        $appointments = Appointment::with(['customer', 'portfolio'])
+            ->where('stylist_id', $stylist->id)
+            ->where('status', 'pending')
+            ->latest()
+            ->get()
+            ->map(function ($appointment) {
+                return [
+                    'id' => $appointment->id,
+                    'booking_id' => $appointment->booking_id,
+                    'customer_name' => $appointment->customer->name,
+                    'customer_email' => $appointment->customer->email,
+                    'portfolio_title' => $appointment->portfolio->title,
+                    'amount' => $appointment->amount,
+                    'appointment_date' => $appointment->appointment_date,
+                    'appointment_time' => $appointment->appointment_time,
+                    'created_at' => $appointment->created_at->diffForHumans(),
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'appointments' => $appointments,
+        ]);
+    }
+
+    public function updateLocation(Request $request)
+    {
+        $request->validate([
+            'use_location' => 'required|boolean',
+            'country' => 'nullable|string|max:200',
+        ]);
+
+        $user = $request->user();
+        $user->update([
+            'use_location' => $request->use_location,
+            'country' => $request->country,
+        ]);
+
+        return redirect()->back()->with('success', 'Location settings updated successfully.');
+    }
+}

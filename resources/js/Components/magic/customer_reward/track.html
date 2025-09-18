@@ -1,0 +1,1162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>Location Services</title>
+    <style>
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto;
+            padding: 0;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 600px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .modal-header {
+            background-color: #2563eb;
+            color: white;
+            padding: 20px;
+            border-radius: 8px 8px 0 0;
+        }
+
+        .modal-body {
+            padding: 25px;
+            line-height: 1.6;
+        }
+
+        .modal-footer {
+            padding: 20px 25px;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .security-notice {
+            background-color: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+
+        .btn-primary {
+            background-color: #2563eb;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #1d4ed8;
+        }
+
+        .btn-secondary {
+            background-color: #6b7280;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background-color: #4b5563;
+        }
+
+        .privacy-points {
+            margin: 15px 0;
+        }
+
+        .privacy-points li {
+            margin: 8px 0;
+        }
+
+        .alert {
+            padding: 12px 16px;
+            margin: 10px 0;
+            border-radius: 4px;
+            border: 1px solid transparent;
+        }
+
+        .alert-info {
+            background-color: #dbeafe;
+            border-color: #93c5fd;
+            color: #1e40af;
+        }
+
+        .location-controls {
+            margin: 20px 0;
+            padding: 20px;
+            background-color: #f9fafb;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+
+<!-- Location Consent Modal -->
+<div id="location-consent-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>📍 Location Services Permission</h2>
+        </div>
+        <div class="modal-body">
+            <p><strong>We need your location to provide you with the best service experience.</strong></p>
+
+            <h4>How we use your location:</h4>
+            <ul class="privacy-points">
+                <li>🎯 <strong>Find nearby service providers</strong> - Connect you with professionals in your area</li>
+                <li>📏 <strong>Calculate accurate distances</strong> - Show travel times and service areas</li>
+                <li>🚗 <strong>Optimize appointment logistics</strong> - Help providers plan efficient routes</li>
+                <li>📱 <strong>Enhanced safety</strong> - Emergency services can locate you if needed</li>
+            </ul>
+
+            <div class="security-notice">
+                <h4>🔒 Security & Legal Notice</h4>
+                <p><strong>Your location data is recorded and stored for the following purposes:</strong></p>
+                <ul>
+                    <li><strong>Security:</strong> Location logs help us verify service delivery and resolve disputes</li>
+                    <li><strong>Legal compliance:</strong> Required for insurance claims and regulatory compliance</li>
+                    <li><strong>Safety:</strong> Enables emergency response if issues arise during appointments</li>
+                    <li><strong>Quality assurance:</strong> Helps us verify that services were provided as agreed</li>
+                </ul>
+            </div>
+
+            <h4>🛡️ Your Privacy Rights:</h4>
+            <ul class="privacy-points">
+                <li>✅ Your location is encrypted and securely stored</li>
+                <li>✅ Location data is only shared with your chosen service providers</li>
+                <li>✅ You can disable location services anytime in your account settings</li>
+                <li>✅ Historical location data can be deleted upon request</li>
+                <li>✅ We never sell your location data to third parties</li>
+            </ul>
+
+            <p><em>By clicking "Allow Location Access", you consent to the collection and use of your location data as described above and in our <a href="/privacy-policy" target="_blank">Privacy Policy</a>.</em></p>
+        </div>
+        <div class="modal-footer">
+            <button id="consent-deny" class="btn btn-secondary">No Thanks</button>
+            <button id="consent-approve" class="btn btn-primary" style="color: white;">Allow Location Access</button>
+        </div>
+    </div>
+</div>
+
+<!-- Main Page Content -->
+<div class="location-controls">
+    <h3>Location Services</h3>
+    <p>Enable location services to find nearby providers and get accurate distance estimates.</p>
+    <button id="enable-location" class="btn btn-primary" style="color: white;">Enable Location Services</button>
+
+    <div id="location-error" style="display: none;"></div>
+    <div id="location-denied-message" style="display: none;"></div>
+
+    <div id="location-status" style="margin-top: 15px;">
+        <p><strong>Current Status:</strong> <span id="status-text">Location not enabled</span></p>
+        <div id="location-details" style="display: none;">
+            <p><strong>Accuracy:</strong> <span id="accuracy-text">-</span> meters</p>
+            <p><strong>Last Updated:</strong> <span id="updated-text">-</span></p>
+        </div>
+    </div>
+</div>
+
+<script>
+// Show privacy consent modal before requesting location
+function showLocationConsentModal() {
+    const modal = document.getElementById('location-consent-modal');
+    if (modal) {
+        modal.style.display = 'block';
+        modal.classList.add('show');
+    }
+}
+
+// Handle consent approval
+function handleLocationConsent() {
+    // Record consent in backend
+    fetch('/api/location-consent', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({ consent_given: true })
+    });
+
+    // Hide consent modal
+    const modal = document.getElementById('location-consent-modal');
+    if (modal) {
+        modal.style.display = 'none';
+        modal.classList.remove('show');
+    }
+
+    // Now request location
+    updateUserLocation();
+}
+
+// Handle consent denial
+function handleLocationDenial() {
+    // Record denial in backend
+    fetch('/api/location-consent', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({ consent_given: false })
+    });
+
+    const modal = document.getElementById('location-consent-modal');
+    if (modal) {
+        modal.style.display = 'none';
+        modal.classList.remove('show');
+    }
+
+    // Show message about limited functionality
+    const messageDiv = document.getElementById('location-denied-message');
+    if (messageDiv) {
+        messageDiv.style.display = 'block';
+        messageDiv.innerHTML = `
+            <div class="alert alert-info">
+                <strong>Location access declined.</strong>
+                You can still use our services, but distance calculations and nearby provider suggestions will be limited.
+                You can change this decision anytime in your account settings.
+            </div>
+        `;
+    }
+
+    updateLocationStatus('Location access declined');
+}
+
+// Check if user has already given consent
+function checkLocationConsent() {
+    fetch('/api/location-consent-status', {
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.consent_given) {
+            // User already consented, request location directly
+            updateUserLocation();
+        } else {
+            // Show consent modal
+            showLocationConsentModal();
+        }
+    })
+    .catch(error => {
+        console.error('Error checking consent status:', error);
+        // Default to showing consent modal
+        showLocationConsentModal();
+    });
+}
+
+// Request location permission and get coordinates
+function requestLocation() {
+    return new Promise((resolve, reject) => {
+        if (!navigator.geolocation) {
+            reject(new Error('Geolocation is not supported by this browser'));
+            return;
+        }
+
+        const options = {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 300000 // 5 minutes cache
+        };
+
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                const coords = {
+                    latitude: position.coords.latitude,
+                    longitude: position.coords.longitude,
+                    accuracy: position.coords.accuracy
+                };
+                resolve(coords);
+            },
+            (error) => {
+                let errorMessage;
+                switch(error.code) {
+                    case error.PERMISSION_DENIED:
+                        errorMessage = "Location access denied by user";
+                        break;
+                    case error.POSITION_UNAVAILABLE:
+                        errorMessage = "Location information unavailable";
+                        break;
+                    case error.TIMEOUT:
+                        errorMessage = "Location request timed out";
+                        break;
+                    default:
+                        errorMessage = "An unknown error occurred";
+                        break;
+                }
+                reject(new Error(errorMessage));
+            },
+            options
+        );
+    });
+}
+
+// Send location to Laravel backend
+async function updateUserLocation() {
+    try {
+        updateLocationStatus('Getting your location...');
+
+        const coords = await requestLocation();
+
+        const response = await fetch('/api/update-location', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            body: JSON.stringify({
+                latitude: coords.latitude,
+                longitude: coords.longitude,
+                accuracy: coords.accuracy
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to update location on server');
+        }
+
+        const result = await response.json();
+        console.log('Location updated successfully:', result);
+
+        updateLocationStatus('Location enabled ✅');
+        updateLocationDetails(coords.accuracy, new Date().toLocaleString());
+
+        return result;
+
+    } catch (error) {
+        console.error('Location error:', error);
+        handleLocationError(error);
+    }
+}
+
+// Handle location errors gracefully
+function handleLocationError(error) {
+    const errorDiv = document.getElementById('location-error');
+    if (errorDiv) {
+        errorDiv.innerHTML = `<div class="alert alert-info">Location error: ${error.message}</div>`;
+        errorDiv.style.display = 'block';
+    }
+
+    updateLocationStatus('Location unavailable');
+
+    // Optionally fall back to IP-based location
+    if (error.message.includes('denied')) {
+        updateLocationStatus('Location access denied by browser');
+    } else {
+        fallbackToIPLocation();
+    }
+}
+
+// Fallback to IP-based location
+async function fallbackToIPLocation() {
+    try {
+        updateLocationStatus('Using approximate location...');
+
+        const response = await fetch('/api/ip-location', {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            }
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            updateLocationStatus('Approximate location enabled (IP-based)');
+            updateLocationDetails('~50km', new Date().toLocaleString());
+            console.log('Using IP-based location:', result);
+        }
+    } catch (error) {
+        console.error('IP location fallback failed:', error);
+        updateLocationStatus('Location services unavailable');
+    }
+}
+
+// Update status display
+function updateLocationStatus(status) {
+    const statusElement = document.getElementById('status-text');
+    if (statusElement) {
+        statusElement.textContent = status;
+    }
+}
+
+// Update location details display
+function updateLocationDetails(accuracy, timestamp) {
+    const detailsDiv = document.getElementById('location-details');
+    const accuracyElement = document.getElementById('accuracy-text');
+    const updatedElement = document.getElementById('updated-text');
+
+    if (detailsDiv && accuracyElement && updatedElement) {
+        detailsDiv.style.display = 'block';
+        accuracyElement.textContent = typeof accuracy === 'number' ? Math.round(accuracy) : accuracy;
+        updatedElement.textContent = timestamp;
+    }
+}
+
+// Initialize when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    const locationBtn = document.getElementById('enable-location');
+    if (locationBtn) {
+        locationBtn.addEventListener('click', checkLocationConsent);
+    }
+
+    // Set up consent modal buttons
+    const consentBtn = document.getElementById('consent-approve');
+    const denyBtn = document.getElementById('consent-deny');
+
+    if (consentBtn) {
+        consentBtn.addEventListener('click', handleLocationConsent);
+    }
+
+    if (denyBtn) {
+        denyBtn.addEventListener('click', handleLocationDenial);
+    }
+
+    // Close modal when clicking outside
+    window.addEventListener('click', function(event) {
+        const modal = document.getElementById('location-consent-modal');
+        if (event.target === modal) {
+            handleLocationDenial();
+        }
+    });
+});
+</script>
+
+</body>
+</html>
+
+
+
+<!-- <?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+class AddLocationToUsersTable extends Migration
+{
+    public function up()
+    {
+        Schema::table('users', function (Blueprint $table) {
+            $table->decimal('latitude', 10, 8)->nullable();
+            $table->decimal('longitude', 11, 8)->nullable();
+            $table->integer('location_accuracy')->nullable(); // in meters
+            $table->timestamp('location_updated_at')->nullable();
+            $table->boolean('location_permission_granted')->default(false);
+            $table->boolean('location_consent_given')->default(false);
+            $table->timestamp('location_consent_date')->nullable();
+
+            // Add spatial index for better performance on location queries
+            $table->spatialIndex(['latitude', 'longitude']);
+        });
+    }
+
+    public function down()
+    {
+        Schema::table('users', function (Blueprint $table) {
+            $table->dropSpatialIndex(['latitude', 'longitude']);
+            $table->dropColumn([
+                'latitude',
+                'longitude',
+                'location_accuracy',
+                'location_updated_at',
+                'location_permission_granted',
+                'location_consent_given',
+                'location_consent_date'
+            ]);
+        });
+    }
+} -->
+
+
+<!-- <?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
+
+class User extends Authenticatable
+{
+    use HasFactory, Notifiable;
+
+    protected $fillable = [
+        'name',
+        'email',
+        'password',
+        'latitude',
+        'longitude',
+        'location_accuracy',
+        'location_updated_at',
+        'location_permission_granted',
+        'location_consent_given',
+        'location_consent_date',
+    ];
+
+    protected $casts = [
+        'latitude' => 'decimal:8',
+        'longitude' => 'decimal:8',
+        'location_updated_at' => 'datetime',
+        'location_consent_date' => 'datetime',
+        'location_permission_granted' => 'boolean',
+        'location_consent_given' => 'boolean',
+    ];
+
+    /**
+     * Record user's location consent
+     */
+    public function recordLocationConsent($consentGiven)
+    {
+        $this->update([
+            'location_consent_given' => $consentGiven,
+            'location_consent_date' => now(),
+        ]);
+    }
+
+    /**
+     * Update user's location
+     */
+    public function updateLocation($latitude, $longitude, $accuracy = null)
+    {
+        $this->update([
+            'latitude' => $latitude,
+            'longitude' => $longitude,
+            'location_accuracy' => $accuracy,
+            'location_updated_at' => now(),
+            'location_permission_granted' => true,
+        ]);
+    }
+
+    /**
+     * Calculate distance to another user using Haversine formula
+     * Returns distance in kilometers
+     */
+    public function distanceTo(User $otherUser)
+    {
+        if (!$this->hasLocation() || !$otherUser->hasLocation()) {
+            return null;
+        }
+
+        return $this->calculateDistance(
+            $this->latitude,
+            $this->longitude,
+            $otherUser->latitude,
+            $otherUser->longitude
+        );
+    }
+
+    /**
+     * Check if user has location data
+     */
+    public function hasLocation()
+    {
+        return !is_null($this->latitude) && !is_null($this->longitude);
+    }
+
+    /**
+     * Haversine formula to calculate distance between two points
+     */
+    private function calculateDistance($lat1, $lon1, $lat2, $lon2)
+    {
+        $earthRadius = 6371; // Earth's radius in kilometers
+
+        $dLat = deg2rad($lat2 - $lat1);
+        $dLon = deg2rad($lon2 - $lon1);
+
+        $a = sin($dLat/2) * sin($dLat/2) + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * sin($dLon/2) * sin($dLon/2);
+        $c = 2 * atan2(sqrt($a), sqrt(1-$a));
+
+        return $earthRadius * $c;
+    }
+
+    /**
+     * Find users within a certain radius (in kilometers)
+     */
+    public static function withinRadius($latitude, $longitude, $radiusKm)
+    {
+        return self::whereNotNull('latitude')
+            ->whereNotNull('longitude')
+            ->whereRaw("
+                (6371 * acos(
+                    cos(radians(?)) * cos(radians(latitude)) * cos(radians(longitude) - radians(?)) +
+                    sin(radians(?)) * sin(radians(latitude))
+                )) <= ?
+            ", [$latitude, $longitude, $latitude, $radiusKm]);
+    }
+
+    /**
+     * Scope to get users ordered by distance from a point
+     */
+    public function scopeOrderByDistance($query, $latitude, $longitude)
+    {
+        return $query->whereNotNull('latitude')
+            ->whereNotNull('longitude')
+            ->selectRaw("
+                *,
+                (6371 * acos(
+                    cos(radians(?)) * cos(radians(latitude)) * cos(radians(longitude) - radians(?)) +
+                    sin(radians(?)) * sin(radians(latitude))
+                )) AS distance
+            ", [$latitude, $longitude, $latitude])
+            ->orderBy('distance');
+    }
+} -->
+
+
+
+<!-- <?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Http;
+use App\Models\User;
+use Validator;
+
+class LocationController extends Controller
+{
+    /**
+     * Record user's location consent
+     */
+    public function recordLocationConsent(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'consent_given' => 'required|boolean'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $user = Auth::user();
+        $user->recordLocationConsent($request->consent_given);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Location consent recorded',
+            'consent_given' => $request->consent_given,
+            'consent_date' => $user->location_consent_date
+        ]);
+    }
+
+    /**
+     * Check user's location consent status
+     */
+    public function getLocationConsentStatus()
+    {
+        $user = Auth::user();
+
+        return response()->json([
+            'consent_given' => $user->location_consent_given ?? false,
+            'consent_date' => $user->location_consent_date,
+            'has_location' => $user->hasLocation(),
+            'location_updated_at' => $user->location_updated_at
+        ]);
+    }
+
+    /**
+     * Update user's precise location from GPS
+     */
+    public function updateLocation(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'latitude' => 'required|numeric|between:-90,90',
+            'longitude' => 'required|numeric|between:-180,180',
+            'accuracy' => 'nullable|numeric|min:0|gt:0'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $user = Auth::user();
+
+        $user->updateLocation(
+            $request->latitude,
+            $request->longitude,
+            $request->accuracy
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Location updated successfully',
+            'location' => [
+                'latitude' => $user->latitude,
+                'longitude' => $user->longitude,
+                'accuracy' => $user->location_accuracy,
+                'updated_at' => $user->location_updated_at
+            ]
+        ]);
+    }
+
+    /**
+     * Fallback to IP-based location
+     */
+    public function updateIPLocation(Request $request)
+    {
+        $user = Auth::user();
+        $ip = $request->ip();
+
+        try {
+            // Using a free IP geolocation service (you might want to use a paid one for production)
+            $response = Http::get("http://ip-api.com/json/{$ip}");
+
+            if ($response->successful()) {
+                $data = $response->json();
+
+                if ($data['status'] === 'success') {
+                    $user->update([
+                        'latitude' => $data['lat'],
+                        'longitude' => $data['lon'],
+                        'location_accuracy' => 50000, // IP location is less accurate
+                        'location_updated_at' => now(),
+                        'location_permission_granted' => false, // Mark as IP-based
+                    ]);
+
+                    return response()->json([
+                        'success' => true,
+                        'message' => 'Location updated from IP',
+                        'location' => [
+                            'latitude' => $data['lat'],
+                            'longitude' => $data['lon'],
+                            'city' => $data['city'],
+                            'country' => $data['country']
+                        ]
+                    ]);
+                }
+            }
+
+            throw new \Exception('Unable to determine location from IP');
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to get location from IP'
+            ], 500);
+        }
+    }
+
+    /**
+     * Calculate distance between current user and another user
+     */
+    public function calculateDistance(Request $request, User $targetUser)
+    {
+        $user = Auth::user();
+
+        if (!$user->hasLocation()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Your location is not available'
+            ], 400);
+        }
+
+        if (!$targetUser->hasLocation()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Target user location is not available'
+            ], 400);
+        }
+
+        $distance = $user->distanceTo($targetUser);
+
+        return response()->json([
+            'success' => true,
+            'distance_km' => round($distance, 2),
+            'distance_miles' => round($distance * 0.621371, 2),
+            'user_locations' => [
+                'your_location' => [
+                    'latitude' => $user->latitude,
+                    'longitude' => $user->longitude,
+                    'accuracy' => $user->location_accuracy
+                ],
+                'target_location' => [
+                    'latitude' => $targetUser->latitude,
+                    'longitude' => $targetUser->longitude,
+                    'accuracy' => $targetUser->location_accuracy
+                ]
+            ]
+        ]);
+    }
+
+    /**
+     * Find nearby users for appointment booking
+     */
+    public function findNearbyUsers(Request $request)
+    {
+        $user = Auth::user();
+
+        if (!$user->hasLocation()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Your location is required to find nearby users'
+            ], 400);
+        }
+
+        $radius = $request->input('radius', 10); // Default 10km radius
+
+        $nearbyUsers = User::withinRadius(
+                $user->latitude,
+                $user->longitude,
+                $radius
+            )
+            ->where('id', '!=', $user->id) // Exclude current user
+            ->orderByDistance($user->latitude, $user->longitude)
+            ->limit(20)
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'nearby_users' => $nearbyUsers->map(function ($nearbyUser) {
+                return [
+                    'id' => $nearbyUser->id,
+                    'name' => $nearbyUser->name,
+                    'distance_km' => round($nearbyUser->distance, 2),
+                    'location_accuracy' => $nearbyUser->location_accuracy,
+                    'location_updated_at' => $nearbyUser->location_updated_at
+                ];
+            })
+        ]);
+    }
+} -->
+
+
+
+<!-- <?php
+
+use App\Http\Controllers\LocationController;
+use Illuminate\Support\Facades\Route;
+
+// Location-related routes (require authentication)
+Route::middleware('auth:sanctum')->group(function () {
+    // Consent management
+    Route::post('/location-consent', [LocationController::class, 'recordLocationConsent']);
+    Route::get('/location-consent-status', [LocationController::class, 'getLocationConsentStatus']);
+
+    // Update user location
+    Route::post('/update-location', [LocationController::class, 'updateLocation']);
+
+    // Fallback to IP location
+    Route::post('/ip-location', [LocationController::class, 'updateIPLocation']);
+
+    // Calculate distance to another user
+    Route::post('/distance/{user}', [LocationController::class, 'calculateDistance']);
+
+    // Find nearby users
+    Route::get('/nearby-users', [LocationController::class, 'findNearbyUsers']);
+});
+
+// If using web routes instead, add to routes/web.php:
+/*
+Route::middleware('auth')->group(function () {
+    Route::post('/api/location-consent', [LocationController::class, 'recordLocationConsent']);
+    Route::get('/api/location-consent-status', [LocationController::class, 'getLocationConsentStatus']);
+    Route::post('/api/update-location', [LocationController::class, 'updateLocation']);
+    Route::post('/api/ip-location', [LocationController::class, 'updateIPLocation']);
+    Route::post('/api/distance/{user}', [LocationController::class, 'calculateDistance']);
+    Route::get('/api/nearby-users', [LocationController::class, 'findNearbyUsers']);
+});
+*/ -->
+
+
+<!-- # Location Services Privacy Policy
+
+## How We Use Your Location Data
+
+### Data Collection
+- **Precise GPS coordinates** when you grant browser permission
+- **IP-based location** as a fallback when GPS is unavailable
+- **Location accuracy** measurements to ensure service quality
+- **Timestamps** of when location data was collected
+
+### Purpose of Location Collection
+We collect your location data for the following legitimate business purposes:
+
+#### 1. Service Delivery 🎯
+- **Provider Matching**: Connect you with nearby service providers
+- **Distance Calculations**: Show accurate travel times and service areas
+- **Route Optimization**: Help providers plan efficient travel routes
+- **Service Area Verification**: Confirm services are available in your location
+
+#### 2. Security & Safety 🔒
+- **Service Verification**: Confirm that appointments occurred at agreed locations
+- **Dispute Resolution**: Provide location evidence for service disputes
+- **Emergency Response**: Enable emergency services to locate you if needed
+- **Fraud Prevention**: Detect and prevent fraudulent location claims
+
+#### 3. Legal & Compliance ⚖️
+- **Insurance Claims**: Support insurance claims with location verification
+- **Regulatory Compliance**: Meet legal requirements for location-based services
+- **Audit Trail**: Maintain records for business compliance and tax purposes
+- **Contract Fulfillment**: Verify service delivery as per contractual agreements
+
+### Data Sharing
+Your location data may be shared with:
+
+- **Your Selected Service Providers**: Only when you book an appointment
+- **Emergency Services**: In case of emergencies or safety concerns
+- **Legal Authorities**: When required by law or court order
+- **Insurance Companies**: For legitimate claims processing (with your consent)
+
+**We NEVER sell your location data to third parties or use it for advertising.**
+
+### Data Security
+- All location data is encrypted in transit and at rest
+- Access is restricted to authorized personnel only
+- Data is stored on secure servers with regular security audits
+- Location logs are automatically purged after 2 years (or as required by law)
+
+### Your Rights & Choices
+
+#### ✅ Consent Control
+- You can revoke location consent at any time
+- Consent is recorded with timestamps for legal compliance
+- You can view your consent history in account settings
+
+#### ✅ Data Access & Deletion
+- Request a copy of your location data
+- Request deletion of historical location data
+- Export your location history in standard formats
+
+#### ✅ Service Without Location
+- You can use our services without enabling location
+- Some features may be limited (distance calculations, nearby providers)
+- IP-based location may still be used for basic functionality
+
+### Data Retention
+- **Active Location Data**: Current location for service matching
+- **Location History**: Retained for 24 months for dispute resolution
+- **Consent Records**: Retained for 7 years for legal compliance
+- **Deleted Upon Request**: Subject to legal retention requirements
+
+### International Transfers
+If you're located outside our primary jurisdiction, your location data may be transferred internationally. We ensure adequate protection through:
+- Standard Contractual Clauses (SCCs)
+- Adequacy decisions where applicable
+- Additional safeguards as required by law
+
+### Changes to Location Privacy
+We will notify you of material changes to how we handle location data:
+- Email notification to registered users
+- Prominent notice on our website
+- Updated consent flow for new permissions
+
+### Contact & Complaints
+For location privacy concerns:
+- **Email**: privacy@yourapp.com
+- **Data Protection Officer**: dpo@yourapp.com
+- **Postal Address**: [Your business address]
+
+You also have the right to lodge a complaint with your local data protection authority.
+
+### Technical Details
+- **Accuracy**: GPS typically accurate to 5-10 meters
+- **Update Frequency**: Location updated only when you use our services
+- **Cache Duration**: Browser may cache location for up to 5 minutes
+- **Fallback**: IP location accurate to approximately 50km radius
+
+---
+
+*Last updated: [Date]*
+*This policy supplements our main Privacy Policy and Terms of Service.* -->
+
+
+
+
+
+
+
+<!-- // Fetch nearby users when consent is granted
+    useEffect(() => {
+        if (
+            consentStatus.cookieConsent === 'accepted' &&
+            consentStatus.locationConsent === true
+        ) {
+            fetchNearbyUsers();
+        }
+    }, [consentStatus.cookieConsent, consentStatus.locationConsent]); -->
+
+<!-- const fetchNearbyUsers = async () => {
+        try {
+            const response = await fetch('/api/nearby-users', {
+                headers: {
+                    'X-CSRF-TOKEN':
+                        document
+                            .querySelector('meta[name="csrf-token"]')
+                            ?.getAttribute('content') || '',
+                },
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    setNearbyUsers(data.nearby_users);
+                    setHasUserLocation(data.has_user_location);
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching nearby users:', error);
+        }
+    }; -->
+
+<!-- interface NearbyUser {
+    id: number;
+    name: string;
+    distance_km: number | null;
+    location_accuracy: number | null;
+    location_updated_at: string | null;
+    has_location: boolean;
+} -->
+
+<!-- const [nearbyUsers, setNearbyUsers] = useState<NearbyUser[]>([]);
+const [hasUserLocation, setHasUserLocation] = useState<boolean>(false); -->
+
+<!-- const getLocationStatusDisplay = () => {
+        switch (consentStatus.locationStatus) {
+            case 'granted':
+                return {
+                    icon: '✅',
+                    text:
+                        consentStatus.locationDetails?.method === 'ip'
+                            ? 'Approximate location enabled (IP-based)'
+                            : 'Location enabled',
+                    color: 'text-green-600',
+                };
+            case 'denied':
+                return {
+                    icon: '❌',
+                    text: 'Location access declined',
+                    color: 'text-red-600',
+                };
+            case 'loading':
+                return {
+                    icon: '⏳',
+                    text: 'Getting your location...',
+                    color: 'text-yellow-600',
+                };
+            case 'unavailable':
+                return {
+                    icon: '⚠️',
+                    text: 'Location services unavailable',
+                    color: 'text-gray-600',
+                };
+            default:
+                return {
+                    icon: '📍',
+                    text: 'Location access not determined',
+                    color: 'text-gray-600',
+                };
+        }
+    };
+
+    const locationDisplay = getLocationStatusDisplay(); -->
+
+
+
+<!-- {/* Status indicator - always visible after initial consent */}
+            {consentStatus.cookieConsent && (
+                <div className="fixed bottom-4 left-4 z-50 max-w-sm rounded-lg border bg-white p-3 shadow-lg dark:bg-gray-800">
+                    <div className="text-sm">
+                        <div className="mb-2 flex items-center gap-2">
+                            <span>🍪</span>
+                            <span className="text-green-600">
+                                Cookies: {consentStatus.cookieConsent}
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <span>{locationDisplay.icon}</span>
+                            <span className={locationDisplay.color}>
+                                {locationDisplay.text}
+                            </span>
+                        </div>
+                        {consentStatus.locationDetails && (
+                            <div className="mt-1 text-xs text-gray-500">
+                                Accuracy:{' '}
+                                {consentStatus.locationDetails.accuracy}m |
+                                Updated:{' '}
+                                {consentStatus.locationDetails.timestamp}
+                            </div>
+                        )}
+                        {consentStatus.locationStatus === 'denied' && (
+                            <div className="mt-2 text-xs text-gray-600">
+                                Distance calculations and nearby suggestions
+                                will be limited.
+                                <button
+                                    onClick={() => handleLocationConsent(true)}
+                                    className="ml-1 text-blue-600 underline"
+                                >
+                                    Enable location
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* Nearby Users List */}
+            {consentStatus.cookieConsent && (
+                <div className="fixed bottom-4 right-4 z-50 max-w-sm rounded-lg border bg-white p-3 shadow-lg dark:bg-gray-800">
+                    <h3 className="mb-2 text-lg font-semibold">Nearby Users</h3>
+                    {!hasUserLocation && (
+                        <p className="text-sm text-gray-600">
+                            Your location is unavailable. Distances cannot be
+                            calculated.
+                        </p>
+                    )}
+                    {nearbyUsers.length === 0 && (
+                        <p className="text-sm text-gray-600">No users found.</p>
+                    )}
+                    <ul className="space-y-2 text-sm">
+                        {nearbyUsers.map((user) => (
+                            <li
+                                key={user.id}
+                                className="flex items-center gap-2"
+                            >
+                                <span>👤</span>
+                                <span>{user.name}</span>
+                                <span className="text-gray-500">
+                                    {user.has_location &&
+                                    user.distance_km !== null
+                                        ? `${user.distance_km} km away`
+                                        : 'Location unavailable'}
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )} -->

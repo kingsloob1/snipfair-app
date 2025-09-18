@@ -1,0 +1,92 @@
+<h2>Snipfair Privacy Policy (POPIA Compliant)</h2>
+<p><strong>Effective Date:</strong> 1 September 2025</p>
+<p><strong>Last Updated:</strong> 23 July 2025</p>
+
+<h3>Introduction</h3>
+<p>Snipfair (Pty) Ltd (“Snipfair”, “we”, “our”, or “us”) is committed to protecting your privacy and ensuring the confidentiality of your personal information in compliance with the Protection of Personal Information Act 4 of 2013 ("POPIA").</p>
+<p>This Privacy Policy explains how we collect, use, disclose, and safeguard your personal information when you use our platform (mobile app, website, and services).</p>
+
+<h3>1. What Information We Collect</h3>
+<h3>a. From Stylists:</h3>
+<ul>
+    <li>Full name</li>
+    <li>Identity number or business registration info</li>
+    <li>Phone number and email</li>
+    <li>Bank account details (for payouts)</li>
+    <li>Profile photos and qualifications</li>
+    <li>Geolocation during active bookings</li>
+</ul>
+<h3>b. From Clients:</h3>
+<ul>
+    <li>Full name</li>
+    <li>Phone number and email address</li>
+    <li>Booking details</li>
+    <li>Home or service location</li>
+    <li>Payment method (via secure third-party processors)</li>
+</ul>
+
+<h3>2. How We Use Your Information</h3>
+<p>We use your personal information to:</p>
+<ul>
+    <li>Facilitate bookings and service delivery</li>
+    <li>Match clients with available stylists</li>
+    <li>Process payments and issue stylist payouts</li>
+    <li>Manage accounts and support queries</li>
+    <li>Ensure platform safety and service quality</li>
+    <li>Comply with legal obligations</li>
+</ul>
+
+<h3>3. Data Storage & Security</h3>
+<ul>
+    <li>Your data is stored on secure, encrypted servers</li>
+    <li>We limit access to your data to authorised Snipfair personnel only</li>
+    <li>Industry-standard security protocols are used to prevent unauthorised access, loss, or misuse</li>
+</ul>
+
+<h3>4. Disclosure to Third Parties</h3>
+<p>We do not sell or rent your personal information.</p>
+<p>We only share your data with:</p>
+<ul>
+    <li>Payment service providers (to process secure payments)</li>
+    <li>Regulatory authorities if required by law</li>
+    <li>Stylists/clients (only the minimum info needed for confirmed bookings)</li>
+</ul>
+
+<h3>5. Location Data</h3>
+<p>If you are a stylist, Snipfair may collect your location when you are active on the platform to show nearby availability. Clients' addresses are only visible to stylists during confirmed bookings.</p>
+
+<h3>6. Cookies & Usage Data</h3>
+<p>Our website and app may use cookies to:</p>
+<ul>
+    <li>Improve user experience</li>
+    <li>Monitor app performance</li>
+    <li>Track analytics</li>
+</ul>
+<p>You may disable cookies in your browser settings, but this may affect platform functionality.</p>
+
+<h3>7. Your Rights Under POPIA</h3>
+<p>As a South African user, you have the right to:</p>
+<ul>
+    <li>Access your personal information</li>
+    <li>Correct or update your information</li>
+    <li>Object to processing of your information</li>
+    <li>Lodge a complaint with the Information Regulator (South Africa)</li>
+</ul>
+<p>To exercise your rights, email us at: <a href="mailto:privacy@snipfair.com">privacy@snipfair.com</a></p>
+
+<h3>8. Data Retention</h3>
+<p>We retain your personal information only as long as necessary for:</p>
+<ul>
+    <li>Providing our services</li>
+    <li>Meeting legal requirements</li>
+    <li>Resolving disputes and enforcing our terms</li>
+</ul>
+<p>Afterward, we securely delete or anonymise your data.</p>
+
+<h3>9. Information Officer</h3>
+<p><strong>Name:</strong> Snipfair’s Registered Information Officer</p>
+<p><strong>Email:</strong> <a href="mailto:privacy@snipfair.com">privacy@snipfair.com</a></p>
+<p>Snipfair has appointed an Information Officer in compliance with POPIA. All data requests or concerns must be directed to this contact.</p>
+
+<h3>10. Changes to This Policy</h3>
+<p>We may update this Privacy Policy from time to time. You will be notified of any material changes. Continued use of the platform indicates acceptance of the revised policy.</p>

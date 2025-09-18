@@ -1,0 +1,21 @@
+User-agent: *
+Allow: /
+
+Disallow: /admin/
+Disallow: /customer/
+Disallow: /stylist/
+Disallow: /profile/
+Disallow: /dashboard/
+Disallow: /login/
+Disallow: /register/
+Disallow: /reset-password/
+Disallow: /verify-email/
+Disallow: /chat/
+Disallow: /disputes/
+Disallow: /support/
+
+Allow: /images/
+Allow: /css/
+Allow: /js/
+
+Sitemap: http://localhost:8000/sitemap.xml
