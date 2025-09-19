@@ -36,3 +36,17 @@ Schedule::command('seo:generate-sitemap')
     ->daily()
     ->withoutOverlapping()
     ->runInBackground();
+
+Schedule::command('sanctum:prune-expired --hours=24')->daily();
+
+$testSchedulerLogPath = __DIR__ . '/../storage/logs/test-scheduler.log';
+Artisan::command('test:scheduler', function () use ($testSchedulerLogPath) {
+    shell_exec('touch ' . $testSchedulerLogPath);
+    $this->comment(Inspiring::quote());
+})
+    ->purpose('Display an inspiring quote')
+    ->appendOutputTo($testSchedulerLogPath)
+    ->runInBackground()
+    ->withoutOverlapping()
+    ->environments(['development'])
+    ->everyFiveMinutes();

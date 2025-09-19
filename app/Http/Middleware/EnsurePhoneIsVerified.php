@@ -16,6 +16,13 @@ class EnsurePhoneIsVerified
     public function handle(Request $request, Closure $next): Response
     {
         if (!$request->user() || is_null($request->user()->phone_verified_at)) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => 'Please verify your phone number to continue',
+                    'code' => 'VERIFY_PHONE'
+                ], Response::HTTP_FORBIDDEN);
+            }
+
             return redirect()->route('verification.notice');
         }
 

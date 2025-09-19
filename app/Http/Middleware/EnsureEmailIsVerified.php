@@ -6,7 +6,7 @@ use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
-class EnsureIsStylist
+class EnsureEmailIsVerified
 {
     /**
      * Handle an incoming request.
@@ -15,15 +15,16 @@ class EnsureIsStylist
      */
     public function handle(Request $request, Closure $next): Response
     {
-        if (!$request->user() || $request->user()->role !== 'stylist') {
+        $user = $request->user();
+        if (!$user || !$user->hasVerifiedEmail()) {
             if ($request->expectsJson()) {
                 return response()->json([
-                    'message' => 'Ooops.. You must be a stylist to access this resource',
-                    'code' => 'ONLY_STYLIST_RESOURCE'
+                    'message' => 'Please verify your email address to continue',
+                    'code' => 'VERIFY_EMAIL'
                 ], Response::HTTP_FORBIDDEN);
             }
 
-            return redirect()->route('home')->with('info', 'You must be a stylist to access this page.');
+            return redirect()->route('verification.notice');
         }
 
         return $next($request);

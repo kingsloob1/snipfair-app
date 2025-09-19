@@ -15,13 +15,18 @@ class AdminAuthenticate
             if ($request->expectsJson()) {
                 return response()->json(['message' => 'Unauthenticated.'], 401);
             }
+
             return redirect()->route('admin.login');
         }
 
         $admin = Auth::guard('admin')->user();
-        
+
         if (!$admin->is_active) {
             Auth::guard('admin')->logout();
+            if ($request->expectsJson()) {
+                return response()->json(['message' => 'Account is inactive.'], 403);
+            }
+
             return redirect()->route('admin.login')->with('error', 'Account is inactive.');
         }
 

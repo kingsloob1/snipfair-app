@@ -45,13 +45,13 @@ class StylistController extends Controller
             // 'name' => 'required|string|max:255',
             'first_name' => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
-            'email' => 'required|string|lowercase|email|max:255|unique:'.User::class,
+            'email' => 'required|string|lowercase|email|max:255|unique:' . User::class,
             'phone' => 'required|string|max:255',
             // 'country' => 'bio'
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
-        if(!getAdminConfig('allow_registration_stylists')){
+        if (!getAdminConfig('allow_registration_stylists')) {
             return back()->with('error', 'Registration is disabled currently, try again later or contact support if issue persists');
         }
 
@@ -143,7 +143,7 @@ class StylistController extends Controller
 
         if ($hasVerification) {
             $status = session('stylist_profile'); //dd('y', $status);
-            if ($status === 'completed'){
+            if ($status === 'completed') {
                 return Inertia::render('Auth/Stylist/Complete', [
                     'stylist_status' => $status,
                 ]);
@@ -155,7 +155,8 @@ class StylistController extends Controller
         return redirect()->route('stylist.dashboard');
     }
 
-    public function completeSkill(Request $request){
+    public function completeSkill(Request $request)
+    {
         $user = $request->user();
 
         if (!$user) {
@@ -169,12 +170,13 @@ class StylistController extends Controller
             'bio' => 'nullable|sometimes|string|min:25',
         ]);
 
-        if($request->business_name && Stylist::where('business_name', $request->business_name)->exists()){
+        if ($request->business_name && Stylist::where('business_name', $request->business_name)->exists()) {
             return back()->withErrors(['business_name' => 'This business name is already taken.']);
         }
 
         $user->country = $request->country;
-        if($request->bio) $user->bio = $request->bio;
+        if ($request->bio)
+            $user->bio = $request->bio;
         $user->save();
 
         $user->stylist_profile()->firstOrCreate(
@@ -185,10 +187,15 @@ class StylistController extends Controller
             ]
         );
 
+        if ($request->expectsJson()) {
+            return response()->noContent();
+        }
+
         return redirect()->route('stylist.complete');
     }
 
-    public function completeIdentity(Request $request){
+    public function completeIdentity(Request $request)
+    {
         $user = $request->user();
         $stylist = $user->stylist_profile;
 
@@ -223,10 +230,15 @@ class StylistController extends Controller
         $stylist->identification_file = $portfolioUrls[0];
         $stylist->save();
 
+        if ($request->expectsJson()) {
+            return response()->noContent();
+        }
+
         return redirect()->route('stylist.complete');
     }
 
-    public function completeSuccess(Request $request){
+    public function completeSuccess(Request $request)
+    {
         $user = $request->user();
         $stylist = $user->stylist_profile;
 
@@ -242,7 +254,8 @@ class StylistController extends Controller
         return redirect()->route('stylist.complete')->with('stylist_profile', 'completed');
     }
 
-    public function profileUpdate(Request $request){
+    public function profileUpdate(Request $request)
+    {
         $user = $request->user();
         $stylist = $user->stylist_profile;
 
@@ -295,7 +308,8 @@ class StylistController extends Controller
         ]);
     }
 
-    public function saveWork(Request $request){
+    public function saveWork(Request $request)
+    {
         $user = $request->user();
         $stylist = $user->stylist_profile;
 
@@ -314,10 +328,10 @@ class StylistController extends Controller
             'media.*' => 'file|mimes:jpg,jpeg,png,gif|max:5120',
         ]);
 
-        if($request->price < getAdminConfig('min_booking_amount')){
+        if ($request->price < getAdminConfig('min_booking_amount')) {
             return back()->with('error', 'Minimum booking amount is R' . getAdminConfig('min_booking_amount'));
         }
-        if($request->price > getAdminConfig('max_booking_amount')){
+        if ($request->price > getAdminConfig('max_booking_amount')) {
             return back()->with('error', 'Maximum booking amount is R' . getAdminConfig('max_booking_amount'));
         }
 
@@ -329,7 +343,7 @@ class StylistController extends Controller
             }
         }
 
-        if(!$category = Category::where('name', $validated['category'])->first()){
+        if (!$category = Category::where('name', $validated['category'])->first()) {
             return back()->with('success', 'Something went wrong');
         }
 
@@ -344,11 +358,14 @@ class StylistController extends Controller
             'user_id' => $user->id,
         ]);
 
-        if($work) return redirect()->route('stylist.work')->with('success', 'Work created successfully!');
-        else return back()->with('success', 'Something went wrong');
+        if ($work)
+            return redirect()->route('stylist.work')->with('success', 'Work created successfully!');
+        else
+            return back()->with('success', 'Something went wrong');
     }
 
-    public function editWork(Request $request, $id){
+    public function editWork(Request $request, $id)
+    {
         $work = Portfolio::with('category')->findOrFail($id);
         $user = $request->user();
         $stylist = $user->stylist_profile;
@@ -382,10 +399,10 @@ class StylistController extends Controller
             'tags' => 'required|string',
         ]);
 
-        if($request->price < getAdminConfig('min_booking_amount')){
+        if ($request->price < getAdminConfig('min_booking_amount')) {
             return back()->with('error', 'Minimum booking amount is R' . getAdminConfig('min_booking_amount'));
         }
-        if($request->price > getAdminConfig('max_booking_amount')){
+        if ($request->price > getAdminConfig('max_booking_amount')) {
             return back()->with('error', 'Maximum booking amount is R' . getAdminConfig('max_booking_amount'));
         }
 
@@ -495,9 +512,15 @@ class StylistController extends Controller
             'user_bio' => $user->bio !== null && $user->bio !== '',
             'user_banner' => $user->stylist_profile?->banner !== null && $user->stylist_profile?->banner !== '',
         ];
+
         $profile_link = getSlug($user->id);
-        $profile_link = url('/link/'.$profile_link);
-        return Inertia::render('Stylist/Profile/Index', [
+        $profile_link = url('/link/' . $profile_link);
+
+        $user_avatar_url = $user->avatar ? asset('storage/' . $user->avatar) : null;
+
+        $user_banner_url = $user->stylist_profile?->banner ? asset(path: 'storage/' . $user->stylist_profile->banner) : null;
+
+        $respData = [
             'user' => $user,
             'portfolios' => $user->portfolios()->get(),
             'services' => Category::all()->pluck('name'),
@@ -513,7 +536,15 @@ class StylistController extends Controller
             'certifications' => $user->stylist_certifications()->get(),
             'profile_completeness' => $profile_completeness,
             'profile_link' => $profile_link,
-        ]);
+            'user_avatar_url' => $user_avatar_url,
+            'user_banner_url' => $user_banner_url
+        ];
+
+        if ($request->expectsJson()) {
+            return $respData;
+        }
+
+        return Inertia::render('Stylist/Profile/Index', $respData);
     }
 
     public function certificationCreate(Request $request)
@@ -555,7 +586,8 @@ class StylistController extends Controller
         }
     }
 
-    public function avatarUpdate(Request $request){
+    public function avatarUpdate(Request $request)
+    {
         $request->validate([
             'avatar' => ['required', 'image', 'max:2048'],
         ]);
@@ -573,7 +605,8 @@ class StylistController extends Controller
         return redirect()->back()->with('success', 'Avatar updated successfully.');
     }
 
-    public function bannerUpdate(Request $request){
+    public function bannerUpdate(Request $request)
+    {
         $request->validate([
             'avatar' => ['required', 'image', 'max:2048'],
         ]);
@@ -605,7 +638,7 @@ class StylistController extends Controller
             abort(403, 'Access Denied');
         }
 
-        if($request->completeness == 9 && $request->status == 'false'){
+        if ($request->completeness == 9 && $request->status == 'false') {
             $stylist->update([
                 'is_available' => false,
                 'status' => 'pending',

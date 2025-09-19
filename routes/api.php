@@ -1,7 +1,11 @@
 <?php
 
+use App\Http\Controllers\Api\GeneralController as ApiGeneralController;
+use App\Http\Controllers\Auth\ApiAuthController;
 use App\Http\Controllers\LocationServiceController;
 use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\StylistController;
+use App\Http\Controllers\Stylist\AppointmentController as StylistAppointmentController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -15,6 +19,111 @@ use Illuminate\Support\Facades\Route;
 | be assigned to the "api" middleware group. Make something great!
 |
 */
+
+// Mobile App API Routes Start
+Route::middleware('api')->group(function () {
+    //Get platform config
+    Route::get('platform-settings', [ApiGeneralController::class, 'getPlatformSettings'])->middleware(['throttle:1,1']);
+
+    //Login
+    Route::post('login', [ApiAuthController::class, 'login']);
+
+    //Register Customer
+    Route::post('register/customer', [ApiAuthController::class, 'registerCustomer']);
+
+    //Register stylists
+    Route::post('register/stylist', [ApiAuthController::class, 'registerStylist']);
+
+    //Forgot password
+    Route::post('forgot-password', [ApiAuthController::class, 'forgotPassword']);
+
+    //Ensure authenticated
+    Route::middleware('auth:sanctum')->group(function () {
+        //Authenticated user routes
+        Route::prefix('/user')->group(function () {
+            //Get user profile
+            Route::get('', [ApiAuthController::class, 'getUserFromRequest']);
+
+            //Logout user
+            Route::post('/logout', action: [ApiAuthController::class, 'logout']);
+
+            //Verify email otp
+            Route::post('/verify-email-otp', [ApiAuthController::class, 'verifyUserEmailFromOtp'])
+                ->middleware(['throttle:6,1']);
+
+            //Resend email otp
+            Route::post('/resend-email-otp', [ApiAuthController::class, 'resendVerificationOtp'])
+                ->middleware(['throttle:6,1']);
+
+            //Update user password
+            Route::patch('password', [ApiAuthController::class, 'updatePassword'])
+                ->middleware('profile.complete');
+
+            Route::group(['prefix' => '/location'], function () {
+                //update location consent status
+                Route::post('/consent', [LocationServiceController::class, 'recordLocationConsent']);
+
+                //get location consent status
+                Route::get('/consent', [LocationServiceController::class, 'getLocationConsentStatus']);
+
+                //Update user location
+                Route::patch('', [LocationServiceController::class, 'updateLocation']);
+
+                //Update user location based on requester IP address
+                Route::post('/update-by-ip-address', [LocationServiceController::class, 'updateIPLocation']);
+
+                //calculate location distance between authticated user and another user (possibly a stylist)
+                Route::post('/distance/{user}', [LocationServiceController::class, 'calculateDistance']);
+
+                //get nearby users possibly stylists
+                Route::get('/nearby-users', [LocationServiceController::class, 'findNearbyUsers']);
+            });
+        });
+
+        //Stylist routes
+        Route::group(['prefix' => '/stylist', 'middleware' => ['is.stylist', 'email.verified']], function () {
+            //Update skill
+            Route::patch('basic/profile', [StylistController::class, 'completeSkill']);
+
+            //Update Identification documents
+            Route::patch('/identity', [StylistController::class, 'completeIdentity']);
+
+            //Complete stylist profile routes
+            Route::group(['middleware' => 'profile.complete'], function () {
+                // Get stylist profile data
+                Route::get('/profile', [StylistController::class, 'profile']);
+
+                // Get pending stylist schedules
+                Route::get('/pending-appointments', [StylistAppointmentController::class, 'getPendingAppointments']);
+
+                // Get pending stylist schedules
+                Route::get('/pending-appointments', [StylistAppointmentController::class, 'getPendingAppointments']);
+            });
+        });
+
+        //Stylist routes
+        Route::group(['prefix' => '/appointe', 'middleware' => ['is.stylist', 'email.verified']], function () {
+
+        });
+
+
+        //Ensure email is valid and verified
+        Route::middleware('email.verified')->group(function () {
+
+
+            //Customer routes
+            Route::prefix('/customer')->middleware('is.customer')->group(function () {
+                //Update skill
+                Route::post('/complete/skill', [StylistController::class, 'completeSkill']);
+
+                //Update Identification documents
+                Route::post('/complete/identity', [StylistController::class, 'completeIdentity']);
+            });
+        });
+    });
+});
+// Mobile App API Routes End
+
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();

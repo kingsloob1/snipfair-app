@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Admin;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -18,6 +19,9 @@ class AdminRole
             return redirect()->route('admin.login');
         }
 
+        /**
+         * @var Admin
+         */
         $admin = Auth::guard('admin')->user();
 
         if (!$admin->hasAnyRole($roles)) {

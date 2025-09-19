@@ -16,7 +16,14 @@ class EnsureStylistProfile
     public function handle(Request $request, Closure $next): Response
     {
         if (!$request->user() || $request->user()->role !== 'stylist' || !$request->user()->stylist_profile) {
-            return redirect()->route('home');
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => 'Ooops.. Only stylists with valid profile can access this resource',
+                    'code' => 'NO_STYLIST_PROFILE'
+                ], Response::HTTP_FORBIDDEN);
+            }
+
+            return redirect()->route('home')->with('info', 'You must be a stylist with a valid profile to access this page.');
         }
 
         return $next($request);

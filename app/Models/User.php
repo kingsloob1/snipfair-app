@@ -10,11 +10,12 @@ use App\Notifications\EmailVerificationOtp as EmailVerificationOtpNotification;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Support\Carbon;
+use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, SoftDeletes;
+    use HasFactory, Notifiable, SoftDeletes, HasApiTokens;
 
     /**
      * The attributes that are mass assignable.
@@ -104,11 +105,13 @@ class User extends Authenticatable implements MustVerifyEmail
         return !is_null($this->email_verified_at);
     }
 
-    public function stylist_profile(){
+    public function stylist_profile()
+    {
         return $this->hasOne(Stylist::class);
     }
 
-    public function customer_profile(){
+    public function customer_profile()
+    {
         return $this->hasOne(CustomerProfile::class);
     }
 
@@ -217,15 +220,18 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasMany(Transaction::class);
     }
 
-    public function used_rewards(){
+    public function used_rewards()
+    {
         return $this->hasMany(UsedReward::class);
     }
 
-    public function user_reward(){
+    public function user_reward()
+    {
         return $this->hasOne(UserReward::class);
     }
 
-    public function withdrawals(){
+    public function withdrawals()
+    {
         return $this->hasMany(Withdrawal::class);
     }
 
@@ -388,7 +394,7 @@ class User extends Authenticatable implements MustVerifyEmail
         }
 
         // Find the most common time slot (the one with the most days)
-        $mostCommonTimeSlot = array_reduce(array_keys($timeSlotGroups), function($carry, $timeSlot) use ($timeSlotGroups) {
+        $mostCommonTimeSlot = array_reduce(array_keys($timeSlotGroups), function ($carry, $timeSlot) use ($timeSlotGroups) {
             return !$carry || count($timeSlotGroups[$timeSlot]) > count($timeSlotGroups[$carry]) ? $timeSlot : $carry;
         });
 
@@ -396,7 +402,7 @@ class User extends Authenticatable implements MustVerifyEmail
 
         // Sort days in order
         $dayOrder = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-        usort($days, function($a, $b) use ($dayOrder) {
+        usort($days, function ($a, $b) use ($dayOrder) {
             return array_search($a, $dayOrder) - array_search($b, $dayOrder);
         });
 
@@ -413,7 +419,7 @@ class User extends Authenticatable implements MustVerifyEmail
             $isConsecutive = true;
             for ($i = 1; $i < count($days); $i++) {
                 $currentIndex = array_search($days[$i], $dayOrder);
-                $previousIndex = array_search($days[$i-1], $dayOrder);
+                $previousIndex = array_search($days[$i - 1], $dayOrder);
                 if ($currentIndex !== $previousIndex + 1) {
                     $isConsecutive = false;
                     break;

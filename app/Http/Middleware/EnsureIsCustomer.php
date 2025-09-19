@@ -16,6 +16,13 @@ class EnsureIsCustomer
     public function handle(Request $request, Closure $next): Response
     {
         if (!$request->user() || $request->user()->role !== 'customer') {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => 'Ooops.. You must be a customer to access this resource',
+                    'code' => 'ONLY_CUSTOMER_RESOURCE'
+                ], Response::HTTP_FORBIDDEN);
+            }
+
             return redirect()->route('home')->with('info', 'You must be a customer to access this page.');
         }
 
