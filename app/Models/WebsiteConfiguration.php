@@ -57,6 +57,9 @@ class WebsiteConfiguration extends Model
         'appointment_canceling_percentage' => 'float',
         'appointment_canceling_threshold' => 'float',
         'commission_rate' => 'float',
+        'professional_stylists' => 'float',
+        'happy_customers' => 'float',
+        'services_completed' => 'float',
         'customer_satisfaction' => 'float',
     ];
 
