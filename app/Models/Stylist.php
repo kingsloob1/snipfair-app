@@ -23,6 +23,7 @@ class Stylist extends Model
     ];
 
     protected $casts = [
+        'visits_count' => 'float',
         'is_available' => 'boolean',
         'socials' => 'array',
         'works' => 'array',
@@ -36,7 +37,8 @@ class Stylist extends Model
         return $value ?? [];
     }
 
-    public function user(){
+    public function user()
+    {
         return $this->belongsTo(User::class);
     }
 

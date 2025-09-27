@@ -52,8 +52,10 @@ class WebsiteConfiguration extends Model
         'content_moderation' => 'boolean',
         'min_booking_amount' => 'float',
         'max_booking_amount' => 'float',
+        "appointment_reschedule_threshold" => "float",
         'appointment_reschedule_percentage' => 'float',
         'appointment_canceling_percentage' => 'float',
+        'appointment_canceling_threshold' => 'float',
         'commission_rate' => 'float',
         'customer_satisfaction' => 'float',
     ];

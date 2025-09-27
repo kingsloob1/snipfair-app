@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Stylist;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\StylistController;
 use App\Mail\WithdrawalNotificationEmail;
 use App\Models\Appointment;
 use Illuminate\Http\Request;
@@ -13,7 +14,15 @@ use Illuminate\Validation\Rule;
 
 class DashboardController extends Controller
 {
-    public function index(Request $request){
+    private $stylistController;
+
+    public function __construct(StylistController $stylistController)
+    {
+        $this->stylistController = $stylistController;
+    }
+
+    public function index(Request $request)
+    {
         $totalEarnings = $request->user()->transactions()
             ->where('type', 'earning')
             ->where('status', 'completed')
@@ -109,9 +118,10 @@ class DashboardController extends Controller
         ]);
     }
 
-    public function earningIndex(Request $request){
+    public function earningIndex(Request $request)
+    {
         $user = $request->user();
-        
+
         // Current period (this month)
         $currentMonth = now()->startOfMonth();
         $totalEarnings = $user->transactions()
@@ -139,8 +149,8 @@ class DashboardController extends Controller
         $earningsChangeText = 'No previous data';
         if ($lastMonthEarnings > 0) {
             $earningsChange = (($currentMonthEarnings - $lastMonthEarnings) / $lastMonthEarnings) * 100;
-            $earningsChangeText = abs($earningsChange) < 0.01 
-                ? 'Same as last month' 
+            $earningsChangeText = abs($earningsChange) < 0.01
+                ? 'Same as last month'
                 : ($earningsChange > 0 ? 'Up from last month' : 'Down from last month');
         } elseif ($currentMonthEarnings > 0) {
             $earningsChange = 100;
@@ -150,7 +160,7 @@ class DashboardController extends Controller
         $totalBalance = $user->balance ?? 0;
         $totalWithdrawn = $user->withdrawals()->where('status', 'approved')->sum('amount') ?? 0;
         $totalEarnings = $totalBalance + $totalWithdrawn;
-        
+
         // Get this week's withdrawals for comparison
         $thisWeekStart = now()->startOfWeek();
         $thisWeekWithdrawn = $user->withdrawals()
@@ -170,8 +180,8 @@ class DashboardController extends Controller
         $withdrawnChangeText = 'No previous data';
         if ($lastWeekWithdrawn > 0) {
             $withdrawnChange = (($thisWeekWithdrawn - $lastWeekWithdrawn) / $lastWeekWithdrawn) * 100;
-            $withdrawnChangeText = abs($withdrawnChange) < 0.01 
-                ? 'Same as last week' 
+            $withdrawnChangeText = abs($withdrawnChange) < 0.01
+                ? 'Same as last week'
                 : ($withdrawnChange > 0 ? 'Up from last week' : 'Down from last week');
         } elseif ($thisWeekWithdrawn > 0) {
             $withdrawnChange = 100;
@@ -179,14 +189,14 @@ class DashboardController extends Controller
         }
 
         $totalRequests = $user->withdrawals()->where('status', 'pending')->count() ?? 0;
-        
+
         // Get yesterday's balance for comparison (if available)
         $yesterdayTransaction = $user->transactions()
             ->where('created_at', '>=', now()->subDay()->startOfDay())
             ->where('created_at', '<', now()->startOfDay())
             ->latest()
             ->first();
-        
+
         $balanceChange = 0;
         $balanceChangeText = 'No recent activity';
         if ($yesterdayTransaction) {
@@ -202,27 +212,27 @@ class DashboardController extends Controller
 
         //appountment_pouches:status->holding,transactions:withdraw,refund,earning
         $transactions = $user->transactions()
-        ->with(['appointment.customer'])
-        ->whereIn('type', ['withdraw', 'refund', 'earning'])
-        ->latest()
-        ->get()
-        ->map(function ($transaction) use ($user) {
-            $isSelf = in_array($transaction->type, ['withdraw', 'refund']);
-            $customer = !$isSelf ? $transaction->appointment?->customer : $user;
+            ->with(['appointment.customer'])
+            ->whereIn('type', ['withdraw', 'refund', 'earning'])
+            ->latest()
+            ->get()
+            ->map(function ($transaction) use ($user) {
+                $isSelf = in_array($transaction->type, ['withdraw', 'refund']);
+                $customer = !$isSelf ? $transaction->appointment?->customer : $user;
 
-            return [
-                'id' => $transaction->id,
-                'name' => $isSelf ? 'Me' : ($customer?->name ?? 'N/A'),
-                'email' => $customer?->email ?? 'N/A',
-                'requestId' => $transaction->ref,
-                'purpose' => Str::title($transaction->type),
-                'requestTime' => $transaction->created_at->format('M d, Y, H:i:s'),
-                'amount' => number_format($transaction->amount, 2),
-                'status' => Str::title($transaction->status),
-                'avatar' => $this->getAvatar($customer),
-                'source' => 'transaction'
-            ];
-        });
+                return [
+                    'id' => $transaction->id,
+                    'name' => $isSelf ? 'Me' : ($customer?->name ?? 'N/A'),
+                    'email' => $customer?->email ?? 'N/A',
+                    'requestId' => $transaction->ref,
+                    'purpose' => Str::title($transaction->type),
+                    'requestTime' => $transaction->created_at->format('M d, Y, H:i:s'),
+                    'amount' => number_format($transaction->amount, 2),
+                    'status' => Str::title($transaction->status),
+                    'avatar' => $this->getAvatar($customer),
+                    'source' => 'transaction'
+                ];
+            });
 
         // Get appointment pouches with holding status
         $appointmentPouches = $user->pouches()
@@ -261,13 +271,14 @@ class DashboardController extends Controller
         $method = null;
         if ($payment_methods) {
             $default_method = $payment_methods->where('is_default', true)->first();
-            if(!$default_method) {
+            if (!$default_method) {
                 $first = $payment_methods->first();
-                if($first) $first->update(['is_default' => true]);
+                if ($first)
+                    $first->update(['is_default' => true]);
                 $default_method = $payment_methods->first();
             }
 
-            if($default_method){
+            if ($default_method) {
                 $method = array_merge($default_method->toArray(), [
                     'bank' => $default_method->bank_name,
                     'account' => $this->maskAccountNumber($default_method->account_number),
@@ -276,7 +287,7 @@ class DashboardController extends Controller
             }
         }
 
-        return Inertia::render('Stylist/Earnings/Index', [
+        $resp = [
             'statistics' => [
                 'total_earnings' => [
                     'value' => $totalEarnings,
@@ -314,23 +325,34 @@ class DashboardController extends Controller
                 ]);
             }),
             'settings' => $setting,
-        ]);
+        ];
+
+        if ($request->expectsJson()) {
+            return $resp;
+        }
+
+        return Inertia::render('Stylist/Earnings/Index', $resp);
     }
 
-    public function earningMethods(Request $request){
+    public function earningMethods(Request $request)
+    {
         $user = $request->user();
         $payment_methods = $user->stylistPaymentMethods()->orderBy('created_at', 'desc')->get();
         if (!$payment_methods) {
             $methods = [];
         } else {
             $methods = $payment_methods->map(function ($method) {
-                    return array_merge($method->toArray(), [
-                        'bank' => $method->bank_name,
-                        'account' => $this->maskAccountNumber($method->account_number),
-                        'routing' => $this->maskRoutingNumber($method->routing_number),
-                    ]);
-                })
+                return array_merge($method->toArray(), [
+                    'bank' => $method->bank_name,
+                    'account' => $this->maskAccountNumber($method->account_number),
+                    'routing' => $this->maskRoutingNumber($method->routing_number),
+                ]);
+            })
                 ->toArray();
+        }
+
+        if ($request->expectsJson()) {
+            return $methods;
         }
 
         return Inertia::render('Stylist/Earnings/Methods', [
@@ -338,21 +360,29 @@ class DashboardController extends Controller
         ]);
     }
 
-    public function accountSettings(Request $request){
+    public function accountSettings(Request $request)
+    {
         $user = $request->user();
         // $setting = $user->stylistSetting;
         return Inertia::render('Stylist/Settings/Account');
     }
 
-    public function earningSettings(Request $request){
+    public function earningSettings(Request $request)
+    {
         $user = $request->user();
         $setting = $user->stylistSetting;
+
+        if ($request->expectsJson()) {
+            return $setting;
+        }
+
         return Inertia::render('Stylist/Settings/Earnings', [
             'settings' => $setting,
         ]);
     }
 
-    public function earningsSettingsUpdate(Request $request){
+    public function earningsSettingsUpdate(Request $request)
+    {
         $user = $request->user();
         $validated = $request->validate([
             'automatic_payout' => ['required', 'boolean'],
@@ -363,16 +393,22 @@ class DashboardController extends Controller
 
         $user->stylistSetting()->update($validated);
 
+        if ($request->expectsJson()) {
+            return response()->noContent();
+        }
+
         return redirect()->back()->with('success', 'Payout settings updated successfully.');
     }
 
-    public function withdrawalRequest(Request $request){
+    public function withdrawalRequest(Request $request)
+    {
         $user = $request->user();
         $validated = $request->validate([
             'amount' => ['required', 'gt:0'],
             'method' => ['required'],
         ]);
-        $paymentMethod = $user->stylistPaymentMethods()->where('id', $request->method)->first();
+        $paymentMethod = $user->stylistPaymentMethods()->where('id', $request->input('method'))->first();
+
         if (!$paymentMethod) {
             abort(403, 'Unauthorized action.');
         }
@@ -406,7 +442,8 @@ class DashboardController extends Controller
         return redirect()->back()->with('success', 'Payout requested successfully.');
     }
 
-    public function earningsMethodsCreate(Request $request){
+    public function earningsMethodsCreate(Request $request)
+    {
         $user = $request->user();
         $validated = $request->validate([
             'account_number' => ['required', 'string'],
@@ -416,11 +453,17 @@ class DashboardController extends Controller
         ]);
 
         $user->stylistPaymentMethods()->create($validated);
+        $this->stylistController->checkProfileCompleteness($user);
+
+        if ($request->expectsJson()) {
+            return response()->noContent();
+        }
 
         return redirect()->back()->with('success', 'Payout methods created successfully.');
     }
 
-    public function earningsMethodsUpdate(Request $request, $id){
+    public function earningsMethodsUpdate(Request $request, $id)
+    {
         $user = $request->user();
         $validated = $request->validate([
             'account_number' => ['required', 'string'],
@@ -437,10 +480,15 @@ class DashboardController extends Controller
 
         $paymentMethod->update($validated);
 
+        if ($request->expectsJson()) {
+            return response()->noContent();
+        }
+
         return redirect()->back()->with('success', 'Payout methods updated successfully.');
     }
 
-    public function earningsMethodsSetDefault(Request $request, $id){
+    public function earningsMethodsSetDefault(Request $request, $id)
+    {
         $user = $request->user();
         $paymentMethod = $user->stylistPaymentMethods()->where('id', $id)->first();
 
@@ -452,10 +500,15 @@ class DashboardController extends Controller
         $user->stylistPaymentMethods()->update(['is_default' => false]);
         $paymentMethod->update(['is_default' => true]);
 
+        if ($request->expectsJson()) {
+            return response()->noContent();
+        }
+
         return redirect()->back()->with('success', 'Default payout method updated successfully.');
     }
 
-    public function earningsMethodsToggle(Request $request, $id){
+    public function earningsMethodsToggle(Request $request, $id)
+    {
         $user = $request->user();
         $paymentMethod = $user->stylistPaymentMethods()->where('id', $id)->first();
 
@@ -479,10 +532,15 @@ class DashboardController extends Controller
         }
         $paymentMethod->save();
 
+        if ($request->expectsJson()) {
+            return response()->noContent();
+        }
+
         return redirect()->back()->with('success', 'Payout method status updated successfully.');
     }
 
-    public function earningsMethodsDestroy(Request $request, $id){
+    public function earningsMethodsDestroy(Request $request, $id)
+    {
         $user = $request->user();
         $paymentMethod = $user->stylistPaymentMethods()->where('id', $id)->first();
 
@@ -501,6 +559,11 @@ class DashboardController extends Controller
             }
         }
         $paymentMethod->delete();
+        $this->stylistController->checkProfileCompleteness($user);
+
+        if ($request->expectsJson()) {
+            return response()->noContent();
+        }
 
         return redirect()->back()->with('success', 'Payout method deleted successfully.');
     }
@@ -519,8 +582,8 @@ class DashboardController extends Controller
         $words = explode(' ', $user->name);
         $initials = strtoupper(
             count($words) >= 2
-                ? substr($words[0], 0, 1) . substr($words[1], 0, 1)
-                : substr($user->name, 0, 2)
+            ? substr($words[0], 0, 1) . substr($words[1], 0, 1)
+            : substr($user->name, 0, 2)
         );
 
         return $initials;

@@ -11,7 +11,9 @@ use App\Models\StylistSchedule;
 use App\Models\StylistSetting;
 use App\Models\Subscription;
 use App\Models\User;
+use App\Rules\UrlOrFile;
 use Carbon\Carbon;
+use Exception;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -495,10 +497,12 @@ class StylistController extends Controller
         return back()->with('success', 'Work removed.');
     }
 
-    public function profile(Request $request)
+    public function checkProfileCompleteness(User $user)
     {
-        $user = $request->user();
-        $user = $user->load(['stylist_profile']);
+        if (!$user->role === 'stylist') {
+            throw new Exception('Only stylist can access this resource');
+        }
+
         $profile_completeness = [
             'portfolio' => $user->portfolios()->exists(),
             'payment_method' => $user->stylistPaymentMethods()->where('is_active', true)->exists(),
@@ -513,12 +517,33 @@ class StylistController extends Controller
             'user_banner' => $user->stylist_profile?->banner !== null && $user->stylist_profile?->banner !== '',
         ];
 
+        $isProfileComplete = count($profile_completeness) === count(array_filter($profile_completeness));
+
+        if ($isProfileComplete) {
+            if ($user->stylist_profile?->status === 'unverified') {
+                $user->stylist_profile->update([
+                    'is_available' => false,
+                    'status' => 'pending',
+                ]);
+            }
+        } else if ($user->stylist_profile && in_array($user->stylist_profile?->status, ['approved', 'pending', 'rejected'])) {
+            $user->stylist_profile->update([
+                'is_available' => false,
+                'status' => 'unverified',
+            ]);
+        }
+
+        return $profile_completeness;
+    }
+
+    public function profile(Request $request)
+    {
+        $user = $request->user();
+        $user = $user->load(['stylist_profile']);
+        $profile_completeness = $this->checkProfileCompleteness($user);
+
         $profile_link = getSlug($user->id);
         $profile_link = url('/link/' . $profile_link);
-
-        $user_avatar_url = $user->avatar ? asset('storage/' . $user->avatar) : null;
-
-        $user_banner_url = $user->stylist_profile?->banner ? asset(path: 'storage/' . $user->stylist_profile->banner) : null;
 
         $respData = [
             'user' => $user,
@@ -536,8 +561,6 @@ class StylistController extends Controller
             'certifications' => $user->stylist_certifications()->get(),
             'profile_completeness' => $profile_completeness,
             'profile_link' => $profile_link,
-            'user_avatar_url' => $user_avatar_url,
-            'user_banner_url' => $user_banner_url
         ];
 
         if ($request->expectsJson()) {
@@ -546,6 +569,101 @@ class StylistController extends Controller
 
         return Inertia::render('Stylist/Profile/Index', $respData);
     }
+
+
+    public function updateProfile(Request $request)
+    {
+        $user = $request->user();
+        $stylist = $user->stylist_profile;
+
+        if (!$user || !$stylist) {
+            abort(403, 'Access Denied');
+        }
+
+        /**
+         * This means that social will be send as a JSON stringified array of object
+         */
+        if ($request->has('socials')) {
+            // Replace the original string input with the new array
+            $request->merge(['socials' => json_decode($request->input('socials'), true)]);
+        }
+
+        $request->validate([
+            'business_name' => 'nullable|string|max:255',
+            'socials' => 'sometimes|required|array|list',
+            'socials.*.social_app' => 'required|string|max:255',
+            'socials.*.url' => 'required|url|max:255',
+            'media' => 'sometimes|required|array|list|max:10',
+            'media.*' => [
+                new UrlOrFile(
+                    urlAndFileRules: [
+                        'url' => ['required', 'url'],
+                        'file' => [
+                            'required',
+                            'file',
+                            'mimes:jpg,jpeg,png',
+                            'max:5120'
+                        ]
+                    ],
+                    urlAndFileMessages: [
+                        'url' => [
+                            'required' => 'Media URL is required',
+                            'url' => 'Media URL is invalid'
+                        ],
+                        'file' => [
+                            'required' => 'Media file is required',
+                            'file' => 'Media file is invalid',
+                            'mimes' => 'Media file must be a valid image',
+                            'max' => 'Media file size must be less than 5MB',
+                        ]
+                    ]
+                )
+            ],
+        ]);
+
+        $socials = [];
+        // Validate and clean each social entry
+        foreach ($request->socials as $social) {
+            if (empty($social['social_app']) || empty($social['url'])) {
+                continue; // Skip empty entries
+            }
+
+            $socials[] = [
+                'social_app' => trim($social['social_app']),
+                'url' => trim($social['url']),
+            ];
+        }
+
+        $uploadedWorks = array_slice($request->file('media') ?? [], 0, 10);
+
+        foreach ($uploadedWorks as $key => $file) {
+            $uploadedWorks[$key] = $file->store('stylists/works', 'public');
+        }
+
+        if (count($uploadedWorks) > 0) {
+            $existingWorkMedia = $stylist->works ?? [];
+            foreach ($existingWorkMedia as $oldFile) {
+                if (Storage::disk('public')->exists($oldFile)) {
+                    Storage::disk('public')->delete($oldFile);
+                }
+            }
+        }
+
+
+        $stylist->update([
+            'business_name' => $request->business_name || $stylist->business_name,
+            'socials' => count($socials) ? $socials : null,
+            'works' => count($uploadedWorks) ? $uploadedWorks : null,
+            'is_available' => false,
+            'status' => 'unverified',
+        ]);
+
+        $user->refresh();
+        $this->checkProfileCompleteness($user);
+
+        return response()->noContent();
+    }
+
 
     public function certificationCreate(Request $request)
     {
@@ -602,6 +720,10 @@ class StylistController extends Controller
             $user->save();
         }
 
+        if ($request->expectsJson()) {
+            return response()->noContent();
+        }
+
         return redirect()->back()->with('success', 'Avatar updated successfully.');
     }
 
@@ -624,6 +746,10 @@ class StylistController extends Controller
 
             $stylist_profile->banner = $request->file('avatar')->store('stylists/banners', 'public');
             $stylist_profile->save();
+        }
+
+        if ($request->expectsJson()) {
+            return response()->noContent();
         }
 
         return redirect()->back()->with('success', 'Banner updated successfully.');
@@ -711,5 +837,4 @@ class StylistController extends Controller
 
         return redirect()->back()->with('success', 'Verification request updated successfully.');
     }
-
 }

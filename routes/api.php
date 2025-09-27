@@ -5,7 +5,11 @@ use App\Http\Controllers\Auth\ApiAuthController;
 use App\Http\Controllers\LocationServiceController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\StylistController;
-use App\Http\Controllers\Stylist\AppointmentController as StylistAppointmentController;
+use App\Http\Controllers\Stylist\{
+    DashboardController as StylistDashboardController,
+    AppointmentController as StylistAppointmentController,
+    WorkController as StylistWorkController
+};
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -82,16 +86,56 @@ Route::middleware('api')->group(function () {
 
         //Stylist routes
         Route::group(['prefix' => '/stylist', 'middleware' => ['is.stylist', 'email.verified']], function () {
+            // Get stylist profile data
+            Route::get('/profile', [StylistController::class, 'profile']);
+
             //Update skill
             Route::patch('basic/profile', [StylistController::class, 'completeSkill']);
 
             //Update Identification documents
             Route::patch('/identity', [StylistController::class, 'completeIdentity']);
 
+            //Update profile avatar
+            Route::post('/profile/avatar', [StylistController::class, 'avatabrUpdate']);
+
+            //Update profile banner
+            Route::post('/profile/banner', [StylistController::class, 'bannerUpdate']);
+
             //Complete stylist profile routes
             Route::group(['middleware' => 'profile.complete'], function () {
-                // Get stylist profile data
-                Route::get('/profile', [StylistController::class, 'profile']);
+                // Update stylist profile data
+                Route::patch('/profile', [StylistController::class, 'updateProfile']);
+
+                // Get stylist payment methods data
+                Route::get('/payment-methods', [StylistDashboardController::class, 'earningMethods']);
+
+                // create stylist payment methods data
+                Route::post('/payment-methods', [StylistDashboardController::class, 'earningsMethodsCreate']);
+
+                // update specific stylist payment methods data
+                Route::patch('/payment-methods/{id}', [StylistDashboardController::class, 'earningsMethodsUpdate']);
+
+                // Make  stylist payment method default
+                Route::post('/payment-methods/{id}/default', [StylistDashboardController::class, 'earningsMethodsSetDefault']);
+
+                // Activate or Deactivate stylist payment method
+                Route::post('/payment-methods/{id}/toggle', [StylistDashboardController::class, 'earningsMethodsToggle']);
+
+                // Delete stylist payment method
+                Route::delete('/payment-methods/{id}', [StylistDashboardController::class, 'earningsMethodsDestroy']);
+
+                // Get stylist earnings
+                Route::get('/earnings', [StylistDashboardController::class, 'earningIndex']);
+
+                // Get stylist settings
+                Route::get('/settings', [StylistDashboardController::class, 'earningSettings']);
+
+                // Update stylist settings
+                Route::put('/settings', [StylistDashboardController::class, 'earningsSettingsUpdate']);
+
+                //Get stylist portfolio stats
+                Route::get('/portfolio/stats', [StylistWorkController::class, 'portfolioStats']);
+                //Here...
 
                 // Get pending stylist schedules
                 Route::get('/pending-appointments', [StylistAppointmentController::class, 'getPendingAppointments']);

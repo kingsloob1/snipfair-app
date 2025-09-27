@@ -22,6 +22,7 @@ import {
     // Sun,
     // UserPlus,
     X,
+    ListTodo
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Dispatch, SetStateAction, useState } from 'react';
@@ -86,6 +87,7 @@ export default function Navbar({
             route: 'tickets.index',
         },
     ];
+
     const menuItems: MenuItem[] = [
         {
             label: 'Account',

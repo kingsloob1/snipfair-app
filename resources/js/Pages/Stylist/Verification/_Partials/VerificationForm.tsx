@@ -278,18 +278,21 @@ export default function VerificationForm({
                 text: 'Account Already Approved',
             };
         }
+
         if (stylist_status === 'flagged') {
             return {
                 isDisabled: true,
                 text: 'Account Flagged',
             };
         }
+
         if (stylist_status === 'rejected') {
             return {
                 isDisabled: false,
                 text: 'Resubmit Requirements',
             };
         }
+
         if (
             // !profile_completeness?.user_bio ||
             !profile_completeness?.social_links ||
@@ -300,48 +303,56 @@ export default function VerificationForm({
                 text: 'Submit Requirements',
             };
         }
+
         if (!profile_completeness?.user_avatar) {
             return {
                 isDisabled: true,
                 text: 'Upload Avatar',
             };
         }
+
         if (!profile_completeness?.user_banner) {
             return {
                 isDisabled: true,
                 text: 'Upload Banner',
             };
         }
+
         if (!profile_completeness?.user_bio) {
             return {
                 isDisabled: true,
                 text: 'Add Your Bio',
             };
         }
+
         if (!profile_completeness?.portfolio) {
             return {
                 isDisabled: true,
                 text: 'Add A Portfolio',
             };
         }
+
         if (!profile_completeness?.address) {
             return {
                 isDisabled: true,
                 text: 'Set Your Address',
             };
         }
+
         if (!profile_completeness?.location_service) {
             return {
                 isDisabled: true,
                 text: 'Enable Location Service',
             };
         }
+
         if (!profile_completeness?.payment_method) {
             return {
                 isDisabled: true,
                 text: 'Add Payment Method',
             };
         }
+
         if (
             completeness === 9 &&
             !profile_completeness?.status_approved &&
@@ -352,6 +363,7 @@ export default function VerificationForm({
                 text: 'Request Approval',
             };
         }
+
         if (
             completeness === 9 &&
             !profile_completeness?.status_approved &&
