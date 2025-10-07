@@ -9,6 +9,7 @@ use App\Helpers\ChatHelper;
 use App\Helpers\NotificationHelper;
 use App\Models\Category;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\URL;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -39,10 +40,12 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
             ],
+            'requestUrl' => $request->fullUrl(),
+            'appBaseURL' => URL::to('/'),
             'testMode' => config('payfast.test_mode'),
             'website_configs' => getAdminConfig(),
             'category_names' => Category::all()->pluck('name'),
-            'recentChats' => fn () => Auth::check()
+            'recentChats' => fn() => Auth::check()
                 ? ChatHelper::getRecentChatSummaries()
                 : [],
             'recentNotifications' => function () {
@@ -57,12 +60,12 @@ class HandleInertiaRequests extends Middleware
                 return [];
             },
             'flash' => [
-                'success' => fn () => $request->session()->get('success'),
-                'error' => fn () => $request->session()->get('error'),
-                'info' => fn () => $request->session()->get('info'),
-                'warning' => fn () => $request->session()->get('warning'),
-                'message' => fn () => $request->session()->get('message'),
-                'custom_response' => fn () => $request->session()->get('custom_response'),
+                'success' => fn() => $request->session()->get('success'),
+                'error' => fn() => $request->session()->get('error'),
+                'info' => fn() => $request->session()->get('info'),
+                'warning' => fn() => $request->session()->get('warning'),
+                'message' => fn() => $request->session()->get('message'),
+                'custom_response' => fn() => $request->session()->get('custom_response'),
             ],
         ];
     }

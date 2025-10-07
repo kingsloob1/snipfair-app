@@ -11,7 +11,7 @@ configureEcho({
     broadcaster: 'reverb',
 });
 
-const appName = import.meta.env.VITE_APP_NAME || 'Snipfair';
+const appName = import.meta.env.VITE_APP_NAME || 'Snipfair.com';
 
 createInertiaApp({
     title: (title) => `${title} - ${appName}`,

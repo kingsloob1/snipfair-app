@@ -1,104 +1,104 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>http://localhost:8000</loc>
-    <lastmod>2025-08-20T10:49:18.319017Z</lastmod>
+    <loc>http://127.0.0.1:8000</loc>
+    <lastmod>2025-10-06T22:00:13.396738Z</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>http://localhost:8000/about</loc>
-    <lastmod>2025-08-20T10:49:18.319792Z</lastmod>
+    <loc>http://127.0.0.1:8000/about</loc>
+    <lastmod>2025-10-06T22:00:13.397165Z</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>http://localhost:8000/services</loc>
-    <lastmod>2025-08-20T10:49:18.319859Z</lastmod>
+    <loc>http://127.0.0.1:8000/services</loc>
+    <lastmod>2025-10-06T22:00:13.397205Z</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>http://localhost:8000/explore</loc>
-    <lastmod>2025-08-20T10:49:18.319914Z</lastmod>
+    <loc>http://127.0.0.1:8000/explore</loc>
+    <lastmod>2025-10-06T22:00:13.397234Z</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>http://localhost:8000/faqs</loc>
-    <lastmod>2025-08-20T10:49:18.319966Z</lastmod>
+    <loc>http://127.0.0.1:8000/faqs</loc>
+    <lastmod>2025-10-06T22:00:13.397258Z</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>http://localhost:8000/contact-us</loc>
-    <lastmod>2025-08-20T10:49:18.320032Z</lastmod>
+    <loc>http://127.0.0.1:8000/contact-us</loc>
+    <lastmod>2025-10-06T22:00:13.397282Z</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>http://localhost:8000/services#nail-care</loc>
-    <lastmod>2025-07-30T23:37:35.000000Z</lastmod>
+    <loc>http://127.0.0.1:8000/customer/stylist/25</loc>
+    <lastmod>2025-09-15T12:54:07.000000Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>http://127.0.0.1:8000/customer/stylist/35</loc>
+    <lastmod>2025-10-05T20:51:51.000000Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>http://127.0.0.1:8000/customer/stylist/48</loc>
+    <lastmod>2025-10-04T23:36:09.000000Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>http://127.0.0.1:8000/customer/stylist/51</loc>
+    <lastmod>2025-09-24T06:44:37.000000Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>http://127.0.0.1:8000/services#wig-installation</loc>
+    <lastmod>2025-09-22T10:53:55.000000Z</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>http://localhost:8000/services#haircut</loc>
-    <lastmod>2025-07-30T23:37:35.000000Z</lastmod>
+    <loc>http://127.0.0.1:8000/services#nail-care</loc>
+    <lastmod>2025-09-22T10:45:59.000000Z</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>http://localhost:8000/services#beard-grooming</loc>
-    <lastmod>2025-07-30T23:37:35.000000Z</lastmod>
+    <loc>http://127.0.0.1:8000/services#braids</loc>
+    <lastmod>2025-09-22T11:03:32.000000Z</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>http://localhost:8000/services#eyebrows-lashes</loc>
-    <lastmod>2025-07-30T23:37:35.000000Z</lastmod>
+    <loc>http://127.0.0.1:8000/services#eyebrows-lashes</loc>
+    <lastmod>2025-09-22T11:03:52.000000Z</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>http://localhost:8000/services#hair-styling</loc>
-    <lastmod>2025-07-30T23:37:35.000000Z</lastmod>
+    <loc>http://127.0.0.1:8000/services#make-up</loc>
+    <lastmod>2025-09-22T11:01:58.000000Z</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>http://localhost:8000/services#facial-skin-care</loc>
-    <lastmod>2025-07-30T23:37:35.000000Z</lastmod>
+    <loc>http://127.0.0.1:8000/services#hair-styling</loc>
+    <lastmod>2025-09-22T11:01:37.000000Z</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>http://localhost:8000/services#locks</loc>
-    <lastmod>2025-07-30T23:37:35.000000Z</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>http://localhost:8000/services#make-up</loc>
-    <lastmod>2025-07-30T23:37:35.000000Z</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>http://localhost:8000/services#extras</loc>
-    <lastmod>2025-07-30T23:37:35.000000Z</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>http://localhost:8000/services#add-on</loc>
-    <lastmod>2025-07-30T23:37:35.000000Z</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>http://localhost:8000/services#my-service</loc>
-    <lastmod>2025-08-18T15:51:53.000000Z</lastmod>
+    <loc>http://127.0.0.1:8000/services#locks-twists</loc>
+    <lastmod>2025-08-19T14:50:48.000000Z</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>

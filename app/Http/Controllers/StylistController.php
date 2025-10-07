@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\Category;
+use App\Models\Like;
 use App\Models\Payment;
 use App\Models\Plan;
 use App\Models\Portfolio;
+use App\Models\Review;
 use App\Models\Stylist;
 use App\Models\StylistSchedule;
 use App\Models\StylistSetting;
@@ -20,11 +22,14 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rules;
 use Inertia\Inertia;
 use Inertia\Response;
 use App\Mail\WelcomeEmail;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\URL;
 
 class StylistController extends Controller
 {
@@ -593,22 +598,27 @@ class StylistController extends Controller
             'socials' => 'sometimes|required|array|list',
             'socials.*.social_app' => 'required|string|max:255',
             'socials.*.url' => 'required|url|max:255',
-            'media' => 'sometimes|required|array|list|max:10',
+            'media' => 'sometimes|required|array|max:10',
             'media.*' => [
                 new UrlOrFile(
                     urlAndFileRules: [
-                        'url' => ['required', 'url'],
+                        'url' => [
+                            'required',
+                            'url',
+                            'starts_with:' . URL::to('/storage')
+                        ],
                         'file' => [
                             'required',
                             'file',
-                            'mimes:jpg,jpeg,png',
+                            'mimes:jpg,jpeg,png,gif,webp',
                             'max:5120'
                         ]
                     ],
                     urlAndFileMessages: [
                         'url' => [
                             'required' => 'Media URL is required',
-                            'url' => 'Media URL is invalid'
+                            'url' => 'Media URL is invalid',
+                            'starts_with' => 'Media URL is invalid'
                         ],
                         'file' => [
                             'required' => 'Media file is required',
@@ -634,29 +644,53 @@ class StylistController extends Controller
             ];
         }
 
-        $uploadedWorks = array_slice($request->file('media') ?? [], 0, 10);
-
-        foreach ($uploadedWorks as $key => $file) {
-            $uploadedWorks[$key] = $file->store('stylists/works', 'public');
+        $existingWorkMediaList = $stylist->works ?? [];
+        if (!is_array($existingWorkMediaList)) {
+            $existingWorkMediaList = [];
         }
 
-        if (count($uploadedWorks) > 0) {
-            $existingWorkMedia = $stylist->works ?? [];
-            foreach ($existingWorkMedia as $oldFile) {
-                if (Storage::disk('public')->exists($oldFile)) {
-                    Storage::disk('public')->delete($oldFile);
+        $retainedWorkMediaList = $request->input('media') ?? [];
+        if (!is_array($retainedWorkMediaList)) {
+            $retainedWorkMediaList = [];
+        }
+
+        //Formatted retained file paths and select only paths that exists
+        $retainedWorkMediaList = Arr::where(Arr::map($retainedWorkMediaList, function ($fileUrl): string {
+            return formatStoredFilePath($fileUrl);
+        }), fn(string $filePath): string => !!$filePath);
+
+        $validWorkMedia = [];
+        $removedWorkMedia = [];
+
+        //Iterate through existing media and delete removed media and curate valid work media
+        foreach ($existingWorkMediaList as $filePath) {
+            $filePath = formatStoredFilePath($filePath);
+
+            if ($filePath) {
+                if (in_array($filePath, $retainedWorkMediaList)) {
+                    $validWorkMedia[] = $filePath;
+                } else {
+                    $removedWorkMedia[] = $filePath;
                 }
             }
         }
 
+        foreach (($request->file('media') ?? []) as $file) {
+            $validWorkMedia[] = $file->store('stylists/works', 'public');
+        }
 
         $stylist->update([
             'business_name' => $request->business_name || $stylist->business_name,
             'socials' => count($socials) ? $socials : null,
-            'works' => count($uploadedWorks) ? $uploadedWorks : null,
+            'works' => count($validWorkMedia) ? $validWorkMedia : null,
             'is_available' => false,
             'status' => 'unverified',
         ]);
+
+        $disk = Storage::disk('public');
+        foreach ($removedWorkMedia as $mediaPath) {
+            $disk->delete($mediaPath);
+        }
 
         $user->refresh();
         $this->checkProfileCompleteness($user);
@@ -836,5 +870,37 @@ class StylistController extends Controller
         }
 
         return redirect()->back()->with('success', 'Verification request updated successfully.');
+    }
+
+    public function getCurrentStylistStats(Request $request)
+    {
+        $user = $request->user();
+        $resp = $this->getStylistStats($user);
+
+        if ($request->expectsJson()) {
+            return $resp;
+        }
+
+        return $resp;
+    }
+
+    public function getStylistStats(User $user)
+    {
+        $user->load(['stylist_profile']);
+        $stylist = $user->stylist_profile;
+
+        $resp = [
+            'total_works' => $user->portfolios()->count(),
+            'total_likes' => Like::where([
+                ['user_id', '=', $user->id],
+                ['type', '=', 'portfolio'],
+                ['status', '=', true]
+            ])->count(),
+            'average_rating' => Review::whereHas('appointment', function ($query) use ($stylist) {
+                $query->where('stylist_id', $stylist->id);
+            })->avg('rating') ?? 0,
+        ];
+
+        return $resp;
     }
 }

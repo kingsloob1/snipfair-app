@@ -5,12 +5,16 @@ namespace App\Rules;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Validator;
 
 class UrlOrFile implements ValidationRule
 {
     public $urlAndFileRules = [
-        'url' => 'required|url',
+        'url' => [
+            'required',
+            'url'
+        ],
         'file' => 'required|file'
     ];
 

@@ -3,6 +3,10 @@
 use App\Helpers\NotificationHelper;
 use Carbon\Carbon;
 use App\Models\WebsiteConfiguration;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Illuminate\Support\Facades\URL;
 
 if (!function_exists('getSlug')) {
     function getSlug($userId)
@@ -22,7 +26,7 @@ if (!function_exists('decodeSlug')) {
         $transformed = base_convert($slug, 36, 10);
         $originalId = ($transformed - 1000001) / 7919;
 
-        return is_numeric($originalId) && $originalId > 0 ? (int)$originalId : false;
+        return is_numeric($originalId) && $originalId > 0 ? (int) $originalId : false;
     }
 }
 
@@ -40,8 +44,8 @@ if (!function_exists('getAvatar')) {
         $words = explode(' ', $user->name);
         $initials = strtoupper(
             count($words) >= 2
-                ? substr($words[0], 0, 1) . substr($words[1], 0, 1)
-                : substr($user->name, 0, 2)
+            ? substr($words[0], 0, 1) . substr($words[1], 0, 1)
+            : substr($user->name, 0, 2)
         );
 
         return $initials;
@@ -247,12 +251,12 @@ if (!function_exists('formatCount')) {
     {
         if ($number >= 1000000) {
             return [
-                'count' => (int)($number / 1000000),
+                'count' => (int) ($number / 1000000),
                 'unit' => 'M+'
             ];
         } elseif ($number >= 1000) {
             return [
-                'count' => (int)($number / 1000),
+                'count' => (int) ($number / 1000),
                 'unit' => 'K+'
             ];
         } elseif ($number > 100) {
@@ -269,8 +273,9 @@ if (!function_exists('formatCount')) {
     }
 }
 
-if (!function_exists('sendNotification')){
-    function sendNotification($userId, $type, $title, $message, $priority = 'normal'){
+if (!function_exists('sendNotification')) {
+    function sendNotification($userId, $type, $title, $message, $priority = 'normal')
+    {
         NotificationHelper::create(
             $userId,
             $type,
@@ -278,5 +283,79 @@ if (!function_exists('sendNotification')){
             $message,
             $priority
         );
+    }
+}
+
+if (!function_exists('formatStoredFilePath')) {
+    function formatStoredFilePath($filePathOrUrl)
+    {
+        if (!is_string($filePathOrUrl)) {
+            return '';
+        }
+
+        $disk = Storage::disk('public');
+        $validPath = '';
+
+        if (!$validPath && Str::isUrl($filePathOrUrl, ['http', 'https'])) {
+            $storageBaseUrl = Url::to('/storage');
+            $filePathOrUrl = Str::replaceFirst($storageBaseUrl, '', $filePathOrUrl);
+        }
+
+        if ($disk->exists($filePathOrUrl)) {
+            $validPath = $filePathOrUrl;
+        }
+
+        if (!$validPath && Str::startsWith($filePathOrUrl, '/storage')) {
+            $replacedPath = Str::replaceFirst('/storage', '', $filePathOrUrl);
+
+            if ($disk->exists($replacedPath)) {
+                $validPath = $replacedPath;
+            }
+        }
+
+        if (!$validPath && Str::startsWith($filePathOrUrl, 'storage/')) {
+            $replacedPath = Str::replaceFirst('storage/', '', $filePathOrUrl);
+
+            if ($disk->exists($replacedPath)) {
+                $validPath = $replacedPath;
+            }
+        }
+
+        $fileInfo = new SplFileInfo($filePathOrUrl);
+        $filePath = $fileInfo->getRealPath();
+        if (!$validPath && $fileInfo->isFile() && $filePath) {
+            $storageBasePath = storage_path('app/public');
+            $validPath = Str::replaceFirst($storageBasePath, '', $filePath);
+        }
+
+        if ($validPath && Str::startsWith($validPath, '/')) {
+            //Remove prefixed back slash
+            $validPath = substr($validPath, 1);
+        }
+
+        return $validPath;
+    }
+}
+
+if (!function_exists('formatPerPage')) {
+    function formatPerPage(Request $request)
+    {
+        $sentPerPage = $request->query('per_page', 20);
+        $perPage = 20;
+        if (!is_numeric($sentPerPage)) {
+            $perPage = 20;
+        } else {
+            $perPage = (int) $sentPerPage;
+        }
+
+        if ($perPage > 50) {
+            $perPage = 50;
+        }
+
+        if ($perPage < 5) {
+            $perPage = 5;
+        }
+
+        return $perPage;
     }
 }

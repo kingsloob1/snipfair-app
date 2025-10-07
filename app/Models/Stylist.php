@@ -25,6 +25,7 @@ class Stylist extends Model
     protected $casts = [
         'visits_count' => 'float',
         'is_available' => 'boolean',
+        'years_of_experience' => 'float',
         'socials' => 'array',
         'works' => 'array',
     ];

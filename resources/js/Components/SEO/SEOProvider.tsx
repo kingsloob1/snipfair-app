@@ -1,6 +1,7 @@
 import { Head, usePage } from '@inertiajs/react';
 import React from 'react';
 import SEOHead from './SEOHead';
+import urlJoin from 'url-join'
 
 interface PageSEO {
     title?: string;
@@ -20,6 +21,8 @@ interface PageSEO {
 
 interface PageProps {
     seo?: PageSEO;
+    appBaseURL: string;
+    requestUrl: string;
     [key: string]: unknown;
 }
 
@@ -51,11 +54,11 @@ const SEOProvider: React.FC<SEOProviderProps> = ({
 
     // Merge provided props with global SEO data
     const finalSeoData = {
-        title: title || seoData?.title,
-        description: description || seoData?.description,
-        keywords: keywords || seoData?.keywords,
-        image: image || seoData?.image,
-        url: seoData?.url,
+        title: title || seoData?.title || `Snipfair- Book Top-Rated Stylists for In-Person Appointments`,
+        description: description || seoData?.description || `Connect with professional stylists in your area. Book hair, nails, makeup, and grooming services at your convenience.`,
+        keywords: keywords || seoData?.keywords || 'Book hair, nails, makeup, and grooming services, Stylist, Booking, Online Booking',
+        image: image || seoData?.image || urlJoin(props.appBaseURL, '/images/logo/logo.png'),
+        url: seoData?.url || props.requestUrl,
         type: type || seoData?.type,
         siteName: seoData?.site_name,
         locale: seoData?.locale,

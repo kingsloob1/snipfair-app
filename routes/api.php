@@ -134,7 +134,26 @@ Route::middleware('api')->group(function () {
                 Route::put('/settings', [StylistDashboardController::class, 'earningsSettingsUpdate']);
 
                 //Get stylist portfolio stats
-                Route::get('/portfolio/stats', [StylistWorkController::class, 'portfolioStats']);
+                Route::get('/stats', [StylistController::class, 'getCurrentStylistStats']);
+
+                //Stylist work routes
+                Route::group((['prefix' => '/work']), function () {
+                    Route::get('/categories', [StylistWorkController::class, 'getWorkCategories']);
+
+                    Route::get('/list', [StylistWorkController::class, 'getWorkList']);
+
+                    Route::post('/', [StylistWorkController::class, 'createWork']);
+
+                    Route::get('{id}', [StylistWorkController::class, 'getWork']);
+
+                    Route::post('{id}', [StylistWorkController::class, 'updateWork']);
+
+                    Route::put('{id}/status', [StylistWorkController::class, 'updateWorkStatus']);
+
+                    Route::delete('{id}', [StylistWorkController::class, 'deleteWork']);
+                });
+
+
                 //Here...
 
                 // Get pending stylist schedules

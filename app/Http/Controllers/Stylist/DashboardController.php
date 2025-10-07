@@ -389,6 +389,8 @@ class DashboardController extends Controller
             'instant_payout' => ['required', 'boolean'],
             'payout_frequency' => ['required', Rule::in(['daily', 'bi-weekly', 'weekly', 'monthly'])],
             'payout_day' => ['required', Rule::in(['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'])],
+            'enable_mobile_appointments' => ['sometimes', 'boolean'],
+            'enable_shop_appointments' => ['sometimes', 'boolean'],
         ]);
 
         $user->stylistSetting()->update($validated);
