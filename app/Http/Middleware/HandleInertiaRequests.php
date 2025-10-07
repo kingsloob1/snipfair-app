@@ -42,6 +42,13 @@ class HandleInertiaRequests extends Middleware
             ],
             'requestUrl' => $request->fullUrl(),
             'appBaseURL' => URL::to('/'),
+            'seo' => [
+                'title' => 'Snipfair- Book Top-Rated Stylists for In-Person Appointments',
+                'description' => 'Connect with professional stylists in your area. Book hair, nails, makeup, and grooming services at your convenience.',
+                'keywords' => 'Book hair, nails, makeup, and grooming services, Stylist, Booking, Online Booking',
+                'image' => URL::to('/images/logo/logo.png'),
+                'url' => $request->fullUrl(),
+            ],
             'testMode' => config('payfast.test_mode'),
             'website_configs' => getAdminConfig(),
             'category_names' => Category::all()->pluck('name'),

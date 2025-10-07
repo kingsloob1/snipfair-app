@@ -8,7 +8,7 @@
         <!-- SEO Meta Tags -->
         @if(isset($page['props']['seo']))
             @php $seo = $page['props']['seo']; @endphp
-            
+
             <title>{{ $seo['title'] ?? config('app.name', 'Laravel') }}</title>
             <meta name="description" content="{{ $seo['description'] ?? '' }}">
             <meta name="keywords" content="{{ $seo['keywords'] ?? '' }}">
@@ -16,7 +16,7 @@
             @if(isset($seo['canonical']))
                 <link rel="canonical" href="{{ $seo['canonical'] }}">
             @endif
-            
+
             <!-- Open Graph / Facebook -->
             <meta property="og:title" content="{{ $seo['title'] ?? config('app.name') }}">
             <meta property="og:description" content="{{ $seo['description'] ?? '' }}">
@@ -27,7 +27,7 @@
             @endif
             <meta property="og:site_name" content="{{ $seo['site_name'] ?? config('app.name') }}">
             <meta property="og:locale" content="{{ $seo['locale'] ?? 'en_US' }}">
-            
+
             <!-- Twitter Card -->
             <meta name="twitter:card" content="{{ $seo['twitter_card'] ?? 'summary_large_image' }}">
             @if(isset($seo['twitter_site']))
@@ -38,7 +38,7 @@
             @if(isset($seo['image']))
                 <meta name="twitter:image" content="{{ $seo['image'] }}">
             @endif
-            
+
             <!-- JSON-LD Schema -->
             @if(isset($seo['schema']))
                 <script type="application/ld+json">
@@ -48,16 +48,16 @@
         @else
             <title inertia>{{ config('app.name', 'Snipfair') }}</title>
         @endif
-        
+
         <link rel="icon" type="image/png" sizes="32x32" href="/images/Background.png">
-        
+
         <!-- Additional SEO Meta Tags -->
         <meta name="format-detection" content="telephone=no">
         <meta name="theme-color" content="#6366f1">
         <meta name="apple-mobile-web-app-capable" content="yes">
         <meta name="apple-mobile-web-app-status-bar-style" content="default">
         <meta name="apple-mobile-web-app-title" content="{{ config('app.name', 'SnipFair') }}">
-        
+
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -65,6 +65,17 @@
         <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
         <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
         <link rel="stylesheet" type="text/css" href="https://unpkg.com/@geoapify/geocoder-autocomplete@^1/styles/minimal.css">
+
+        <!-- Google tag (gtag.js) -->
+        <script async src="https://www.googletagmanager.com/gtag/js?id=AW-17623008085">
+        </script>
+        <script>
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+
+            gtag('config', 'AW-17623008085');
+        </script>
 
         <!-- Scripts -->
         @routes
@@ -78,6 +89,21 @@
         <!--Start of Tawk.to Script-->
         <script type="text/javascript">
             var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
+            Tawk_API.customStyle = {
+                visibility: {
+                    desktop: {
+                        position: 'br', // 'br' for bottom-right, 'bl' for bottom-left
+                        xOffset: '20px', // Horizontal offset from the corner
+                        yOffset: '30px'  // Vertical offset from the corner
+                    },
+                    mobile: {
+                        position: 'br',
+                        xOffset: '15px',
+                        yOffset: '60px'
+                    }
+                }
+            };
+
             (function(){
                 var s1=document.createElement("script"),s0=document.getElementsByTagName("script")[0];
                 s1.async=true;
