@@ -22,9 +22,7 @@
             <meta property="og:description" content="{{ $seo['description'] ?? '' }}">
             <meta property="og:type" content="{{ $seo['type'] ?? 'website' }}">
             <meta property="og:url" content="{{ $seo['url'] ?? request()->url() }}">
-            @if(isset($seo['image']))
-                <meta property="og:image" content="{{ $seo['image'] }}">
-            @endif
+            <meta property="og:image" content="{{ $seo['image'] ?? url('/images/logo/logo.png') }}">
             <meta property="og:site_name" content="{{ $seo['site_name'] ?? config('app.name') }}">
             <meta property="og:locale" content="{{ $seo['locale'] ?? 'en_US' }}">
 
@@ -35,9 +33,7 @@
             @endif
             <meta name="twitter:title" content="{{ $seo['title'] ?? config('app.name') }}">
             <meta name="twitter:description" content="{{ $seo['description'] ?? '' }}">
-            @if(isset($seo['image']))
-                <meta name="twitter:image" content="{{ $seo['image'] }}">
-            @endif
+            <meta name="twitter:image" content="{{ $seo['image'] ?? url('/images/logo/logo.png') }}">
 
             <!-- JSON-LD Schema -->
             @if(isset($seo['schema']))
