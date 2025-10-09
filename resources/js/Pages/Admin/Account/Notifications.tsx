@@ -38,14 +38,25 @@ export default function Notifications({
         }
     };
 
-    const enhancedNotifications = notificationData.map((notification) => ({
-        ...notification,
-        primaryAction: () => {
-            markAsRead(notification.id);
-        },
-        action_url: notification.type && isUrl(notification.type, {lenient: true}) ? notification.type : '',
-        primaryActionLabel: 'Close',
-    }));
+    const enhancedNotifications = notificationData.map((notification) =>  {
+        let action_url = '';
+        if(notification.type){
+            if(isUrl(notification.type, {lenient: true})){
+                action_url = notification.type;
+            } else if(action_url === 'stylist_dispute'){
+                action_url = route('admin.disputes.index');
+            }
+        }
+
+        return {
+            ...notification,
+            primaryAction: () => {
+                markAsRead(notification.id);
+            },
+            action_url,
+            primaryActionLabel: 'Close',
+        }
+    });
 
     return (
         <AdminAccountLayout header="Admin Dashboard">
