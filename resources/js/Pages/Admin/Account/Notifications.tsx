@@ -4,7 +4,6 @@ import { AdminAccountLayout } from '@/Layouts/AdminAccountLayout';
 import { NotificationCardProps, PageProps } from '@/types';
 import { router } from '@inertiajs/react';
 import { toast } from 'sonner';
-import isUrl from 'is-url-superb';
 
 interface NotificationPageProps extends PageProps {
     notifications: (NotificationCardProps & { id: number })[];
@@ -41,10 +40,21 @@ export default function Notifications({
     const enhancedNotifications = notificationData.map((notification) =>  {
         let action_url = '';
         if(notification.type){
-            if(isUrl(notification.type, {lenient: true})){
-                action_url = notification.type;
-            } else if(action_url === 'stylist_dispute'){
-                action_url = route('admin.disputes.index');
+            switch(true){
+                case notification.type.startsWith('http://'):
+                case notification.type.startsWith('https://'):{
+                    action_url = notification.type;
+                    break;
+                }
+
+                case notification.type === 'stylist_dispute':{
+                    action_url = route('admin.disputes.index');
+                    break;
+                }
+
+                default: {
+                    action_url = '';
+                }
             }
         }
 
@@ -55,7 +65,7 @@ export default function Notifications({
             },
             action_url,
             primaryActionLabel: 'Close',
-        }
+        };
     });
 
     return (
