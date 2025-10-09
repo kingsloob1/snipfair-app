@@ -148,7 +148,7 @@ export const NotificationCard: React.FC<NotificationCardProps> = ({
                             <CustomButton
                                 type="button"
                                 onClick={() => {
-                                    router.visit(action_url);
+                                    router.visit(route('admin.notifications.show', {id}));
                                     setIsOpen(false);
                                 }}
                             >
