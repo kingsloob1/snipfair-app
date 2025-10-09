@@ -41,7 +41,7 @@ export default function HowItWorks() {
                         exclusive range of services, connect with a carefully
                         vetted professional, and enjoy premium treatments in the
                         comfort of your own space. At Snipfair, every detail is
-                        designed to fit your schedule — without compromising on
+                        designed to fit your schedule, without compromising on
                         elegance or excellence.
                     </p>
                 </header>

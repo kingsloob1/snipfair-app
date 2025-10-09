@@ -24,13 +24,13 @@ export default function Services({
                     </GradientText>
                 </p>
                 <h2 className="font-inter text-xl font-bold text-sf-gray-zinc sm:text-2xl md:text-3xl">
-                    Your Style, Your Terms — Anytime, Anywhere
+                    Your Style, Your Terms, Anytime, Anywhere
                 </h2>
                 <p className="max-w-3xl font-sans text-base text-sf-primary-paragraph">
                     Snipfair makes self-care simple. We bring you trusted,
                     pre-vetted professionals directly to your door, offering you
                     the freedom to indulge in world-class treatments whenever
-                    and wherever you choose. Your self-care, elevated.\.
+                    and wherever you choose. Your self-care, elevated.
                 </p>
             </header>
             <div className="grid grid-cols-2 gap-4 py-4 sm:grid-cols-2 md:grid-cols-3 md:gap-5 lg:grid-cols-4 xl:grid-cols-5">

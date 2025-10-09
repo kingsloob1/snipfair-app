@@ -6,7 +6,7 @@ export default function Story() {
         <section className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-8 px-5 pb-5 md:grid-cols-2 md:pb-10 lg:gap-12">
             <div className="h-full min-h-96 overflow-hidden md:min-h-[600px]">
                 <img
-                    src="/images/temp/values_one.png"
+                    src="/images/snipfair_base_white.jpg"
                     className="h-full w-full object-cover"
                     alt="Snipfair"
                 />

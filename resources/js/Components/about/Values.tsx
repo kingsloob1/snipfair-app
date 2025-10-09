@@ -65,7 +65,7 @@ export default function Values() {
                     </GradientText>
                 </p>
                 <h2 className="font-inter text-xl font-bold text-sf-gray-zinc sm:text-2xl md:text-3xl">
-                    Your Style, Your Terms — Anytime, Anywhere
+                    Your Style, Your Terms, Anytime, Anywhere
                 </h2>
                 <p className="max-w-3xl font-sans text-base text-sf-primary-paragraph">
                     The principles that guide everything we do.

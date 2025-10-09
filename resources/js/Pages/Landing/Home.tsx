@@ -73,9 +73,9 @@ export default function Home({
             <HowItWorks />
             <Featured stylists={stylists} />
             {/* <Testimonial /> */}
-            <Faqs faqs={faqs} />
-            {!auth.user && <Cta />}
             <AppStoreSection />
+            {!auth.user && <Cta />}
+            <Faqs faqs={faqs} />
             <Footer />
         </SEOProvider>
     );
