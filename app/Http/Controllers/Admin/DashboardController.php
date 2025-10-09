@@ -181,7 +181,7 @@ class DashboardController extends Controller
             ->latest()
             ->limit(5)
             ->get()
-            ->map(function($user) {
+            ->map(function ($user) {
                 return [
                     'id' => $user->id,
                     'name' => $user->name,
@@ -214,21 +214,42 @@ class DashboardController extends Controller
     public function users()
     {
         $admin = Auth::guard('admin')->user();
+
         // Get customers with computed fields
         $customers = User::where('role', 'customer')
             ->withCount(['customerAppointments as total_bookings'])
-            ->with(['payments' => function($query) {
-                $query->where('status', 'completed');
-            }])
+            ->with([
+                'payments' => function ($query) {
+                    $query->where('status', 'completed');
+                }
+            ])
             ->get()
-            ->map(function($customer) {
+            ->map(function ($customer) {
                 $customer->total_spent = $customer->payments->sum('amount');
                 $customer->avatar = $this->getAvatar($customer);
                 return $customer;
             });
 
+        // Get all stylists with computed fields
+        $allStylists = Inertia::defer(fn() => User::where('role', 'stylist')
+            ->whereHas('stylist_profile', function ($query) {
+                $query->whereNotNull('id');
+            })
+            ->withCount([
+                'stylistAppointments as total_appointments',
+                'portfolios as portfolios_count'
+            ])
+            ->with('stylist_profile', 'stylistAppointments', 'stylistAppointments.customer', 'stylistAppointments.portfolio.category', 'transactions')
+            ->get()
+            ->map(function ($stylist) {
+                $stylist->total_earned = $stylist->transactions()->where('type', 'earning')->where('status', 'completed')->sum('amount');
+                $stylist->subscription = $stylist->plan ?? 'Yet to Subscribe';
+                $stylist->avatar = $this->getAvatar($stylist);
+                return $stylist;
+            }));
+
         // Get stylists with computed fields
-        $stylists = User::where('role', 'stylist')
+        $stylists = Inertia::defer(fn() => User::where('role', 'stylist')
             ->whereHas('stylist_profile', function ($query) {
                 $query->whereIn('status', ['approved', 'flagged']);
             })
@@ -238,20 +259,21 @@ class DashboardController extends Controller
             ])
             ->with('stylist_profile', 'stylistAppointments', 'stylistAppointments.customer', 'stylistAppointments.portfolio.category', 'transactions')
             ->get()
-            ->map(function($stylist) {
+            ->map(function ($stylist) {
                 $stylist->total_earned = $stylist->transactions()->where('type', 'earning')->where('status', 'completed')->sum('amount');
                 $stylist->subscription = $stylist->plan ?? 'Yet to Subscribe';
                 $stylist->avatar = $this->getAvatar($stylist);
                 return $stylist;
-            });
+            }));
+
         // Get pending stylist applications
-        $stylist_approvals = User::where('role', 'stylist')
+        $stylist_approvals = Inertia::defer(fn() => User::where('role', 'stylist')
             ->whereHas('stylist_profile', function ($query) {
                 $query->where('status', 'pending');
             })
             ->with('stylist_profile')
             ->get()
-            ->map(function($user) {
+            ->map(function ($user) {
                 return [
                     'id' => $user->id,
                     'name' => $user->name,
@@ -265,10 +287,10 @@ class DashboardController extends Controller
                     'specialties' => $user->portfolios()->with('category')->get()->pluck('category.name')->filter()->unique()->take(3)->values()->toArray(),
                     'portfolio_count' => $user->portfolios()->count(),
                 ];
-            });
+            }));
 
-        $deleted_users = User::onlyTrashed()->get()
-            ->map(function($user) {
+        $deleted_users = Inertia::defer(fn() => User::onlyTrashed()->get()
+            ->map(function ($user) {
                 return [
                     'id' => $user->id,
                     'name' => $user->name,
@@ -279,11 +301,12 @@ class DashboardController extends Controller
                     'role' => $user->role,
                     'deleted_by' => 'Admin',
                 ];
-            });
+            }));
 
 
         return Inertia::render('Admin/Account/Users/Index', [
             'customers' => $customers,
+            'all_stylists' => $allStylists,
             'stylists' => $stylists,
             'stylist_approvals' => $stylist_approvals,
             'deleted_users' => $deleted_users,
@@ -305,8 +328,8 @@ class DashboardController extends Controller
         $words = explode(' ', $user->name);
         $initials = strtoupper(
             count($words) >= 2
-                ? substr($words[0], 0, 1) . substr($words[1], 0, 1)
-                : substr($user->name, 0, 2)
+            ? substr($words[0], 0, 1) . substr($words[1], 0, 1)
+            : substr($user->name, 0, 2)
         );
 
         return $initials;
@@ -429,7 +452,8 @@ class DashboardController extends Controller
         return back()->with('success', 'Stylist application rejected.');
     }
 
-    public function getStylist($id){
+    public function getStylist($id)
+    {
         $admin = Auth::guard('admin')->user();
         $stylist = User::where('role', 'stylist')->where('id', $id)->whereHas('stylist_profile')->first();
         if (!$stylist) {
@@ -475,19 +499,19 @@ class DashboardController extends Controller
         $actual_reviews = Review::whereHas('appointment', function ($query) use ($stylist) {
             $query->where('stylist_id', $stylist->id);
         })
-        ->with(['appointment.customer'])
-        ->latest()
-        ->take(5)
-        ->get()
-        ->map(function ($review) {
-            return [
-                'name' => $review->appointment->customer->name ?? 'Anonymous',
-                'title' => 'Customer',
-                'message' => $review->comment ?? 'Great service!',
-                'rating' => $review->rating ?? 5,
-                'ratingDate' => $review->created_at->diffForHumans(),
-            ];
-        });
+            ->with(['appointment.customer'])
+            ->latest()
+            ->take(5)
+            ->get()
+            ->map(function ($review) {
+                return [
+                    'name' => $review->appointment->customer->name ?? 'Anonymous',
+                    'title' => 'Customer',
+                    'message' => $review->comment ?? 'Great service!',
+                    'rating' => $review->rating ?? 5,
+                    'ratingDate' => $review->created_at->diffForHumans(),
+                ];
+            });
 
         // Get stylist schedule
         $workingHours = $stylist->stylistSchedules()->with('slots')->get()
@@ -558,7 +582,7 @@ class DashboardController extends Controller
                 'categories' => $categories,
                 'years_of_experience' => $stylist->stylist_profile->years_of_experience ?? 0,
                 'likes_count' => $total_likes,
-                'section' => $stylist->plan === 'Premium Plan' ?  'top_rated' : 'online',
+                'section' => $stylist->plan === 'Premium Plan' ? 'top_rated' : 'online',
                 'appointment_counts' => $appointment_counts,
                 'services_completed' => $appointment_counts . '+',
                 'work_experience' => ($stylist->stylist_profile->years_of_experience ?? 0) . '+ years',

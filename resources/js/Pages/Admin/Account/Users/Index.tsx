@@ -88,6 +88,7 @@ interface DeletedUser {
 
 interface UsersProps {
     customers: Customer[];
+    all_stylists: Stylist[];
     stylists: Stylist[];
     stylist_approvals: StylistApplication[];
     deleted_users?: DeletedUser[];
@@ -95,12 +96,13 @@ interface UsersProps {
 
 export default function Users({
     customers,
+    all_stylists,
     stylists,
     stylist_approvals,
     deleted_users,
 }: UsersProps) {
     const [activeTab, setActiveTab] = useState<
-        'customers' | 'stylists' | 'approvals' | 'deleted_users'
+        'customers' | 'all_stylists' | 'stylists' | 'approvals' | 'deleted_users'
     >('customers');
 
     const routes = [
@@ -113,7 +115,7 @@ export default function Users({
 
     const handleTabChange = (value: string) => {
         setActiveTab(
-            value as 'customers' | 'stylists' | 'approvals' | 'deleted_users',
+            value as 'customers' | 'all_stylists' | 'stylists' | 'approvals' | 'deleted_users',
         );
     };
 
@@ -121,6 +123,8 @@ export default function Users({
         switch (activeTab) {
             case 'customers':
                 return <CustomersTable customers={customers} />;
+            case 'all_stylists':
+                return <StylistsTable stylists={all_stylists} />;
             case 'stylists':
                 return <StylistsTable stylists={stylists} />;
             case 'approvals':
@@ -138,8 +142,10 @@ export default function Users({
         switch (activeTab) {
             case 'customers':
                 return 'Customers';
+            case 'all_stylists':
+                return 'All Stylists';
             case 'stylists':
-                return 'Stylists';
+                return 'Approved Stylists';
             case 'approvals':
                 return 'Stylist Approvals';
             case 'deleted_users':
@@ -160,7 +166,8 @@ export default function Users({
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem value="customers">Customers</SelectItem>
-                        <SelectItem value="stylists">Stylists</SelectItem>
+                        <SelectItem value="all_stylists">All Stylists</SelectItem>
+                        <SelectItem value="stylists">Approved Stylists</SelectItem>
                         <SelectItem value="approvals">
                             Stylist Approvals
                         </SelectItem>
