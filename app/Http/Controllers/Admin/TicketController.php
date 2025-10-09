@@ -25,9 +25,9 @@ class TicketController extends Controller
         $formattedTickets = $tickets->map(function ($ticket) {
             return [
                 'id' => $ticket->ticket_id,
-                'userName' => $ticket->user->name,
-                'userAvatar' => getAvatar($ticket->user),
-                'type' => $ticket->user->role,
+                'userName' => $ticket->user?->name,
+                'userAvatar' => $ticket->user ? getAvatar($ticket->user) : '',
+                'type' => $ticket->user?->role,
                 'comment' => $ticket->description,
                 'updatedDate' => $ticket->updated_at->format('Y-m-d'),
                 'status' => ucfirst(str_replace('_', ' ', $ticket->status)),
@@ -43,7 +43,7 @@ class TicketController extends Controller
         $yesterdayResolved = Ticket::where('status', 'closed')
             ->whereDate('resolved_at', today()->subDay())
             ->count();
-        
+
         $responseTimeChange = $this->calculateResponseTimeChange($stats['avg_response_time'], $lastMonthResponseTime);
         $resolvedChange = $this->calculateResolvedChange($stats['resolved_today'], $yesterdayResolved);
 
@@ -94,15 +94,15 @@ class TicketController extends Controller
         ]);
 
         $updates = [];
-        
+
         if ($request->has('status')) {
             $updates['status'] = $request->status;
         }
-        
+
         if ($request->has('priority')) {
             $updates['priority'] = $request->priority;
         }
-        
+
         if ($request->has('assigned_to')) {
             $updates['assigned_to'] = $request->assigned_to;
         }
@@ -139,7 +139,7 @@ class TicketController extends Controller
     }
 
     public function getMessages(Ticket $ticket)
-    { 
+    {
         $messages = $ticket->messages()
             ->with('sender')
             ->orderBy('created_at', 'asc')
@@ -196,14 +196,14 @@ class TicketController extends Controller
         // Extract numeric values from time strings (e.g., "2.5hr" -> 2.5)
         $currentValue = (float) str_replace('hr', '', $current);
         $previousValue = (float) str_replace('hr', '', $previous);
-        
+
         if ($previousValue == 0) {
             return ['text' => 'No data', 'type' => 'positive'];
         }
-        
+
         $change = (($currentValue - $previousValue) / $previousValue) * 100;
         $changeText = abs(round($change, 1)) . '% from last month';
-        
+
         // For response time, lower is better, so positive change means slower response (negative)
         return [
             'text' => $changeText,
@@ -219,10 +219,10 @@ class TicketController extends Controller
         if ($yesterday == 0) {
             return ['text' => $today > 0 ? 'New today' : 'No tickets', 'type' => 'positive'];
         }
-        
+
         $change = (($today - $yesterday) / $yesterday) * 100;
         $changeText = abs(round($change, 1)) . '% from yesterday';
-        
+
         return [
             'text' => $changeText,
             'type' => $change >= 0 ? 'positive' : 'negative'
