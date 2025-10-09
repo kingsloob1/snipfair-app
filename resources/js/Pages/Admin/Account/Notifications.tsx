@@ -4,6 +4,7 @@ import { AdminAccountLayout } from '@/Layouts/AdminAccountLayout';
 import { NotificationCardProps, PageProps } from '@/types';
 import { router } from '@inertiajs/react';
 import { toast } from 'sonner';
+import isUrl from 'is-url-superb';
 
 interface NotificationPageProps extends PageProps {
     notifications: (NotificationCardProps & { id: number })[];
@@ -42,7 +43,7 @@ export default function Notifications({
         primaryAction: () => {
             markAsRead(notification.id);
         },
-        action_url: notification.type,
+        action_url: notification.type && isUrl(notification.type, {lenient: true}) ? notification.type : '',
         primaryActionLabel: 'Close',
     }));
 

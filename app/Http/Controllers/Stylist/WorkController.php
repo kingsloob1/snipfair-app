@@ -129,7 +129,7 @@ class WorkController extends Controller
             $portfolioQueryBuilder = $portfolioQueryBuilder->where('category_id', $categoryId);
         }
 
-        $portfolios = $portfolioQueryBuilder->cursorPaginate($perPage, ['*'], 'page');
+        $portfolios = $portfolioQueryBuilder->with(['category'])->cursorPaginate($perPage, ['*'], 'page');
 
         return $portfolios;
     }

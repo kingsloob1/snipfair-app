@@ -58,7 +58,7 @@ class AdminNotificationHelper
      * @param string $title
      * @param string $description
      * @param string $priority
-     * @return \App\Models\Notification
+     * @return \App\Models\AdminNotification
      */
     public static function create($userId, $type, $title, $description = null, $priority = 'normal')
     {

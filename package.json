@@ -55,6 +55,7 @@
         "@tailwindcss/typography": "^0.5.16",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
+        "is-url-superb": "^6.1.0",
         "jodit": "^4.6.2",
         "jodit-react-ts": "^0.9.0",
         "lucide-react": "^0.525.0",
