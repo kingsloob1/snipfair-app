@@ -89,19 +89,19 @@ class DashboardController extends Controller
             ];
         });
 
-        $stylist = $request->user();
+        $stylistUser = $request->user();
         $profile_completeness = [
-            'portfolio' => $stylist->portfolios()->exists(),
-            'payment_method' => $stylist->stylistPaymentMethods()->where('is_active', true)->exists(),
-            'status_approved' => $stylist->stylist_profile?->status === 'approved',
-            'social_links' => $stylist->stylist_profile?->socials && count($stylist->stylist_profile->socials) > 0,
-            'works' => $stylist->stylist_profile?->works && count($stylist->stylist_profile->works) > 0,
-            'location_service' => $stylist->location_service,
-            'address' => $stylist->country !== null && $stylist->country !== '',
-            'subscription_status' => $stylist->subscription_status === 'active',
-            'user_avatar' => $stylist->avatar !== null && $stylist->avatar !== '',
-            'user_bio' => $stylist->bio !== null && $stylist->bio !== '',
-            'user_banner' => $stylist->stylist_profile?->banner !== null && $stylist->stylist_profile?->banner !== '',
+            'portfolio' => $stylistUser->portfolios()->exists(),
+            'payment_method' => $stylistUser->stylistPaymentMethods()->where('is_active', true)->exists(),
+            'status_approved' => $stylistUser->stylist_profile?->status === 'approved',
+            'social_links' => $stylistUser->stylist_profile?->socials && count($stylistUser->stylist_profile->socials) > 0,
+            'works' => $stylistUser->stylist_profile?->works && count($stylistUser->stylist_profile->works) > 0,
+            'location_service' => $stylistUser->location_service,
+            'address' => $stylistUser->country !== null && $stylistUser->country !== '',
+            'subscription_status' => $stylistUser->subscription_status === 'active',
+            'user_avatar' => $stylistUser->avatar !== null && $stylistUser->avatar !== '',
+            'user_bio' => $stylistUser->bio !== null && $stylistUser->bio !== '',
+            'user_banner' => $stylistUser->stylist_profile?->banner !== null && $stylistUser->stylist_profile?->banner !== '',
         ];
 
         return Inertia::render('Stylist/Dashboard', [

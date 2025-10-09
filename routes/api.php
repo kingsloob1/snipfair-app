@@ -63,6 +63,9 @@ Route::middleware('api')->group(function () {
             Route::patch('password', [ApiAuthController::class, 'updatePassword'])
                 ->middleware('profile.complete');
 
+            // Update user data
+            Route::patch('', [ApiAuthController::class, 'updateUser']);
+
             Route::group(['prefix' => '/location'], function () {
                 //update location consent status
                 Route::post('/consent', [LocationServiceController::class, 'recordLocationConsent']);
@@ -96,7 +99,7 @@ Route::middleware('api')->group(function () {
             Route::patch('/identity', [StylistController::class, 'completeIdentity']);
 
             //Update profile avatar
-            Route::post('/profile/avatar', [StylistController::class, 'avatabrUpdate']);
+            Route::post('/profile/avatar', [StylistController::class, 'avatarUpdate']);
 
             //Update profile banner
             Route::post('/profile/banner', [StylistController::class, 'bannerUpdate']);
@@ -153,14 +156,32 @@ Route::middleware('api')->group(function () {
                     Route::delete('{id}', [StylistWorkController::class, 'deleteWork']);
                 });
 
+                //Stylist appointment routes
+                Route::group((['prefix' => '/appointment']), function () {
+
+                    Route::post('/availability', [StylistAppointmentController::class, 'updateAppointmentAvailability']);
+
+                    Route::get('/availability', [StylistAppointmentController::class, 'getAppointmentAvailability']);
+
+                    Route::get('/list', [StylistAppointmentController::class, 'getAppointmentList']);
+
+                    Route::get('{id}', [StylistAppointmentController::class, 'getSpecificAppointment']);
+
+                    Route::post('{id}', [StylistAppointmentController::class, 'updateSpecificAppointment']);
+
+                    //Comment start here
+                    // Route::get('/pending-appointments', 'App\Http\Controllers\Stylist\AppointmentController@getPendingAppointments');
+                    // Route::post('/approve-appointment', 'App\Http\Controllers\Stylist\AppointmentController@approveAppointment');
+                    // Route::post('/confirm-meetup', 'App\Http\Controllers\Stylist\AppointmentController@confirmMeetup');
+                    // Route::post('/complete-appointment', 'App\Http\Controllers\Stylist\AppointmentController@completeAppointment');
+                    // Route::post('/process-subscription-payment', 'App\Http\Controllers\Stylist\SubscriptionController@processSubscriptionPayment');
+                    // Route::post('/update-availability', 'App\Http\Controllers\Stylist\SubscriptionController@updateAvailability');
+                    // Route::get('/appointment-status/{appointmentId}', 'App\Http\Controllers\Stylist\AppointmentController@getAppointment');
+                    // Route::post('/update-appointment', 'App\Http\Controllers\Stylist\AppointmentController@updateAppointment');
+                });
+
 
                 //Here...
-
-                // Get pending stylist schedules
-                Route::get('/pending-appointments', [StylistAppointmentController::class, 'getPendingAppointments']);
-
-                // Get pending stylist schedules
-                Route::get('/pending-appointments', [StylistAppointmentController::class, 'getPendingAppointments']);
             });
         });
 

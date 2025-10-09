@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Stylist;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\StylistController;
 use App\Models\Appointment;
 use App\Events\AppointmentStatusUpdated;
 use App\Helpers\AdminNotificationHelper;
@@ -17,14 +18,25 @@ use App\Models\Transaction;
 use Carbon\Carbon;
 use DateTime;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Validator;
 
 class AppointmentController extends Controller
 {
-    public function index(Request $request){
+    private $stylistController;
+
+    public function __construct(StylistController $stylistController)
+    {
+        $this->stylistController = $stylistController;
+    }
+
+    public function index(Request $request)
+    {
         $appointments = Appointment::where('stylist_id', $request->user()->id)->whereIn('status', ['processing', 'pending', 'approved'])->with([
             'customer',
             'portfolio.category'
@@ -67,7 +79,8 @@ class AppointmentController extends Controller
         ]);
     }
 
-    public function fullSchedules(Request $request){
+    public function fullSchedules(Request $request)
+    {
         $appointments = Appointment::where('stylist_id', $request->user()->id)->with([
             'customer',
             'portfolio.category'
@@ -90,25 +103,26 @@ class AppointmentController extends Controller
         ]);
     }
 
-    public function getSchedules(Request $request){
+    public function getSchedules(Request $request)
+    {
         $user = $request->user();
 
         $schedules = $user->stylistSchedules()
             ->with('slots')
             ->get()
             ->map(function ($schedule) {
-            return [
-                'day' => ucfirst($schedule->day),
-                'available' => $schedule->available,
-                'timeSlots' => $schedule->slots->map(function ($slot) {
-                    return [
-                        'id' => $slot->id,
-                        'from' => Carbon::parse($slot->from)->format('H:i'),
-                        'to' => Carbon::parse($slot->to)->format('H:i'),
-                    ];
-                }),
-            ];
-        });
+                return [
+                    'day' => ucfirst($schedule->day),
+                    'available' => $schedule->available,
+                    'timeSlots' => $schedule->slots->map(function ($slot) {
+                        return [
+                            'id' => $slot->id,
+                            'from' => Carbon::parse($slot->from)->format('H:i'),
+                            'to' => Carbon::parse($slot->to)->format('H:i'),
+                        ];
+                    }),
+                ];
+            });
 
         return Inertia::render('Stylist/Appointments/Availability', [
             'stylist_schedules' => $schedules,
@@ -173,9 +187,10 @@ class AppointmentController extends Controller
         return back()->with('success', 'Schedule updated successfully.');
     }
 
-    public function getCalendar(Request $request){
+    public function getCalendar(Request $request)
+    {
         $appointments = Appointment::with(['portfolio.category', 'customer'])
-        ->get();
+            ->get();
 
         $formatted = [];
 
@@ -232,7 +247,7 @@ class AppointmentController extends Controller
             ->where('id', $id)
             ->firstOrFail();
 
-        if ($appointment->status === 'processing'){
+        if ($appointment->status === 'processing') {
             return back()->with('warning', 'Appointment details are still being confirmed, try again in a few seconds.');
         }
 
@@ -242,7 +257,7 @@ class AppointmentController extends Controller
             $distance = null;
         } else {
             $distance = $locationService->distanceTo($targetLocationService);
-            $distance = $distance !== null ? round($distance, 2). 'km away' : null;
+            $distance = $distance !== null ? round($distance, 2) . 'km away' : null;
         }
 
         $appointment_details = [
@@ -282,10 +297,10 @@ class AppointmentController extends Controller
 
         $appointment->first_dispute = $appointment->disputes()->exists() ? $appointment->disputes()->first() : null;
 
-            return response()->json([
-                'success' => true,
-                'appointment' => $appointment,
-            ]);
+        return response()->json([
+            'success' => true,
+            'appointment' => $appointment,
+        ]);
     }
 
     public function updateAppointment(Request $request)
@@ -297,8 +312,8 @@ class AppointmentController extends Controller
 
         //approved,canceled
         $appointment = Appointment::find($request->appointment_id);
-        if($request->verdict === 'approved'){
-            if(!$appointment || ($appointment->amount > $appointment->customer->balance)){
+        if ($request->verdict === 'approved') {
+            if (!$appointment || ($appointment->amount > $appointment->customer->balance)) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Appointment not found or failed payment.',
@@ -338,8 +353,8 @@ class AppointmentController extends Controller
                 stylist: $appointment->stylist
             ));
 
-        } else if($request->verdict === 'canceled'){
-             $appointment->update(['status' => 'canceled']);
+        } else if ($request->verdict === 'canceled') {
+            $appointment->update(['status' => 'canceled']);
         }
 
         return response()->json([
@@ -360,21 +375,18 @@ class AppointmentController extends Controller
         $appointment = Appointment::findOrFail($appointmentId);
 
         if ($request->variant === 'confirmed') {
-            if($appointment->appointment_code == $request->code){
+            if ($appointment->appointment_code == $request->code) {
                 $appointment->update(['status' => 'confirmed']);
-            }
-            else {
+            } else {
                 return back()->withErrors(['code' => 'Invalid verification code.']);
             }
-        }
-        else if ($request->variant === 'completed') {
-            if($appointment->completion_code == $request->code){
+        } else if ($request->variant === 'completed') {
+            if ($appointment->completion_code == $request->code) {
                 $appointment->transactions()->update(['status' => 'completed']);
                 $appointment->update([
                     'status' => 'completed',
                 ]);
-            }
-            else {
+            } else {
                 return back()->withErrors(['code' => 'Invalid completion code.']);
             }
         }
@@ -396,11 +408,11 @@ class AppointmentController extends Controller
 
         if ($request->hasFile('images')) {
             foreach ($request->file('images') as $file) {
-                $imagePaths[] = $file->store('works/'.$request->variant, 'public');
+                $imagePaths[] = $file->store('works/' . $request->variant, 'public');
             }
         }
 
-        if($request->variant === 'dispute'){
+        if ($request->variant === 'dispute') {
             $appointment = Appointment::findOrFail($appointmentId);
             $task = AppointmentDispute::create([
                 'appointment_id' => $appointment->id,
@@ -435,8 +447,7 @@ class AppointmentController extends Controller
                 );
             }
 
-        }
-        else if($request->variant === 'proof'){
+        } else if ($request->variant === 'proof') {
             $task = AppointmentProof::create([
                 'appointment_id' => $appointmentId,
                 'user_id' => $request->user()->id,
@@ -445,8 +456,10 @@ class AppointmentController extends Controller
             ]);
         }
 
-        if($task) return redirect()->route('stylist.dashboard')->with('message', 'Request created successfully!');
-        else return back()->with('message', 'Something went wrong');
+        if ($task)
+            return redirect()->route('stylist.dashboard')->with('message', 'Request created successfully!');
+        else
+            return back()->with('message', 'Something went wrong');
     }
 
     public function approveAppointment(Request $request)
@@ -632,5 +645,216 @@ class AppointmentController extends Controller
         ]);
 
         return redirect()->back()->with('success', 'Location settings updated successfully.');
+    }
+
+    public function updateAppointmentAvailability(Request $request)
+    {
+        $user = $request->user();
+        $stylist = $user->stylist_profile;
+
+        if (!$user || !$stylist) {
+            abort(403, 'Access Denied');
+        }
+
+        $validatorMessages = [
+            'schedules.*.timeSlots.*.id.required' => 'Each time slot must have a valid ID.',
+            'schedules.*.timeSlots.*.from.required' => 'Each time slot must have a start time.',
+            'schedules.*.timeSlots.*.to.after' => 'The end time must be after the start time.',
+        ];
+
+        $validated = $request->validate([
+            'is_available' => 'sometimes|boolean',
+            'schedules' => 'sometimes|array',
+            'schedules.*.day' => [
+                'required',
+                'string',
+                Rule::in(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']),
+            ],
+            'schedules.*.available' => 'required|boolean',
+            'schedules.*.timeSlots' => 'nullable|array',
+            'schedules.*.timeSlots.*.from' => 'required|date_format:H:i',
+            'schedules.*.timeSlots.*.to' => 'required|date_format:H:i|after:schedules.*.timeSlots.*.from',
+        ], $validatorMessages);
+
+        $user = $request->user();
+        $stylist = $user->stylist_profile;
+
+        //Ensure stylist can only be available when fully approved
+        if ($validated['is_available']) {
+            $profileCompleteNess = $this->stylistController->checkProfileCompleteness($user, false);
+
+            if (!collect($profileCompleteNess)->every($profileCompleteNess, fn($val) => !!$val)) {
+                throw ValidationException::withMessages([
+                    'profile' => 'Kindly complete your stylist profile to be available for jobs'
+                ]);
+            }
+
+            if ($stylist->status !== 'approved') {
+                throw ValidationException::withMessages([
+                    'profile' => 'Kindly ensure your stylist profile is approved to continue'
+                ]);
+            }
+
+            $stylist->is_available = $request->is_available;
+            $stylist->save();
+        }
+
+        foreach ($validated['schedules'] as $dayData) {
+            $schedule = $user->stylistSchedules()->where('day', strtolower($dayData['day']))->first();
+
+            if ($schedule) {
+                $schedule->update(['available' => $dayData['available']]);
+                $schedule->slots()->delete();
+                if (isset($dayData['timeSlots']) && is_array($dayData['timeSlots']) && !empty($dayData['timeSlots'])) {
+                    foreach ($dayData['timeSlots'] as $slot) {
+                        try {
+                            $schedule->slots()->create([
+                                'from' => $slot['from'] . ':00', // Add seconds if needed
+                                'to' => $slot['to'] . ':00',     // Add seconds if needed
+                            ]);
+                        } catch (\Exception $e) {
+                            Log::error('Failed to create slot', [
+                                'error' => $e->getMessage(),
+                                'slot' => $slot,
+                                'schedule_id' => $schedule->id
+                            ]);
+                        }
+                    }
+                } else {
+                    Log::info('No timeSlots to process for day: ' . $dayData['day']);
+                }
+            } else {
+                Log::warning('Schedule not found for day: ' . $dayData['day']);
+            }
+        }
+
+        return response()->noContent();
+    }
+
+    public function getAppointmentAvailability(Request $request)
+    {
+        $user = $request->user();
+        $stylist = $user->stylist_profile;
+
+        if (!$user || !$stylist) {
+            abort(403, 'Access Denied');
+        }
+
+        $schedules = $user->stylistSchedules()->with(['slots'])->get()->all();
+
+        return [
+            'is_available' => $stylist->is_available,
+            'schedules' => $schedules
+        ];
+    }
+
+    public function getAppointmentList(Request $request)
+    {
+        $user = $request->user();
+        $stylist = $user->stylist_profile;
+
+        if (!$user || !$stylist) {
+            abort(403, 'Access Denied');
+        }
+
+        $perPage = formatPerPage($request);
+
+        $query = $request->query('query');
+        $categoryId = $request->query('category_id');
+        $customerId = $request->query('customer_id');
+        $portfolio = $request->query('portfolio_id');
+        $status = $request->query('status');
+        $sortGroups = formatRequestSort($request, ['booking_id', 'amount', 'duration', 'status', 'id', 'created_at', 'appointment_date'], '-id');
+
+        $queryBuilder = Appointment::where('stylist_id', '=', $user->id);
+
+        if ($categoryId) {
+            $queryBuilder = $queryBuilder->whereRelation('portfolio', 'category_id', '=', $categoryId);
+        }
+
+        if ($customerId) {
+            $queryBuilder = $queryBuilder->where('customer_id', '=', $customerId);
+        }
+
+        if ($portfolio) {
+            $queryBuilder = $queryBuilder->where('portfolio_id', '=', $portfolio);
+        }
+
+        if ($status) {
+            $queryBuilder = $queryBuilder->where('status', '=', $status);
+        }
+
+        if ($query) {
+            $queryBuilder = $queryBuilder->whereLike('booking_id', '%' . $query . '%', false);
+        }
+
+        foreach ($sortGroups as $sortGroup) {
+            $queryBuilder = $queryBuilder->orderBy($sortGroup['property'], $sortGroup['direction']);
+        }
+
+        $list = $queryBuilder->with([
+            'portfolio',
+            'portfolio.category',
+            'customer'
+        ])->cursorPaginate($perPage, ['*'], 'page');
+
+        return $list;
+    }
+
+    public function getSpecificAppointment(Request $request, $appointmentId)
+    {
+        $user = $request->user();
+        $stylist = $user->stylist_profile;
+
+        if (!$user || !$stylist) {
+            abort(403, 'Access Denied');
+        }
+
+        $appointment = Appointment::with(['customer', 'stylist', 'stylist.stylist_profile', 'portfolio', 'portfolio.category', 'customer.location_service', 'proof', 'disputes'])
+            ->where('id', '=', $appointmentId)
+            // ->where('stylist_id','=', $user->id)
+            ->firstOrFail();
+
+        return $appointment;
+    }
+
+    public function updateSpecificAppointment(Request $request, $appointmentId)
+    {
+        $user = $request->user();
+        $stylist = $user->stylist_profile;
+
+        if (!$user || !$stylist) {
+            abort(403, 'Access Denied');
+        }
+
+        $request->validate([
+            'variant' => 'required|in:confirmed,completed',
+            'code' => 'required|string',
+        ]);
+
+        $appointment = Appointment::where('stylist_id', '=', $user->id)->where('id', '=', $appointmentId)->firstOrFail();
+
+        $validator = Validator::make([], []);
+
+        if ($request->variant === 'confirmed') {
+            if ($appointment->appointment_code == $request->code) {
+                $appointment->update(['status' => 'confirmed']);
+            } else {
+                $validator->errors()->add('code', 'Appointment code is invalid');
+                throw new ValidationException($validator);
+            }
+        } else if ($request->variant === 'completed') {
+            if ($appointment->completion_code == $request->code) {
+                $appointment->transactions()->update(['status' => 'completed']);
+                $appointment->update([
+                    'status' => 'completed',
+                ]);
+            } else {
+                $validator->errors()->add('code', 'Appointment completion code is invalid');
+                throw new ValidationException($validator);
+            }
+        }
+
+        return response()->noContent();
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Stylist;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\StylistController;
 use App\Models\Category;
 use App\Models\Like;
 use App\Models\Portfolio;
@@ -19,6 +20,13 @@ use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 
 class WorkController extends Controller
 {
+    private $stylistController;
+
+    public function __construct(StylistController $stylistController)
+    {
+        $this->stylistController = $stylistController;
+    }
+
     public function work(Request $request)
     {
         $categories = Category::all()->pluck('name');
@@ -195,6 +203,8 @@ class WorkController extends Controller
             throw new BadRequestHttpException('An error occurred while saving your service');
         }
 
+        $this->stylistController->checkProfileCompleteness($user, false);
+
         return $work;
     }
 
@@ -332,6 +342,8 @@ class WorkController extends Controller
 
         $work->refresh();
 
+        $this->stylistController->checkProfileCompleteness($user, false);
+
         return $work;
     }
 
@@ -368,6 +380,8 @@ class WorkController extends Controller
         }
 
         $work->delete();
+
+        $this->stylistController->checkProfileCompleteness($user, false);
 
         return response()->noContent();
     }

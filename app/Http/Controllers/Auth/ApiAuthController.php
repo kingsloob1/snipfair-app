@@ -245,4 +245,27 @@ class ApiAuthController extends Controller
 
         return response()->noContent();
     }
+
+    /**
+     * Summary of updateUser
+     * @param \Illuminate\Http\Request $request
+     * @return \Illuminate\Http\Response
+     */
+    public function updateUser(Request $request)
+    {
+        $validated = $request->validate([
+            'use_location' => 'sometimes|boolean',
+            'country' => 'sometimes|string|max:200',
+        ]);
+
+        if (count($validated)) {
+            $user = $request->user();
+            $user->update([
+                'use_location' => $request->use_location,
+                'country' => $request->country,
+            ]);
+        }
+
+        return response()->noContent();
+    }
 }

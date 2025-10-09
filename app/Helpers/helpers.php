@@ -359,3 +359,40 @@ if (!function_exists('formatPerPage')) {
         return $perPage;
     }
 }
+
+if (!function_exists('getDateRanges')) {
+    function getDateRanges(string $range)
+    {
+        switch ($range) {
+            case 'weekly':
+                return [now()->startOfWeek(Carbon::SUNDAY), now()->endOfWeek(Carbon::SATURDAY)];
+            case 'monthly':
+                return [now()->startOfMonth(), now()->endOfMonth()];
+            case 'yearly':
+                return [now()->startOfYear(), now()->endOfYear()];
+            case 'daily':
+            default:
+                return [now()->startOfDay(), now()->endOfDay()];
+        }
+    }
+}
+
+if (!function_exists('formatRequestSort')) {
+    function formatRequestSort(Request $request, array $fields, string $default = '')
+    {
+        return Str::of($request->query('sort') ?? $default)->squish()->split('/[\s,]+/')->map(function ($value) {
+            $value = Str::squish($value);
+            $startsWithMinus = Str::startsWith($value, '-');
+            $startsWithPlus = Str::startsWith($value, '+');
+            $isDescending = $startsWithMinus;
+            $property = ($startsWithMinus || $startsWithPlus) ? substr($value, 1) : $value;
+
+            return [
+                'property' => $property,
+                'direction' => $isDescending ? 'DESC' : 'ASC'
+            ];
+        })->where(function ($value) use ($fields) {
+            return in_array($value['property'], $fields);
+        })->all();
+    }
+}

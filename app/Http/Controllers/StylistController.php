@@ -502,8 +502,9 @@ class StylistController extends Controller
         return back()->with('success', 'Work removed.');
     }
 
-    public function checkProfileCompleteness(User $user)
+    public function checkProfileCompleteness(User $user, bool $canUnVerify = true)
     {
+        $user->refresh();
         if (!$user->role === 'stylist') {
             throw new Exception('Only stylist can access this resource');
         }
@@ -531,7 +532,7 @@ class StylistController extends Controller
                     'status' => 'pending',
                 ]);
             }
-        } else if ($user->stylist_profile && in_array($user->stylist_profile?->status, ['approved', 'pending', 'rejected'])) {
+        } else if ($canUnVerify && $user->stylist_profile && in_array($user->stylist_profile?->status, ['approved', 'pending', 'rejected'])) {
             $user->stylist_profile->update([
                 'is_available' => false,
                 'status' => 'unverified',
@@ -692,7 +693,6 @@ class StylistController extends Controller
             $disk->delete($mediaPath);
         }
 
-        $user->refresh();
         $this->checkProfileCompleteness($user);
 
         return response()->noContent();
@@ -890,15 +890,40 @@ class StylistController extends Controller
         $stylist = $user->stylist_profile;
 
         $resp = [
-            'total_works' => $user->portfolios()->count(),
-            'total_likes' => Like::where([
-                ['user_id', '=', $user->id],
-                ['type', '=', 'portfolio'],
-                ['status', '=', true]
-            ])->count(),
-            'average_rating' => Review::whereHas('appointment', function ($query) use ($stylist) {
-                $query->where('stylist_id', $stylist->id);
-            })->avg('rating') ?? 0,
+            'total' => [
+                'works' => $user->portfolios()->count(),
+                'likes' => Like::where([
+                    ['user_id', '=', $user->id],
+                    ['type', '=', 'portfolio'],
+                    ['status', '=', true]
+                ])->count(),
+                'appointments' => $user->stylistAppointments()
+                    ->where('status', 'confirmed')
+                    ->count(),
+                'earnings' => $user->transactions()
+                    ->where('type', 'earning')
+                    ->where('status', 'completed')
+                    ->sum('amount') ?? 0,
+            ],
+            'average_rating' => $user->stylistAppointments()
+                ->join('reviews', 'appointments.id', '=', 'reviews.appointment_id')
+                ->whereNotNull('reviews.rating')
+                ->avg('reviews.rating') ?? 0,
+            'today' => [
+                'earnings' => $user->transactions()
+                    ->whereBetween('created_at', getDateRanges('daily'))
+                    ->where('type', 'earning')
+                    ->where('status', 'completed')
+                    ->sum('amount') ?? 0,
+                'appointments' => $user->stylistAppointments()
+                    ->whereBetween('created_at', getDateRanges('daily'))
+                    ->where('status', 'confirmed')
+                    ->count(),
+                'pending_appointments' => $user->stylistAppointments()
+                    ->whereBetween('created_at', getDateRanges('daily'))
+                    ->where('status', 'pending')
+                    ->count()
+            ]
         ];
 
         return $resp;
