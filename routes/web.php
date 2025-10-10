@@ -29,7 +29,8 @@ Route::get('/', [HomeController::class, 'home'])->name('home');
 Route::get('/about', [HomeController::class, 'about'])->name('about');
 Route::get('/services', [HomeController::class, 'services'])->name('services');
 Route::get('/explore', [HomeController::class, 'explore'])->name('explore');
-Route::get('/contact-us', function () { return Inertia::render('Landing/ContactPage'); })->name('contact');
+Route::get('/contact-us', function () {
+    return Inertia::render('Landing/ContactPage'); })->name('contact');
 Route::get('/faqs', [HomeController::class, 'faqs'])->name('faqs');
 Route::get('/terms', [HomeController::class, 'terms'])->name('terms');
 Route::get('/privacy-policy', [HomeController::class, 'privacyPolicy'])->name('privacy-policy');
@@ -108,9 +109,9 @@ Route::middleware('auth')->post('/test-chat-broadcast', function (Illuminate\Htt
 Route::group(['middleware' => ['auth', 'verified']], function () {
     Route::get('/dashboard', function (Request $request) {
         $user = $request->user();
-        if($user->role === 'customer')
+        if ($user->role === 'customer')
             return redirect()->route('customer.explore');
-        else if($user->role === 'stylist')
+        else if ($user->role === 'stylist')
             return redirect()->route('stylist.dashboard');
     })->name('dashboard');
 
@@ -147,8 +148,10 @@ Route::group(['middleware' => ['auth', 'verified']], function () {
         Route::patch('/settings/payment-methods/{id}/set-default', 'setDefaultPaymentMethod')->name('settings.payment-methods.set-default');
 
         Route::get('/favorites', 'getFavorites')->name('favorites');
-        Route::get('/settings/theme', function() { return Inertia::render('Customer/Dashboard'); })->name('settings.theme');
-        Route::get('/referral', function() { return Inertia::render('Customer/Dashboard'); })->name('referral');
+        Route::get('/settings/theme', function () {
+            return Inertia::render('Customer/Dashboard'); })->name('settings.theme');
+        Route::get('/referral', function () {
+            return Inertia::render('Customer/Dashboard'); })->name('referral');
         Route::get('/chat', [ChatController::class, 'index'])->name('chat');
         Route::get('/notifications', [LikeController::class, 'notifications'])->name('notifications');
 
@@ -200,7 +203,8 @@ Route::group(['middleware' => ['auth', 'verified']], function () {
         Route::post('/work/{work}/media', 'uploadWorkMedia')->name('work.media.upload');
         Route::delete('/work/{work}/media', 'deleteWorkMedia')->name('work.media.delete');
         Route::delete('/work/{work}/delete', 'deleteWork')->name('work.delete');
-        Route::get('/work/requests', function() { return Inertia::render('Stylist/Work/Requests'); })->name('work.requests');
+        Route::get('/work/requests', function () {
+            return Inertia::render('Stylist/Work/Requests'); })->name('work.requests');
 
         Route::get('/portfolio', [WorkController::class, 'portfolio'])->name('portfolio');
         Route::get('/earnings', [DashboardController::class, 'earningIndex'])->name('earnings');
@@ -208,9 +212,10 @@ Route::group(['middleware' => ['auth', 'verified']], function () {
         Route::get('/account/settings', [DashboardController::class, 'accountSettings'])->name('account.settings');
         Route::get('/earnings/settings', [DashboardController::class, 'earningSettings'])->name('earnings.settings');
         Route::put('/earnings/settings/save', [DashboardController::class, 'earningsSettingsUpdate'])->name('earnings.settings.update');
-        Route::post('/earnings/methods/create', [DashboardController::class, 'earningsMethodsCreate'])->name('earnings.methods.create');;
-        Route::post('/earnings/methods/{id}/update', [DashboardController::class, 'earningsMethodsUpdate'])->name('earnings.methods.update');;
-        Route::post('/earnings/methods/{id}/default', [DashboardController::class, 'earningsMethodsSetDefault'])->name('earnings.methods.default');;
+        Route::post('/earnings/methods/create', [DashboardController::class, 'earningsMethodsCreate'])->name('earnings.methods.create');
+        Route::post('/earnings/methods/{id}/update', [DashboardController::class, 'earningsMethodsUpdate'])->name('earnings.methods.update');
+        Route::post('/earnings/methods/{id}/default', [DashboardController::class, 'earningsMethodsSetDefault'])->name('earnings.methods.default');
+        ;
         Route::post('/earnings/methods/{id}/toggle', [DashboardController::class, 'earningsMethodsToggle'])->name('earnings.methods.toggle');
         Route::delete('/earnings/methods/{id}/delete', [DashboardController::class, 'earningsMethodsDestroy'])->name('earnings.methods.delete');
         Route::post('/withdrawal/request', [DashboardController::class, 'withdrawalRequest'])->name('withdrawal.request');
@@ -219,8 +224,10 @@ Route::group(['middleware' => ['auth', 'verified']], function () {
         Route::get('/subscriptions', [SubscriptionController::class, 'index'])->name('subscriptions');
         Route::get('/verification', [SubscriptionController::class, 'getVerification'])->name('verification');
 
-        Route::get('/tutorials', function() { return Inertia::render('Stylist/Tutorials/Index'); })->name('tutorials');
-        Route::get('/tutorials/all', function() { return Inertia::render('Stylist/Tutorials/Tutorials'); })->name('tutorials.all');
+        Route::get('/tutorials', function () {
+            return Inertia::render('Stylist/Tutorials/Index'); })->name('tutorials');
+        Route::get('/tutorials/all', function () {
+            return Inertia::render('Stylist/Tutorials/Tutorials'); })->name('tutorials.all');
 
         Route::get('/profile', 'profile')->name('profile');
         Route::get('/profile/services', 'serviceList')->name('profile.services');
@@ -229,10 +236,14 @@ Route::group(['middleware' => ['auth', 'verified']], function () {
         Route::post('/profile/banner', 'bannerUpdate')->name('profile.banner.update');
         Route::post('/profile/verification', 'verificationUpdate')->name('profile.verification.update');
         Route::post('/profile/certificate', 'certificationCreate')->name('profile.certificate.create');
-        Route::get('/settings', function() { return redirect()->route('stylist.account.settings'); })->name('settings');
-        Route::get('/favorites', function() { return Inertia::render('Customer/Favorites'); })->name('favorites');
-        Route::get('/settings/theme', function() { return Inertia::render('Customer/Dashboard'); })->name('settings.theme');
-        Route::get('/referral', function() { return Inertia::render('Customer/Dashboard'); })->name('referral');
+        Route::get('/settings', function () {
+            return redirect()->route('stylist.account.settings'); })->name('settings');
+        Route::get('/favorites', function () {
+            return Inertia::render('Customer/Favorites'); })->name('favorites');
+        Route::get('/settings/theme', function () {
+            return Inertia::render('Customer/Dashboard'); })->name('settings.theme');
+        Route::get('/referral', function () {
+            return Inertia::render('Customer/Dashboard'); })->name('referral');
         Route::get('/chat', [ChatController::class, 'index'])->name('chat');
         Route::get('/notifications', [LikeController::class, 'notifications'])->name('notifications');
         Route::get('/customer/{id}', [CustomerController::class, 'getCustomer'])->name('customer.show');
@@ -262,4 +273,4 @@ Route::middleware('auth')->group(function () {
 
 // Route::get('/guides', function(){ return Inertia::render('Guides'); });
 
-require __DIR__.'/auth.php';
+require __DIR__ . '/auth.php';

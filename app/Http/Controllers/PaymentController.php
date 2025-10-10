@@ -14,6 +14,71 @@ use Illuminate\Support\Facades\Mail;
 
 class PaymentController extends Controller
 {
+    public function bankList(Request $request)
+    {
+        $list = [
+            // Major/Commercial Banks
+            ["name" => 'Absa Bank', "branchCode" => '632005'],
+            ["name" => 'African Bank', "branchCode" => '430000'],
+            ["name" => 'Bidvest Bank', "branchCode" => '462005'],
+            ["name" => 'Capitec Bank', "branchCode" => '470010'],
+            ["name" => 'Discovery Bank', "branchCode" => '679000'],
+            ["name" => 'FirstRand Bank (FNB)', "branchCode" => '250655'],
+            ["name" => 'Investec Bank', "branchCode" => '580105'],
+            ["name" => 'Nedbank', "branchCode" => '198765'],
+            ["name" => 'Sasfin Bank', "branchCode" => '683000'],
+            ["name" => 'Standard Bank', "branchCode" => '051001'],
+            ["name" => 'TymeBank', "branchCode" => '678910'],
+            ["name" => 'Ubank', "branchCode" => '431010'],
+            ["name" => 'Grindrod Bank', "branchCode" => '584000'],
+
+            // Foreign Banks/Local Branches
+            ["name" => 'Access Bank South Africa', "branchCode" => '410105'],
+            ["name" => 'Albaraka Bank', "branchCode" => '800000'],
+            ["name" => 'Bank of China', "branchCode" => '431000'],
+            ["name" => 'Citibank', "branchCode" => '350000'],
+            ["name" => 'HBZ Bank (Habib Bank AG Zurich)', "branchCode" => '570000'],
+            ["name" => 'ICBC', "branchCode" => '495000'],
+            ["name" => 'Société Générale', "branchCode" => '306009'],
+            [
+                "name" => 'China Construction Bank Johannesburg Branch',
+                "branchCode" => null,
+            ],
+            ["name" => 'Bank of Taiwan South Africa Branch', "branchCode" => null],
+            [
+                "name" => 'JPMorgan Chase Bank, N.A., Johannesburg Branch',
+                "branchCode" => '432000',
+            ],
+            [
+                "name" => 'Standard Chartered Bank Johannesburg Branch',
+                "branchCode" => '730000',
+            ],
+            [
+                "name" => 'HSBC Bank plc - Johannesburg Branch',
+                "branchCode" => '587000',
+            ],
+            [
+                "name" => 'State Bank of India South Africa Branch',
+                "branchCode" => '801000',
+            ],
+
+            // Mutual Banks
+            ["name" => 'Bank Zero', "branchCode" => null],
+            ["name" => 'Finbond Mutual Bank', "branchCode" => null],
+            ["name" => 'GBS Mutual Bank', "branchCode" => null],
+            ["name" => 'YWBN Mutual Bank', "branchCode" => null],
+
+            // Co-operative Banks
+            ["name" => 'Ditsobotla Primary Co-operative Bank', "branchCode" => null],
+            ["name" => 'GIG Co-operative Bank', "branchCode" => null],
+            ["name" => 'KSK Koöperatiewe Bank', "branchCode" => null],
+            ["name" => 'OSK Koöperatiewe Bank', "branchCode" => null],
+            ["name" => 'Ziphakamise Co-operative Bank', "branchCode" => null],
+        ];
+
+        return response()->json($list);
+    }
+
     public function initiate(Request $request)
     {
         $user = $request->user();
@@ -34,7 +99,7 @@ class PaymentController extends Controller
             ]
         ]);
 
-        if($validated['type'] === 'topup'){
+        if ($validated['type'] === 'topup') {
             try {
                 // Generate unique reference
                 $reference = 'WALLET-TOPUP-' . time();
@@ -70,7 +135,7 @@ class PaymentController extends Controller
             } catch (\Exception $e) {
                 return back()->with('error', 'Top-up failed. Please try again.');
             }
-        } else if($validated['type'] === 'deposit'){
+        } else if ($validated['type'] === 'deposit') {
             try {
                 $deposit = Deposit::create([
                     'user_id' => $user->id,
@@ -147,17 +212,22 @@ class PaymentController extends Controller
             }
         } catch (\Exception $e) {
             Log::error('Payfast initiation error: ' . $e->getMessage());
-            if($transaction) $transaction->update(['status' => 'failed']);
-            if($deposit) $deposit->update(['status' => 'declined']);
+            if ($transaction)
+                $transaction->update(['status' => 'failed']);
+            if ($deposit)
+                $deposit->update(['status' => 'declined']);
             return back()->with('error', 'Payment initiation failed. Please try again later.');
         }
     }
 
-    public function cancelDeposit(Request $request){
+    public function cancelDeposit(Request $request)
+    {
         $deposit = Deposit::find($request->deposit_id);
         $transaction = $deposit->transaction;
-        if($transaction) $transaction->update(['status' => 'failed']);
-        if($deposit) $deposit->update(['status' => 'declined']);
+        if ($transaction)
+            $transaction->update(['status' => 'failed']);
+        if ($deposit)
+            $deposit->update(['status' => 'declined']);
         return back();
     }
 
@@ -204,21 +274,21 @@ class PaymentController extends Controller
             'sandbox.payfast.co.za',
             'w1w.payfast.co.za',
             'w2w.payfast.co.za',
-            );
+        );
 
         $validIps = [];
 
-        foreach( $validHosts as $pfHostname ) {
-            $ips = gethostbynamel( $pfHostname );
+        foreach ($validHosts as $pfHostname) {
+            $ips = gethostbynamel($pfHostname);
 
-            if( $ips !== false )
-                $validIps = array_merge( $validIps, $ips );
+            if ($ips !== false)
+                $validIps = array_merge($validIps, $ips);
         }
 
         // Remove duplicates
-        $validIps = array_unique( $validIps );
+        $validIps = array_unique($validIps);
         $referrerIp = gethostbyname(parse_url($host)['host']);
-        if( in_array( $referrerIp, $validIps, true ) ) {
+        if (in_array($referrerIp, $validIps, true)) {
             return true;
         }
         return false;
@@ -229,10 +299,9 @@ class PaymentController extends Controller
         // ksort($data);
         $paramString = '';
         foreach ($data as $key => $value) {
-            if($type === 'webhook' && $key !== 'signature'){
+            if ($type === 'webhook' && $key !== 'signature') {
                 $paramString .= $key . '=' . urlencode(trim((string) $value)) . '&';
-            }
-            else if ($value !== null && $value !== '') {
+            } else if ($value !== null && $value !== '') {
                 $paramString .= $key . '=' . urlencode(trim((string) $value)) . '&';
             }
         }

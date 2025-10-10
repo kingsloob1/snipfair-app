@@ -205,6 +205,8 @@ class WorkController extends Controller
 
         $this->stylistController->checkProfileCompleteness($user, false);
 
+        $work->load(['category']);
+
         return $work;
     }
 
@@ -213,7 +215,7 @@ class WorkController extends Controller
 
         $user = $request->user();
         $stylist = $user->stylist_profile;
-        $work = $user->portfolios()->where('id', $id)->first();
+        $work = $user->portfolios()->where('id', $id)->with(['category'])->first();
 
         if (!$user || !$stylist || !$work) {
             abort(403, 'Access Denied');
@@ -341,6 +343,7 @@ class WorkController extends Controller
         }
 
         $work->refresh();
+        $work->load(['category']);
 
         $this->stylistController->checkProfileCompleteness($user, false);
 
@@ -351,7 +354,7 @@ class WorkController extends Controller
     {
         $user = $request->user();
         $stylist = $user->stylist_profile;
-        $work = $user->portfolios()->where('id', $id)->first();
+        $work = $user->portfolios()->where('id', $id)->with(['category'])->first();
 
         if (!$user || !$stylist || !$work) {
             abort(403, 'Access Denied');

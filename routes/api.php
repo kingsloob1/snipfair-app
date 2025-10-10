@@ -43,6 +43,9 @@ Route::middleware('api')->group(function () {
 
     //Ensure authenticated
     Route::middleware('auth:sanctum')->group(function () {
+        //Get Bank List
+        Route::get('banks', [PaymentController::class, 'bankList']);
+
         //Authenticated user routes
         Route::prefix('/user')->group(function () {
             //Get user profile
@@ -185,9 +188,10 @@ Route::middleware('api')->group(function () {
             });
         });
 
-        //Stylist routes
-        Route::group(['prefix' => '/appointe', 'middleware' => ['is.stylist', 'email.verified']], function () {
-
+        //Customer routes
+        Route::group(['prefix' => '/customer', 'middleware' => ['is.customer', 'email.verified']], function () {
+            //Get customer stats
+            Route::get('/stats', [StylistController::class, 'getCurrentStylistStats']);
         });
 
 
