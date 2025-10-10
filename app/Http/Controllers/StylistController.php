@@ -894,7 +894,7 @@ class StylistController extends Controller
 
     public function getCurrentStylistStats(Request $request)
     {
-        $user = User::find(25) ?? $request->user();
+        $user = $request->user();
         $resp = $this->getStylistStats($user);
 
         if ($request->expectsJson()) {
@@ -941,45 +941,45 @@ class StylistController extends Controller
             $startAndEndDateArr = Arr::only($month, ['start_date', 'end_date']);
 
             return array_merge($startAndEndDateArr, [
-                'appointment_count' => $fetchedBookingTrends->firstWhere('month', $month['search'])?->count ?? 0,
-                'confirmed_appointment_count' => $fetchedConfirmedAppoitmentTrends->firstWhere('month', $month['search'])?->count ?? 0,
-                'canceled_appointment_count' => $fetchedCanceledAppointmentTrends->firstWhere('month', $month['search'])?->count ?? 0,
-                'completed_appointment_count' => $fetchedCompletedAppointmentTrends->firstWhere('month', $month['search'])?->count ?? 0,
-                'premium_appointment_count' => $fetchedPremiumAppointmentTrends->firstWhere('month', $month['search'])?->count ?? 0
+                'appointment_count' => (int) $fetchedBookingTrends->firstWhere('month', $month['search'])?->count ?? 0,
+                'confirmed_appointment_count' => (int) $fetchedConfirmedAppoitmentTrends->firstWhere('month', $month['search'])?->count ?? 0,
+                'canceled_appointment_count' => (int) $fetchedCanceledAppointmentTrends->firstWhere('month', $month['search'])?->count ?? 0,
+                'completed_appointment_count' => (int) $fetchedCompletedAppointmentTrends->firstWhere('month', $month['search'])?->count ?? 0,
+                'premium_appointment_count' => (int) $fetchedPremiumAppointmentTrends->firstWhere('month', $month['search'])?->count ?? 0
             ]);
         });
 
         $resp = [
             'total' => [
-                'works' => $user->portfolios()->count(),
-                'likes' => Like::where([
+                'works' => (int) $user->portfolios()->count(),
+                'likes' => (int) Like::where([
                     ['user_id', '=', $user->id],
                     ['type', '=', 'portfolio'],
                     ['status', '=', true]
                 ])->count(),
-                'appointments' => $user->stylistAppointments()
+                'appointments' => (int) $user->stylistAppointments()
                     ->where('status', 'confirmed')
                     ->count(),
-                'earnings' => $user->transactions()
+                'earnings' => (int) $user->transactions()
                     ->where('type', 'earning')
                     ->where('status', 'completed')
                     ->sum('amount') ?? 0,
             ],
-            'average_rating' => $user->stylistAppointments()
+            'average_rating' => (int) $user->stylistAppointments()
                 ->join('reviews', 'appointments.id', '=', 'reviews.appointment_id')
                 ->whereNotNull('reviews.rating')
                 ->avg('reviews.rating') ?? 0,
             'today' => [
-                'earnings' => $user->transactions()
+                'earnings' => (int) $user->transactions()
                     ->whereBetween('created_at', getDateRanges('daily'))
                     ->where('type', 'earning')
                     ->where('status', 'completed')
                     ->sum('amount') ?? 0,
-                'appointments' => $user->stylistAppointments()
+                'appointments' => (int) $user->stylistAppointments()
                     ->whereBetween('created_at', getDateRanges('daily'))
                     ->where('status', 'confirmed')
                     ->count(),
-                'pending_appointments' => $user->stylistAppointments()
+                'pending_appointments' => (int) $user->stylistAppointments()
                     ->whereBetween('created_at', getDateRanges('daily'))
                     ->where('status', 'pending')
                     ->count()
