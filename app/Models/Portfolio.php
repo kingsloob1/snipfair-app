@@ -32,12 +32,17 @@ class Portfolio extends Model
 
     protected $dates = ['deleted_at'];
 
+    protected $appends = [
+        'average_rating',
+    ];
+
     public function user()
     {
         return $this->belongsTo(User::class);
     }
 
-    public function category(){
+    public function category()
+    {
         return $this->belongsTo(Category::class);
     }
 
@@ -51,19 +56,20 @@ class Portfolio extends Model
         return $this->hasOne(Deposit::class);
     }
 
-    public function average_rating(){
-        return Review::whereIn(
+    public function average_rating()
+    {
+        return (float) Review::whereIn(
             'appointment_id',
             $this->appointments()->pluck('id')
-        )->avg('rating');
+        )->avg('rating') ?? 0;
     }
 
     public function getAverageRatingAttribute()
     {
-        return Review::whereIn(
+        return (float) Review::whereIn(
             'appointment_id',
             $this->appointments()->pluck('id')
-        )->avg('rating');
+        )->avg('rating') ?? 0;
     }
 
     public function likes()

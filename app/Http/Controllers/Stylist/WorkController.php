@@ -129,7 +129,7 @@ class WorkController extends Controller
             $portfolioQueryBuilder = $portfolioQueryBuilder->where('category_id', $categoryId);
         }
 
-        $portfolios = $portfolioQueryBuilder->with(['category'])->cursorPaginate($perPage, ['*'], 'page');
+        $portfolios = $portfolioQueryBuilder->with(['category'])->withCount(['likes'])->cursorPaginate($perPage, ['*'], 'page');
 
         return $portfolios;
     }
@@ -205,7 +205,7 @@ class WorkController extends Controller
 
         $this->stylistController->checkProfileCompleteness($user, false);
 
-        $work->load(['category']);
+        $work->load(['category'])->loadCount(['likes']);
 
         return $work;
     }
@@ -215,7 +215,10 @@ class WorkController extends Controller
 
         $user = $request->user();
         $stylist = $user->stylist_profile;
-        $work = $user->portfolios()->where('id', $id)->with(['category'])->first();
+        $work = $user->portfolios()->where('id', $id)
+            ->with(['category'])
+            ->withCount(['likes'])
+            ->first();
 
         if (!$user || !$stylist || !$work) {
             abort(403, 'Access Denied');
@@ -343,7 +346,7 @@ class WorkController extends Controller
         }
 
         $work->refresh();
-        $work->load(['category']);
+        $work->load(['category'])->loadCount(['likes']);
 
         $this->stylistController->checkProfileCompleteness($user, false);
 
@@ -354,7 +357,10 @@ class WorkController extends Controller
     {
         $user = $request->user();
         $stylist = $user->stylist_profile;
-        $work = $user->portfolios()->where('id', $id)->with(['category'])->first();
+        $work = $user->portfolios()->where('id', $id)
+            ->with(['category'])
+            ->withCount(['likes'])
+            ->first();
 
         if (!$user || !$stylist || !$work) {
             abort(403, 'Access Denied');
