@@ -28,6 +28,7 @@ use Inertia\Inertia;
 use Inertia\Response;
 use App\Mail\WelcomeEmail;
 use App\Models\Appointment;
+use App\Rules\PhoneNumber;
 use Carbon\CarbonPeriod;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
@@ -598,6 +599,12 @@ class StylistController extends Controller
         }
 
         $request->validate([
+            'first_name' => 'sometimes|required|string|max:255',
+            'last_name' => 'sometimes|required|string|max:255',
+            'phone' => ['sometimes', 'numeric', new PhoneNumber()],
+            'years_of_experience' => 'sometimes|required|numeric|min:0|gt:0|max:50',
+            'country' => 'sometimes|required|string|max:255',
+            'bio' => 'nullable|sometimes|string|min:25',
             'business_name' => 'nullable|string|max:255',
             'socials' => 'sometimes|required|array|list',
             'socials.*.social_app' => 'required|string|max:255',
@@ -633,6 +640,15 @@ class StylistController extends Controller
                     ]
                 )
             ],
+        ]);
+
+        $user->update([
+            // 'first_name' => $request->first_name,
+            // 'last_name' => $request->last_name,
+            // 'email' => $request->email,
+            'phone' => $request->phone ?: $user->phone,
+            'country' => $request->country ?: $user->country,
+            'bio' => $request->bio ?: $user->bio,
         ]);
 
         $socials = [];
@@ -685,6 +701,7 @@ class StylistController extends Controller
 
         $stylist->update([
             'business_name' => $request->business_name ?? $stylist->business_name,
+            'years_of_experience' => $request->years_of_experience ?? $stylist->years_of_experience,
             'socials' => count($socials) ? $socials : null,
             'works' => count($validWorkMedia) ? $validWorkMedia : null,
             'is_available' => false,
