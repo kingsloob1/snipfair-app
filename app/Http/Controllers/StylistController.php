@@ -684,7 +684,7 @@ class StylistController extends Controller
         }
 
         $stylist->update([
-            'business_name' => $request->business_name || $stylist->business_name,
+            'business_name' => $request->business_name ?? $stylist->business_name,
             'socials' => count($socials) ? $socials : null,
             'works' => count($validWorkMedia) ? $validWorkMedia : null,
             'is_available' => false,
