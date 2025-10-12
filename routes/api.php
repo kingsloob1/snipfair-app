@@ -205,6 +205,12 @@ Route::middleware('api')->group(function () {
 
             // get single stylist
             Route::get('stylist/{stylistId}', [CustomerApiController::class, 'getStylist']);
+
+            // get portfolio list
+            Route::get('portfolio/list', [CustomerApiController::class, 'getPortfolios']);
+
+            // get single portfolio
+            Route::get('portfolio/{portfolioId}', [CustomerApiController::class, 'getPortfolio']);
         });
     });
 });

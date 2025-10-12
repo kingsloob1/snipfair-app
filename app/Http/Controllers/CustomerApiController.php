@@ -3,10 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\Appointment;
+use App\Models\Category;
 use App\Models\Like;
 use App\Models\LocationService;
 use App\Models\Portfolio;
 use App\Models\Review;
+use App\Models\Stylist;
 use App\Models\User;
 use App\Rules\PhoneNumber;
 use App\Rules\UrlOrFile;
@@ -205,6 +207,27 @@ class CustomerApiController extends Controller
         $queryBuilder = User::query()
             ->select('*')
             ->selectSub(
+                Portfolio::query()
+                    ->selectRaw('sum(visits_count)')
+                    ->whereRaw('user_id = `users`.`id`')
+                    ->limit(1),
+                'portfolio_visits_count'
+            )
+            ->selectSub(
+                Stylist::query()
+                    ->selectRaw('visits_count')
+                    ->whereRaw('user_id = `users`.`id`')
+                    ->limit(1),
+                'profile_visits_count'
+            )
+            ->selectSub(
+                Stylist::query()
+                    ->selectRaw('years_of_experience')
+                    ->whereRaw('user_id = `users`.`id`')
+                    ->limit(1),
+                'years_of_experience'
+            )
+            ->selectSub(
                 Review::query()
                     ->selectRaw('AVG(rating)')
                     ->whereHas('appointment', function ($qb) {
@@ -301,9 +324,7 @@ class CustomerApiController extends Controller
                                 ))
                             ",
                         )
-                        ->whereHas('user', function ($qb) {
-                            $qb->whereRaw('id = `users`.`id`');
-                        })
+                        ->whereRaw('user_id = `users`.`id`')
                         ->whereNotNull('latitude')
                         ->whereNotNull('longitude')
                         ->limit(1),
@@ -325,7 +346,7 @@ class CustomerApiController extends Controller
         $perPage = formatPerPage($request);
         $query = $request->query('query');
         $categoryId = $request->query('category_id');
-        $sortGroups = formatRequestSort($request, ['years_of_experience', 'average_rating', 'distance', 'trending', 'favourite', 'profile_likes_count', 'portfolio_likes_count', 'reviews_count', 'min_price', 'max_price', 'appointments_count'], '-trending');
+        $sortGroups = formatRequestSort($request, ['years_of_experience', 'average_rating', 'distance', 'trending', 'favourite', 'profile_likes_count', 'portfolio_likes_count', 'reviews_count', 'min_price', 'max_price', 'appointments_count', 'name', 'first_name', 'last_name', 'portfolio_visits_count', 'profile_visits_count'], '-trending');
 
 
         $queryBuilder = $this->getStylistQueryBuilder($user)->where('role', 'stylist')->whereHas('stylist_profile', function ($qb) {
@@ -350,11 +371,6 @@ class CustomerApiController extends Controller
 
         foreach ($sortGroups as $sortGroup) {
             switch ($sortGroup['property']) {
-                case 'years_of_experience': {
-                    $queryBuilder->orderBy('stylist_profile.years_of_experience', $sortGroup['direction']);
-                    break;
-                }
-
                 default: {
                     $queryBuilder->orderBy($sortGroup['property'], $sortGroup['direction']);
                     break;
@@ -393,6 +409,9 @@ class CustomerApiController extends Controller
                     'profile_likes_count' => (int) $stylist->profile_likes_count,
                     'trending' => (int) $stylist->trending,
                     'appointments_count' => (int) $stylist->appointments_count,
+                    'portfolio_visits_count' => (int) $stylist->portfolio_visits_count,
+                    'profile_visits_count' => (int) $stylist->profile_visits_count,
+                    'years_of_experience' => (int) $stylist->years_of_experience,
                     'min_price' => (float) $stylist->min_price,
                     'max_price' => (float) $stylist->max_price,
                     'distance' => (float) $stylist->distance,
@@ -427,6 +446,8 @@ class CustomerApiController extends Controller
                 },
             ])
             ->firstOrFail();
+
+        $stylist->stylist_profile->increment('visits_count');
 
         // Get dynamic availability data
         $availabilityData = calculateStylistAvailability($stylist);
@@ -477,9 +498,198 @@ class CustomerApiController extends Controller
                 'distance' => (float) $stylist->distance,
                 'favourite' => (bool) $stylist->favourite,
                 'average_rating' => (float) $stylist->average_rating,
-                'sample_images' => $stylist->portfolios->pluck('media_urls')->flatten(1)->take(20)->all(),
+                'media_urls' => $stylist->portfolios->pluck('media_urls')->flatten(1)->take(20)->all(),
                 'reviews' => $actual_reviews,
                 'working_hours' => $workingHours
+            ]
+        );
+    }
+
+    private function getPortfolioQueryBuilder(User $user)
+    {
+        $queryBuilder = Portfolio::query()
+            ->select('*')
+            ->selectSub(
+                Review::query()
+                    ->selectRaw('AVG(rating)')
+                    ->whereHas('appointment', function ($qb) {
+                        $qb->whereRaw('portfolio_id = `portfolios`.`id`');
+                    }),
+                'average_rating'
+            )
+            ->selectSub(
+                Review::query()
+                    ->selectRaw('count(id)')
+                    ->whereHas('appointment', function ($qb) {
+                        $qb->whereRaw('portfolio_id = `portfolios`.`id`');
+                    }),
+                'reviews_count'
+            )
+            ->selectSub(
+                Like::query()
+                    ->selectRaw('count(id)')
+                    ->where('status', '=', true)
+                    ->whereRaw('type_id = `portfolios`.`id`')
+                    ->where('type', '=', 'portfolio'),
+                'portfolio_likes_count'
+            )
+            ->selectSub(
+                Appointment::query()
+                    ->selectRaw('count(id)')
+                    ->where('created_at', '>', Carbon::now()->subMonths(3))
+                    ->whereRaw('portfolio_id = `portfolios`.`id`'),
+                'trending'
+            )
+            ->selectSub(
+                Appointment::query()
+                    ->selectRaw('count(id)')
+                    ->whereRaw('portfolio_id = `portfolios`.`id`'),
+                'appointments_count'
+            )
+            ->selectSub(
+                Category::query()
+                    ->selectRaw('name')
+                    ->whereRaw('id = `portfolios`.`category_id`'),
+                'category_name'
+            )
+            ->selectSub(
+                DB::query()
+                    ->selectRaw(
+                        "exists(
+                            select
+                                1
+                            from
+                                `likes`
+                            where
+                                `likes`.`type` = \"portfolio\"
+                                and
+                                `likes`.`type_id` = `portfolios`.`id`
+                                and
+                                `likes`.`user_id` = {$user->id}
+                        )"
+                    ),
+                'favourite'
+            );
+
+        return $queryBuilder;
+    }
+
+    public function getPortfolios(Request $request)
+    {
+        $user = $request->user();
+        $user->load(['location_service']);
+
+        $perPage = formatPerPage($request);
+        $query = $request->query('query');
+        $categoryId = $request->query('category_id');
+        $stylistId = $request->query('stylist_id');
+        $sortGroups = formatRequestSort($request, ['title', 'average_rating', 'price', 'duration', 'favourite', 'portfolio_likes_count', 'trending', 'reviews_count', 'visits_count', 'category_name', 'appointments_count'], '-trending');
+
+
+        $queryBuilder = $this->getPortfolioQueryBuilder($user)
+            ->where('status', '=', true)
+            ->where('is_available', '=', true);
+
+        if ($categoryId) {
+            $queryBuilder = $queryBuilder->where('category_id', '=', $categoryId);
+        }
+
+        if ($stylistId) {
+            $queryBuilder = $queryBuilder->where('user_id', '=', $stylistId);
+        }
+
+        if ($query) {
+            $queryBuilder = $queryBuilder->where(function ($qb) use ($query) {
+                $qb
+                    ->whereLike('title', '%' . $query . '%', false)
+                    ->orWhereLike('tags', '%' . $query . '%', false)
+                    ->orWhereHas('category', function ($qb) use ($query) {
+                        $qb->whereLike('name', '%' . $query . '%', false);
+                    });
+            });
+        }
+
+        foreach ($sortGroups as $sortGroup) {
+            switch ($sortGroup['property']) {
+                default: {
+                    $queryBuilder->orderBy($sortGroup['property'], $sortGroup['direction']);
+                    break;
+                }
+            }
+        }
+
+        $paginatedResp = $queryBuilder
+            ->with([
+                'category',
+                'user',
+                'user.stylist_profile',
+            ])
+            ->cursorPaginate($perPage, ['*'], 'page');
+
+        $paginatedResp = $paginatedResp->through(function (Portfolio $portfolio) {
+            // // Get dynamic availability data
+            // $availabilityData = calculateStylistAvailability($stylist);
+
+            return array_merge(
+                Arr::except($portfolio->toArray(), [
+                    'category_name'
+                ]),
+                [
+                    'reviews_count' => (int) $portfolio->reviews_count,
+                    'portfolio_likes_count' => (int) $portfolio->portfolio_likes_count,
+                    'trending' => (int) $portfolio->trending,
+                    'appointments_count' => (int) $portfolio->appointments_count,
+                    'price' => (float) $portfolio->price,
+                    'favourite' => (bool) $portfolio->favourite,
+                    'average_rating' => (float) $portfolio->average_rating,
+                    'media_urls' => is_array($portfolio->media_urls) ? $portfolio->media_urls : [],
+                ]
+            );
+        });
+
+        return $paginatedResp;
+    }
+
+    public function getPortfolio(Request $request, $portfolioId)
+    {
+        $user = $request->user();
+        $user->load(['location_service']);
+
+        $portfolio = $this->getPortfolioQueryBuilder($user)
+            ->where('id', '=', $portfolioId)
+            ->with([
+                'category',
+                'user',
+                'user.stylist_profile',
+            ])
+            ->firstOrFail();
+
+        $portfolio->increment('visits_count');
+
+        // Get actual reviews with customer information
+        $actual_reviews = Review::whereHas('appointment', function ($query) use ($portfolio) {
+            $query->where('portfolio_id', $portfolio->id);
+        })
+            ->with(['appointment.customer'])
+            ->latest()
+            ->take(5)
+            ->get();
+
+
+        return array_merge(
+            Arr::except($portfolio->toArray(), [
+                'category_name'
+            ]),
+            [
+                'reviews_count' => (int) $portfolio->reviews_count,
+                'portfolio_likes_count' => (int) $portfolio->portfolio_likes_count,
+                'trending' => (int) $portfolio->trending,
+                'appointments_count' => (int) $portfolio->appointments_count,
+                'price' => (float) $portfolio->price,
+                'favourite' => (bool) $portfolio->favourite,
+                'average_rating' => (float) $portfolio->average_rating,
+                'media_urls' => is_array($portfolio->media_urls) ? $portfolio->media_urls : [],
+                'reviews' => $actual_reviews,
             ]
         );
     }
