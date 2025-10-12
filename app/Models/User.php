@@ -68,6 +68,7 @@ class User extends Authenticatable implements MustVerifyEmail
             'balance' => 'float',
             'is_featured' => 'boolean',
             'use_location' => 'boolean',
+            'categories' => 'array'
         ];
     }
 

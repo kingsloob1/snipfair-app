@@ -207,6 +207,15 @@ class CustomerApiController extends Controller
         $queryBuilder = User::query()
             ->select('*')
             ->selectSub(
+                Category::query()
+                    ->selectRaw("JSON_ARRAYAGG(JSON_OBJECT('id', `categories`.`id`, 'name', `categories`.`name`))")
+                    ->whereIn('id', function ($qb) {
+                        $qb->select('category_id')->from('portfolios')->whereRaw('`portfolios`.`user_id` = `users`.`id`');
+                    })
+                    ->limit(1),
+                'categories'
+            )
+            ->selectSub(
                 Portfolio::query()
                     ->selectRaw('sum(visits_count)')
                     ->whereRaw('user_id = `users`.`id`')
