@@ -1,6 +1,7 @@
 <?php
 
 use App\Helpers\NotificationHelper;
+use App\Models\User;
 use Carbon\Carbon;
 use App\Models\WebsiteConfiguration;
 use Illuminate\Http\Request;
@@ -131,7 +132,7 @@ if (!function_exists('calculateStylistAvailability')) {
      * @param \App\Models\User $stylist
      * @return array
      */
-    function calculateStylistAvailability($stylist)
+    function calculateStylistAvailability(User $stylist)
     {
         // Calculate availability based on online status
         $availability = 'Available Later';

@@ -9,6 +9,7 @@ use Illuminate\Notifications\Notifiable;
 use App\Notifications\EmailVerificationOtp as EmailVerificationOtpNotification;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
 use Laravel\Sanctum\HasApiTokens;
 
@@ -76,7 +77,42 @@ class User extends Authenticatable implements MustVerifyEmail
         'subscription_status',
         'availability',
         'plan',
+        'name'
     ];
+
+    protected static function booted()
+    {
+        // Handle creating
+        static::creating(function ($model) {
+            if (!$model->name) {
+                $model->name = null; //Trigger set mutator
+            }
+        });
+
+        // Handle updating
+        static::updating(function ($model) {
+            if ($model->name) {
+                $model->name = null; //Trigger set mutator
+            }
+        });
+    }
+
+    protected function name(): Attribute
+    {
+        return Attribute::make(
+            get: function ($value, array $attributes) {
+                $firstName = Arr::get($attributes, 'first_name', '');
+                $lastName = Arr::get($attributes, 'last_name', '');
+                $builtFullName = $firstName . ' ' . $lastName;
+                return $value ?: $builtFullName;
+            },
+            set: function ($value, array $attributes) {
+                $firstName = Arr::get($attributes, 'first_name', '');
+                $lastName = Arr::get($attributes, 'last_name', '');
+                return $value ?: $firstName . ' ' . $lastName;
+            },
+        );
+    }
 
     public function sendEmailVerificationOtp()
     {

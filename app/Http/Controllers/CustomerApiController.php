@@ -2,28 +2,44 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Appointment;
+use App\Models\Like;
+use App\Models\LocationService;
+use App\Models\Portfolio;
+use App\Models\Review;
+use App\Models\User;
+use App\Rules\PhoneNumber;
+use App\Rules\UrlOrFile;
+use Carbon\Carbon;
+use Illuminate\Database\Query\JoinClause;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Str;
 
 class CustomerApiController extends Controller
 {
     public function getStats(Request $request)
     {
         $customer = $request->user();
-        $totalSpendings = $request->user()->transactions()
+        $totalSpendings = (float) $request->user()->transactions()
             ->where('type', 'payment')
             ->where('status', 'completed')
             ->sum('amount') ?? 0;
-        $appointmentsCount = $request->user()->customerAppointments()
+        $appointmentsCount = (int) $request->user()->customerAppointments()
             ->count();
-        $appointmentsCompleted = $request->user()->customerAppointments()
+        $appointmentsCompleted = (int) $request->user()->customerAppointments()
             ->where('status', 'completed')
             ->count();
-        $appointmentsActive = $request->user()->customerAppointments()
-            ->where('status', 'approved')->orWhere('status', 'pending')
+        $appointmentsActive = (int) $request->user()->customerAppointments()
+            ->whereIn('status', ['approved', 'pending'])
             ->count();
-        $appointmentsCanceled = $request->user()->customerAppointments()
+        $appointmentsCanceled = (int) $request->user()->customerAppointments()
             ->where('status', 'canceled')
             ->count();
+
         return [
             'total_spendings' => $totalSpendings,
             'total_appointments' => $appointmentsCount,
@@ -33,146 +49,357 @@ class CustomerApiController extends Controller
         ];
     }
 
-    // public function profileUpdate(Request $request)
-    // {
-    //     $request->validate([
-    //         'name' => ['required', 'string', 'max:255'],
-    //         'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email,' . $request->user()->id],
-    //         'country' => ['nullable', 'string', 'max:255'],
-    //         'phone' => ['nullable', 'string', 'max:20'],
-    //         'bio' => ['nullable', 'string'],
-    //     ]);
+    public function profileUpdate(Request $request)
+    {
+        $validated = $request->validate([
+            'first_name' => ['sometimes', 'required', 'string', 'max:255'],
+            'last_name' => ['sometimes', 'required', 'string', 'max:255'],
+            'email' => ['sometimes', 'required', 'string', 'email', 'max:255', 'unique:users,email,' . $request->user()->id],
+            'country' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'phone' => ['sometimes', 'nullable', 'numeric', new PhoneNumber()],
+            'bio' => ['sometimes', 'nullable', 'string'],
+            'avatar' => [
+                new UrlOrFile(
+                    urlAndFileRules: [
+                        'url' => [
+                            'sometimes',
+                            'required',
+                            'url',
+                            'starts_with:' . URL::to('/storage')
+                        ],
+                        'file' => [
+                            'sometimes',
+                            'required',
+                            'image',
+                            'max:5120'
+                        ]
+                    ],
+                    urlAndFileMessages: [
+                        'url' => [
+                            'required' => 'Media URL is required',
+                            'url' => 'Media URL is invalid',
+                            'starts_with' => 'Media URL is invalid'
+                        ],
+                        'file' => [
+                            'required' => 'Media file is required',
+                            'image' => 'Media file must be a valid image',
+                            'max' => 'Media file size must be less than 5MB',
+                        ]
+                    ]
+                )
+            ]
+        ]);
 
-    //     $user = $request->user();
-    //     $user->name = $request->name;
-    //     // $user->email = $request->email;
-    //     $user->country = $request->country;
-    //     $user->phone = $request->phone;
-    //     $user->bio = $request->bio;
+        $user = $request->user();
+        $userObjUpdate = Arr::only($validated, ['first_name', 'last_name', 'email', 'country', 'phone', 'bio']);
 
-    //     // if ($request->hasFile('profile_picture')) {
-    //     //     $user->profile_picture = $request->file('profile_picture')->store('profile_pictures', 'public');
-    //     // }
+        $email = Arr::get($userObjUpdate, 'email');
+        if ($email && (strtolower($email) !== strtolower($user->email))) {
+            $userObjUpdate['email_verified_at'] = null;
+        }
 
-    //     $user->save();
+        $user->update($userObjUpdate);
 
-    //     return redirect()->back()->with('success', 'Profile updated successfully.');
-    // }
+        if ($request->hasFile('avatar')) {
+            // Delete old avatar if exists
+            if ($user->avatar) {
+                Storage::disk('public')->delete(formatStoredFilePath($user->avatar));
+            }
 
-    // public function avatarUpdate(Request $request)
-    // {
-    //     $request->validate([
-    //         'avatar' => ['required', 'image', 'max:2048'],
-    //     ]);
+            $user->avatar = $request->file('avatar')->store('avatars', 'public');
+            $user->save();
+        }
 
-    //     $user = $request->user();
-    //     if ($request->hasFile('avatar')) {
-    //         // Delete old avatar if exists
-    //         if ($user->avatar) {
-    //             Storage::disk('public')->delete($user->avatar);
-    //         }
+        return $user->refresh();
+    }
 
-    //         $user->avatar = $request->file('avatar')->store('avatars', 'public');
-    //         $user->save();
-    //     }
+    public function getProfile(Request $request)
+    {
+        $customer = $request->user();
+        $customer_profile = $customer->customer_profile;
+        if (!$customer_profile) {
+            $customer_profile = $customer->customer_profile()->firstOrCreate(
+                [],
+                [
+                    'billing_name' => $customer->name,
+                    'billing_email' => $customer->email,
+                ]
+            );
+        }
 
-    //     return redirect()->back()->with('success', 'Avatar updated successfully.');
-    // }
+        $methods = [];
+        // $payment_methods = $customer->customerPaymentMethods()->orderBy('created_at', 'desc')->get();
 
-    // public function settings(Request $request)
-    // {
-    //     $customer = $request->user();
-    //     $customer_profile = $customer->customer_profile;
-    //     if (!$customer_profile) {
-    //         $customer_profile = $customer->customer_profile()->firstOrCreate(
-    //             [],
-    //             [
-    //                 'billing_name' => $customer->name,
-    //                 'billing_email' => $customer->email,
-    //             ]
-    //         );
-    //     }
+        // if (!$payment_methods) {
+        //     $methods = [];
+        // } else {
+        //     $methods = $payment_methods->map(function ($method) {
+        //         return [
+        //             'id' => $method->id,
+        //             'last4' => substr($method->card_number, -4),
+        //             'expiry' => Carbon::parse($method->expiry)->format('m/Y'),
+        //             'brand' => $method->cardholder, // Still assuming this is card brand
+        //             'is_default' => $method->is_default,
+        //         ];
+        //     })->toArray();
+        // }
 
-    //     $payment_methods = $customer->customerPaymentMethods()->orderBy('created_at', 'desc')->get();
-    //     if (!$payment_methods) {
-    //         $methods = [];
-    //     } else {
-    //         $methods = $payment_methods->map(function ($method) {
-    //             return [
-    //                 'id' => $method->id,
-    //                 'last4' => substr($method->card_number, -4),
-    //                 'expiry' => Carbon::parse($method->expiry)->format('m/Y'),
-    //                 'brand' => $method->cardholder, // Still assuming this is card brand
-    //                 'is_default' => $method->is_default,
-    //             ];
-    //         })->toArray();
-    //     }
-    //     $customer_settings = $customer->customerSetting;
-    //     if (!$customer_settings) {
-    //         $customer_settings = $customer->customerSetting()->firstOrCreate(
-    //             [],
-    //             [
-    //                 'preferred_time' => 'morning',
-    //             ]
-    //         );
-    //     }
-    //     $customer_settings->use_location = $customer->use_location ?? false;
-    //     $customer_notifications = $customer->customerNotificationSetting()->firstOrCreate(
-    //         [],
-    //         [
-    //             'email_notifications' => true,
-    //             'sms_notifications' => false,
-    //             'push_notifications' => true,
-    //         ]
-    //     );
+        $customer_settings = $customer->customerSetting;
+        if (!$customer_settings) {
+            $customer_settings = $customer->customerSetting()->firstOrCreate(
+                [],
+                [
+                    'preferred_time' => 'morning',
+                ]
+            );
+        }
 
-    //     $payment_history = $request->user()->transactions()
-    //         ->where('type', 'payment')
-    //         ->orderBy('created_at', 'desc')->get();
+        $customer_settings->use_location = $customer->use_location ?? false;
+        $customer_notifications = $customer->customerNotificationSetting()->firstOrCreate(
+            [],
+            [
+                'email_notifications' => true,
+                'sms_notifications' => false,
+                'push_notifications' => true,
+            ]
+        );
 
-    //     return Inertia::render('Customer/Settings', [
-    //         'payment_methods' => $methods,
-    //         'customer_profile' => $customer_profile,
-    //         'preferences' => $customer_settings,
-    //         'notifications' => $customer_notifications,
-    //         'payment_history' => $payment_history->map(function ($transaction) {
-    //             $stylist = $transaction->appointment?->stylist;
-    //             return [
-    //                 'id' => $transaction->id,
-    //                 'amount' => $transaction->amount,
-    //                 'paymentMethod' => 'Transfer',
-    //                 'service' => $transaction->appointment?->service?->name ?? 'N/A',
-    //                 'name' => $stylist->name ?? 'Stylist',
-    //                 'date' => Carbon::parse($transaction->created_at)->format('M d, Y - h:i A'),
-    //                 'status' => Str::title($transaction->status),
-    //                 'created_at' => $transaction->created_at->format('Y-m-d H:i:s'),
-    //                 'stylist_name' => $stylist->name ?? 'Stylist',
-    //                 'imageUrl' => $this->getAvatar($stylist),
-    //             ];
-    //         }),
-    //     ]);
-    // }
+        $payment_history = $request->user()->transactions()
+            ->with(['appointment', 'appointment.stylist'])
+            ->where('type', 'payment')
+            ->orderBy('created_at', 'desc')->get();
 
-    // private function getAvatar($user)
-    // {
-    //     if (!$user) {
-    //         return 'NA';
-    //     }
 
-    //     // If there's a profile picture, return URL, else initials
-    //     if (!empty($user->avatar)) {
-    //         return asset('storage/' . $user->avatar);
-    //     }
+        return [
+            'user' => $customer->except(['customer_profile', 'customer_Settings', 'stylist_profile']),
+            'payment_methods' => $methods,
+            'customer_profile' => $customer_profile,
+            'preferences' => $customer_settings,
+            'notifications' => $customer_notifications,
+            'payment_history' => $payment_history->map(function ($transaction) {
+                $stylist = $transaction->appointment?->stylist;
+                return [
+                    'id' => $transaction->id,
+                    'amount' => $transaction->amount,
+                    'paymentMethod' => 'Transfer',
+                    'service' => $transaction->appointment?->service?->name ?? 'N/A',
+                    'date' => Carbon::parse($transaction->created_at)->toIsoString(),
+                    'status' => $transaction->status,
+                    'stylist' => [
+                        'name' => $stylist->name,
+                        'first_name' => $stylist->first_name,
+                        'last_name' => $stylist->last_name,
+                        'email' => $stylist->email,
+                        'avatar' => $stylist->avatar
+                    ],
+                ];
+            }),
+        ];
+    }
 
-    //     $words = explode(' ', $user->name);
-    //     $initials = strtoupper(
-    //         count($words) >= 2
-    //         ? substr($words[0], 0, 1) . substr($words[1], 0, 1)
-    //         : substr($user->name, 0, 2)
-    //     );
+    public function getStylists(Request $request)
+    {
+        $user = $request->user();
+        $user->load(['location_service']);
 
-    //     return $initials;
-    // }
+        $customerLatitude = $user->location_service->latitude;
+        $customerLongitude = $user->location_service->longitude;
+
+        $perPage = formatPerPage($request);
+        $query = $request->query('query');
+        $categoryId = $request->query('category_id');
+        $sortGroups = formatRequestSort($request, ['years_of_experience', 'average_rating', 'distance', 'trending', 'favourite', 'profile_likes_count', 'portfolio_likes_count', 'reviews_count', 'min_price', 'max_price', 'appointments_count'], '-trending');
+
+        $queryBuilder = User::query()
+            ->select('*')
+            ->selectSub(
+                Review::query()
+                    ->selectRaw('AVG(rating)')
+                    ->whereHas('appointment', function ($qb) {
+                        $qb->whereRaw('stylist_id = `users`.`id`');
+                    }),
+                'average_rating'
+            )
+            ->selectSub(
+                Review::query()
+                    ->selectRaw('count(id)')
+                    ->whereHas('appointment', function ($qb) {
+                        $qb->whereRaw('stylist_id = `users`.`id`');
+                    }),
+                'reviews_count'
+            )
+            ->selectSub(
+                Like::query()
+                    ->join('portfolios', function (JoinClause $join) {
+                        $join->on('likes.type_id', '=', 'portfolios.id')
+                            ->whereRaw('`portfolios`.`user_id` = `users`.`id`');
+                    })
+                    ->selectRaw('count(`portfolios`.`id`)')
+                    ->where('likes.status', '=', true)
+                    ->where('likes.type', '=', 'portfolio'),
+                'portfolio_likes_count'
+            )
+            ->selectSub(
+                Appointment::query()
+                    ->selectRaw('count(id)')
+                    ->where('created_at', '>', Carbon::now()->subMonths(3))
+                    ->whereRaw('stylist_id = `users`.`id`'),
+                'trending'
+            )
+            ->selectSub(
+                Appointment::query()
+                    ->selectRaw('count(id)')
+                    ->whereRaw('stylist_id = `users`.`id`'),
+                'appointments_count'
+            )
+            ->selectSub(
+                Portfolio::query()
+                    ->selectRaw('min(price)')
+                    ->whereRaw('user_id = `users`.`id`'),
+                'min_price'
+            )
+            ->selectSub(
+                Portfolio::query()
+                    ->selectRaw('max(price)')
+                    ->whereRaw('user_id = `users`.`id`'),
+                'max_price'
+            )
+            ->selectSub(
+                DB::query()
+                    ->selectRaw(
+                        "exists(
+                            select
+                                1
+                            from
+                                `likes`
+                            where
+                                `likes`.`type` = \"profile\"
+                                and
+                                `likes`.`type_id` = `users`.`id`
+                                and
+                                `likes`.`user_id` = {$user->id}
+                        )"
+                    ),
+                'favourite'
+            );
+
+        // Compute distance only when customer has distance set
+        if ($customerLatitude && $customerLongitude) {
+            // use 6371 for km and 3959 for miles (Earths radius)
+            $queryBuilder = $queryBuilder
+                ->selectSub(
+                    LocationService::query()
+                        ->selectRaw(
+                            "
+                                (6371 * acos(
+                                    least(
+                                        1,
+                                        greatest(
+                                            -1,
+                                            (
+                                                cos(radians({$customerLatitude}))
+                                                * cos(radians(`location_services`.`latitude`))
+                                                * cos(radians(`location_services`.`longitude`)
+                                                - radians({$customerLongitude}))
+                                                + sin(radians({$customerLatitude}))
+                                                * sin(radians(location_services.latitude))
+                                            )
+                                        )
+                                    )
+                                ))
+                            ",
+                        )
+                        ->whereHas('user', function ($qb) {
+                            $qb->whereRaw('id = `users`.`id`');
+                        })
+                        ->whereNotNull('latitude')
+                        ->whereNotNull('longitude')
+                        ->limit(1),
+                    'distance'
+                );
+        } else {
+            $queryBuilder = $queryBuilder
+                ->selectSub(0, 'distance');
+        }
+
+
+        $queryBuilder = $queryBuilder->where('role', 'stylist')->whereHas('stylist_profile', function ($qb) {
+            $qb->where('is_available', true)->where('status', 'approved');
+        });
+
+        if ($categoryId) {
+            $queryBuilder = $queryBuilder->whereHas('stylistAppointments.portfolio', function ($qb) use ($categoryId) {
+                $qb->where('category_id', '=', $categoryId);
+            });
+        }
+
+        if ($query) {
+            $queryBuilder = $queryBuilder->where(function ($qb) use ($query) {
+                $qb
+                    ->whereLike('name', '%' . $query . '%', false)
+                    ->orWhereHas('stylist_profile', function ($qb) use ($query) {
+                        $qb->whereLike('business_name', '%' . $query . '%', false);
+                    });
+            });
+        }
+
+        foreach ($sortGroups as $sortGroup) {
+            switch ($sortGroup['property']) {
+                case 'years_of_experience': {
+                    $queryBuilder->orderBy('stylist_profile.years_of_experience', $sortGroup['direction']);
+                    break;
+                }
+
+                default: {
+                    $queryBuilder->orderBy($sortGroup['property'], $sortGroup['direction']);
+                    break;
+                }
+            }
+        }
+
+        $paginatedResp = $queryBuilder->with([
+            'stylist_profile',
+            'stylist_certifications',
+            'portfolios' => function ($qb) {
+                $qb->limit(5);
+            }
+        ])
+            ->withCount([
+                'likes as profile_likes_count' => function ($qb) {
+                    $qb->where('status', true);
+                },
+            ])
+            ->cursorPaginate($perPage, ['*'], 'page');
+
+        $paginatedResp = $paginatedResp->through(function (User $stylist) {
+            // Get dynamic availability data
+            $availabilityData = calculateStylistAvailability($stylist);
+
+            return array_merge(
+                Arr::except($stylist->toArray(), [
+                    'portfolios'
+                ]),
+                [
+                    'availability' => $availabilityData,
+                    'response_time' => $availabilityData['response_time'],
+                    'next_available' => $availabilityData['next_available'],
+                    'reviews_count' => (int) $stylist->reviews_count,
+                    'portfolio_likes_count' => (int) $stylist->portfolio_likes_count,
+                    'profile_likes_count' => (int) $stylist->profile_likes_count,
+                    'trending' => (int) $stylist->trending,
+                    'appointments_count' => (int) $stylist->appointments_count,
+                    'min_price' => (float) $stylist->min_price,
+                    'max_price' => (float) $stylist->max_price,
+                    'distance' => (float) $stylist->distance,
+                    'favourite' => (bool) $stylist->favourite,
+                    'average_rating' => (float) $stylist->average_rating,
+                    'sample_images' => $stylist->portfolios->pluck('media_urls')->flatten(1)->take(20)->all(),
+                ]
+            );
+        });
+
+        return $paginatedResp;
+    }
 
     // public function explore(Request $request)
     // {

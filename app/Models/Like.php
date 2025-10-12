@@ -21,9 +21,9 @@ class Like extends Model
     {
         return match ($this->type) {
             'portfolio' => Portfolio::find($this->type_id),
-            'profile'   => Stylist::find($this->type_id),
-            'tutorial'  => Tutorial::find($this->type_id),
-            default     => null,
+            'profile' => Stylist::find($this->type_id),
+            'tutorial' => Tutorial::find($this->type_id),
+            default => null,
         };
     }
 }

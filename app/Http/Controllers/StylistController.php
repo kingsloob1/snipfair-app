@@ -960,12 +960,12 @@ class StylistController extends Controller
                 'appointments' => (int) $user->stylistAppointments()
                     ->where('status', 'confirmed')
                     ->count(),
-                'earnings' => (int) $user->transactions()
+                'earnings' => (float) $user->transactions()
                     ->where('type', 'earning')
                     ->where('status', 'completed')
                     ->sum('amount') ?? 0,
             ],
-            'average_rating' => (int) $user->stylistAppointments()
+            'average_rating' => (float) $user->stylistAppointments()
                 ->join('reviews', 'appointments.id', '=', 'reviews.appointment_id')
                 ->whereNotNull('reviews.rating')
                 ->avg('reviews.rating') ?? 0,

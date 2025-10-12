@@ -679,23 +679,28 @@ class AppointmentController extends Controller
         $user = $request->user();
         $stylist = $user->stylist_profile;
 
-        //Ensure stylist can only be available when fully approved
-        if ($validated['is_available']) {
-            $profileCompleteNess = $this->stylistController->checkProfileCompleteness($user, false);
+        if (Arr::has($validated, 'is_available')) {
+            $isAvailable = Arr::get($validated, 'is_available', false);
 
-            if (!collect($profileCompleteNess)->every($profileCompleteNess, fn($val) => !!$val)) {
-                throw ValidationException::withMessages([
-                    'profile' => 'Kindly complete your stylist profile to be available for jobs'
-                ]);
+            //Ensure stylist can only be available when fully approved
+            if ($isAvailable) {
+                $profileCompleteNess = $this->stylistController->checkProfileCompleteness($user, false);
+
+                if (!collect($profileCompleteNess)->every($profileCompleteNess, fn($val) => !!$val)) {
+                    throw ValidationException::withMessages([
+                        'profile' => 'Kindly complete your stylist profile to be available for jobs'
+                    ]);
+                }
+
+                if ($stylist->status !== 'approved') {
+                    throw ValidationException::withMessages([
+                        'profile' => 'Kindly ensure your stylist profile is approved to continue'
+                    ]);
+                }
             }
 
-            if ($stylist->status !== 'approved') {
-                throw ValidationException::withMessages([
-                    'profile' => 'Kindly ensure your stylist profile is approved to continue'
-                ]);
-            }
 
-            $stylist->is_available = $request->is_available;
+            $stylist->is_available = $isAvailable;
             $stylist->save();
         }
 

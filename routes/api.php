@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\GeneralController as ApiGeneralController;
 use App\Http\Controllers\Auth\ApiAuthController;
+use App\Http\Controllers\CustomerApiController;
 use App\Http\Controllers\LocationServiceController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\StylistController;
@@ -191,7 +192,16 @@ Route::middleware('api')->group(function () {
         //Customer routes
         Route::group(['prefix' => '/customer', 'middleware' => ['is.customer', 'email.verified']], function () {
             //Get customer stats
-            Route::get('/stats', [StylistController::class, 'getCurrentStylistStats']);
+            Route::get('/stats', [CustomerApiController::class, 'getStats']);
+
+            // Update customer profile data
+            Route::patch('profile', [CustomerApiController::class, 'profileUpdate']);
+
+            // get customer profile data
+            Route::get('profile', [CustomerApiController::class, 'getProfile']);
+
+            // get stylist list
+            Route::get('stylists', [CustomerApiController::class, 'getStylists']);
         });
 
 
