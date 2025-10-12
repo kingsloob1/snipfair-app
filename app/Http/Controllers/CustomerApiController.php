@@ -197,18 +197,10 @@ class CustomerApiController extends Controller
         ];
     }
 
-    public function getStylists(Request $request)
+    private function getStylistQueryBuilder(User $user)
     {
-        $user = $request->user();
-        $user->load(['location_service']);
-
         $customerLatitude = $user->location_service->latitude;
         $customerLongitude = $user->location_service->longitude;
-
-        $perPage = formatPerPage($request);
-        $query = $request->query('query');
-        $categoryId = $request->query('category_id');
-        $sortGroups = formatRequestSort($request, ['years_of_experience', 'average_rating', 'distance', 'trending', 'favourite', 'profile_likes_count', 'portfolio_likes_count', 'reviews_count', 'min_price', 'max_price', 'appointments_count'], '-trending');
 
         $queryBuilder = User::query()
             ->select('*')
@@ -322,8 +314,21 @@ class CustomerApiController extends Controller
                 ->selectSub(0, 'distance');
         }
 
+        return $queryBuilder;
+    }
 
-        $queryBuilder = $queryBuilder->where('role', 'stylist')->whereHas('stylist_profile', function ($qb) {
+    public function getStylists(Request $request)
+    {
+        $user = $request->user();
+        $user->load(['location_service']);
+
+        $perPage = formatPerPage($request);
+        $query = $request->query('query');
+        $categoryId = $request->query('category_id');
+        $sortGroups = formatRequestSort($request, ['years_of_experience', 'average_rating', 'distance', 'trending', 'favourite', 'profile_likes_count', 'portfolio_likes_count', 'reviews_count', 'min_price', 'max_price', 'appointments_count'], '-trending');
+
+
+        $queryBuilder = $this->getStylistQueryBuilder($user)->where('role', 'stylist')->whereHas('stylist_profile', function ($qb) {
             $qb->where('is_available', true)->where('status', 'approved');
         });
 
@@ -400,6 +405,85 @@ class CustomerApiController extends Controller
 
         return $paginatedResp;
     }
+
+    public function getStylist(Request $request, $stylistUserId)
+    {
+        $user = $request->user();
+        $user->load(['location_service']);
+
+        $stylist = $this->getStylistQueryBuilder($user)
+            ->where('role', 'stylist')
+            ->where('id', '=', $stylistUserId)
+            ->with([
+                'stylist_profile',
+                'stylist_certifications',
+                'portfolios' => function ($qb) {
+                    $qb->limit(5);
+                }
+            ])
+            ->withCount([
+                'likes as profile_likes_count' => function ($qb) {
+                    $qb->where('status', true);
+                },
+            ])
+            ->firstOrFail();
+
+        // Get dynamic availability data
+        $availabilityData = calculateStylistAvailability($stylist);
+
+
+        // Get actual reviews with customer information
+        $actual_reviews = Review::whereHas('appointment', function ($query) use ($stylist) {
+            $query->where('stylist_id', $stylist->id);
+        })
+            ->with(['appointment.customer'])
+            ->latest()
+            ->take(5)
+            ->get();
+
+        // Get stylist schedule
+        $workingHours = $stylist->stylistSchedules()->with('slots')->get()
+            ->toArray();
+
+        // If no schedule found, provide default hours
+        if (empty($workingHours)) {
+            $workingHours = [
+                ['day' => 'monday', 'available' => true],
+                ['day' => 'tuesday', 'available' => true],
+                ['day' => 'wednesday', 'available' => true],
+                ['day' => 'thursday', 'available' => true],
+                ['day' => 'friday', 'available' => true],
+                ['day' => 'saturday', 'available' => true],
+                ['day' => 'sunday', 'available' => true],
+            ];
+        }
+
+
+        return array_merge(
+            Arr::except($stylist->toArray(), [
+                'portfolios'
+            ]),
+            [
+                'availability' => $availabilityData,
+                'response_time' => $availabilityData['response_time'],
+                'next_available' => $availabilityData['next_available'],
+                'reviews_count' => (int) $stylist->reviews_count,
+                'portfolio_likes_count' => (int) $stylist->portfolio_likes_count,
+                'profile_likes_count' => (int) $stylist->profile_likes_count,
+                'trending' => (int) $stylist->trending,
+                'appointments_count' => (int) $stylist->appointments_count,
+                'min_price' => (float) $stylist->min_price,
+                'max_price' => (float) $stylist->max_price,
+                'distance' => (float) $stylist->distance,
+                'favourite' => (bool) $stylist->favourite,
+                'average_rating' => (float) $stylist->average_rating,
+                'sample_images' => $stylist->portfolios->pluck('media_urls')->flatten(1)->take(20)->all(),
+                'reviews' => $actual_reviews,
+                'working_hours' => $workingHours
+            ]
+        );
+    }
+
 
     // public function explore(Request $request)
     // {
@@ -652,156 +736,6 @@ class CustomerApiController extends Controller
 
     //     return Inertia::render('Customer/Stylists', [
     //         'stylists' => $stylists_complete,
-    //     ]);
-    // }
-
-    // public function getStylist(Request $request, $id)
-    // {
-    //     $stylist = User::where('role', 'stylist')->where('id', $id)->whereHas('stylist_profile', function ($query) {
-    //         $query->where('is_available', true)->where('status', 'approved');
-    //     })->firstOrFail();
-    //     $customer = $request->user();
-    //     $stylist_likes = $stylist->stylist_profile->likes()->where('status', true)->count();
-    //     $portfolio_likes = $stylist->portfolioLikes()->where('status', true)->count();
-    //     $total_likes = $stylist_likes + $portfolio_likes;
-    //     $stylist_rating = Review::whereHas('appointment', function ($query) use ($stylist) {
-    //         $query->where('stylist_id', $stylist->id);
-    //     })->avg('rating') ?? 0;
-    //     $reviews_count = $stylist->stylistAppointments()->whereHas('review')->count();
-    //     $likedByMe = $stylist->stylist_profile->likes()->where('user_id', $customer->id)->where('status', true)->exists();
-    //     $minPortfolio = $stylist->portfolios->min('price');
-    //     $maxPortfolio = $stylist->portfolios->max('price');
-    //     $categories = $stylist->portfolios()->whereHas('category')->with('category')->get()
-    //         ->map(function ($portfolio) {
-    //             return [
-    //                 'category' => $portfolio->category->name ?? 'Uncategorized',
-    //                 'price' => $portfolio->price,
-    //             ];
-    //         })
-    //         ->take(3)
-    //         ->toArray();
-
-    //     // Get portfolio items with media
-    //     $portfolios = $stylist->portfolios()->whereHas('category')->with('category')
-    //         ->whereNotNull('media_urls')
-    //         ->where('is_available', true)
-    //         ->get()
-    //         ->map(function ($portfolio) {
-    //             return [
-    //                 'id' => $portfolio->id,
-    //                 'title' => $portfolio->title,
-    //                 'category' => $portfolio->category->name ?? 'Uncategorized',
-    //                 'price' => $portfolio->price,
-    //                 'duration' => $portfolio->duration,
-    //                 'description' => $portfolio->description,
-    //                 'media_urls' => $portfolio->media_urls,
-    //             ];
-    //         });
-
-    //     // Get actual reviews with customer information
-    //     $actual_reviews = Review::whereHas('appointment', function ($query) use ($stylist) {
-    //         $query->where('stylist_id', $stylist->id);
-    //     })
-    //         ->with(['appointment.customer'])
-    //         ->latest()
-    //         ->take(5)
-    //         ->get()
-    //         ->map(function ($review) {
-    //             return [
-    //                 'name' => $review->appointment->customer->name ?? 'Anonymous',
-    //                 'title' => 'Customer',
-    //                 'message' => $review->comment ?? 'Great service!',
-    //                 'rating' => $review->rating ?? 5,
-    //                 'ratingDate' => $review->created_at->diffForHumans(),
-    //             ];
-    //         });
-
-    //     // Get stylist schedule
-    //     $workingHours = $stylist->stylistSchedules()->with('slots')->get()
-    //         ->map(function ($schedule) {
-    //             $slots = $schedule->slots;
-    //             if (!$schedule->available || $slots->isEmpty()) {
-    //                 return [
-    //                     'day' => $schedule->day,
-    //                     'isClosed' => true,
-    //                 ];
-    //             }
-
-    //             $openTime = $slots->min('from');
-    //             $closeTime = $slots->max('to');
-
-    //             return [
-    //                 'day' => $schedule->day,
-    //                 'openTime' => Carbon::parse($openTime)->format('g:i A'),
-    //                 'closeTime' => Carbon::parse($closeTime)->format('g:i A'),
-    //                 'isClosed' => false,
-    //             ];
-    //         })
-    //         ->toArray();
-
-    //     // If no schedule found, provide default hours
-    //     if (empty($workingHours)) {
-    //         $workingHours = [
-    //             ['day' => 'monday', 'isClosed' => true],
-    //             ['day' => 'tuesday', 'isClosed' => true],
-    //             ['day' => 'wednesday', 'isClosed' => true],
-    //             ['day' => 'thursday', 'isClosed' => true],
-    //             ['day' => 'friday', 'isClosed' => true],
-    //             ['day' => 'saturday', 'isClosed' => true],
-    //             ['day' => 'sunday', 'isClosed' => true],
-    //         ];
-    //     }
-
-    //     // Get appointment count for services completed
-    //     $appointment_counts = $stylist->stylistAppointments()->where('status', 'completed')->count();
-
-    //     // Get dynamic availability data
-    //     $locationService = $customer->location_service;
-    //     $targetLocationService = $stylist->location_service;
-    //     if (!$locationService || !$locationService->hasLocation() || !$targetLocationService || !$targetLocationService->hasLocation()) {
-    //         $distance = 'N/A';
-    //     } else {
-    //         $distance = $locationService->distanceTo($targetLocationService);
-    //         $distance = $distance !== null ? round($distance, 2) . ' km' : 'N/A';
-    //     }
-    //     $availabilityData = calculateStylistAvailability($stylist);
-    //     $stylist->stylist_profile->increment('visits_count');
-
-    //     return Inertia::render('Customer/Stylist', [
-    //         'stylist' => [
-    //             'id' => $stylist->id,
-    //             'profile_id' => $stylist->stylist_profile->id ?? null,
-    //             'availability_status' => $stylist->stylist_profile->is_available ?? false,
-    //             'availability' => $availabilityData['availability'],
-    //             'description' => $stylist->bio,
-    //             'category' => $categories[0]['category'] ?? null,
-    //             'distance' => $distance,
-    //             'response_time' => $availabilityData['response_time'],
-    //             'next_available' => $availabilityData['next_available'],
-    //             'average_rating' => round($stylist_rating, 1),
-    //             'total_reviews' => $reviews_count,
-    //             'is_liked' => $likedByMe,
-    //             'name' => $stylist->name,
-    //             'title' => $stylist->stylist_profile->business_name ?? 'Stylist',
-    //             'certificates' => $stylist->stylist_certifications->pluck('title')->all(),
-    //             'profile_image' => $this->getAvatar($stylist),
-    //             'banner_image' => $stylist->stylist_profile->banner ? asset('storage/' . $stylist->stylist_profile->banner) : null,
-    //             'sample_images' => $stylist->portfolios()->whereNotNull('media_urls')->pluck('media_urls')->flatten()->take(6)->toArray(),
-    //             'price_range' => ($minPortfolio !== null && $maxPortfolio !== null) ? "R" . number_format($minPortfolio) . "-R" . number_format($maxPortfolio) : null,
-    //             'price' => $minPortfolio,
-    //             'location' => $stylist->country ?? 'Location not set',
-    //             'categories' => $categories,
-    //             'years_of_experience' => $stylist->stylist_profile->years_of_experience ?? 0,
-    //             'likes_count' => $total_likes,
-    //             'section' => $stylist->is_featured ? 'top_rated' : 'online',
-    //             'appointment_counts' => $appointment_counts,
-    //             'services_completed' => $appointment_counts . '+',
-    //             'work_experience' => ($stylist->stylist_profile->years_of_experience ?? 0) . '+ years',
-    //         ],
-    //         'portfolios' => $portfolios,
-    //         'reviews' => $actual_reviews,
-    //         'workingHours' => $workingHours,
-    //         'location_service' => $targetLocationService,
     //     ]);
     // }
 

@@ -201,22 +201,10 @@ Route::middleware('api')->group(function () {
             Route::get('profile', [CustomerApiController::class, 'getProfile']);
 
             // get stylist list
-            Route::get('stylists', [CustomerApiController::class, 'getStylists']);
-        });
+            Route::get('stylist/list', [CustomerApiController::class, 'getStylists']);
 
-
-        //Ensure email is valid and verified
-        Route::middleware('email.verified')->group(function () {
-
-
-            //Customer routes
-            Route::prefix('/customer')->middleware('is.customer')->group(function () {
-                //Update skill
-                Route::post('/complete/skill', [StylistController::class, 'completeSkill']);
-
-                //Update Identification documents
-                Route::post('/complete/identity', [StylistController::class, 'completeIdentity']);
-            });
+            // get single stylist
+            Route::get('stylist/{stylistId}', [CustomerApiController::class, 'getStylist']);
         });
     });
 });
