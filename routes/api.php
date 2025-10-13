@@ -216,6 +216,26 @@ Route::middleware('api')->group(function () {
             // get single portfolio
             Route::get('portfolio/{portfolioId}', [CustomerApiController::class, 'getPortfolio']);
         });
+
+        //General route for complete profiles
+        Route::group(['middleware' => ['profile.complete', 'email.verified']], function () {
+            //Get wallet funding options
+            Route::get('/funding-methods', [CustomerApiController::class, 'getFundingMethods']);
+
+            //Authentcated Payment routes
+            Route::group(['prefix' => '/payment'], function () {
+                Route::post('/initiate/payfast', [PaymentController::class, 'initiatePayfastTxn']);
+            });
+        });
+    });
+
+    //UnAuthenticated Payment routes
+    Route::group(['prefix' => '/payment'], function () {
+        Route::get('/cancel/payfast', [PaymentController::class, 'handleCancelPayfastTxn']);
+
+        Route::get('/success/payfast', [PaymentController::class, 'handleSuccessfulPayfastTxn']);
+
+        Route::get('/webhook/payfast', [PaymentController::class, 'webhook']);
     });
 });
 // Mobile App API Routes End

@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Rules\PhoneNumber;
 use App\Rules\UrlOrFile;
 use Carbon\Carbon;
+use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Query\JoinClause;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -288,6 +289,13 @@ class CustomerApiController extends Controller
                 'appointments_count'
             )
             ->selectSub(
+                Appointment::query()
+                    ->selectRaw('count(id)')
+                    ->where('status', '=', 'completed')
+                    ->whereRaw('stylist_id = `users`.`id`'),
+                'completed_appointments_count'
+            )
+            ->selectSub(
                 Portfolio::query()
                     ->selectRaw('min(price)')
                     ->whereRaw('user_id = `users`.`id`'),
@@ -373,7 +381,8 @@ class CustomerApiController extends Controller
         $perPage = formatPerPage($request);
         $query = $request->query('query');
         $categoryId = $request->query('category_id');
-        $sortGroups = formatRequestSort($request, ['years_of_experience', 'average_rating', 'distance', 'trending', 'favourite', 'profile_likes_count', 'portfolio_likes_count', 'reviews_count', 'min_price', 'max_price', 'appointments_count', 'name', 'first_name', 'last_name', 'portfolio_visits_count', 'profile_visits_count'], '-trending');
+        $favourite = $request->query('favourite');
+        $sortGroups = formatRequestSort($request, ['years_of_experience', 'average_rating', 'distance', 'trending', 'favourite', 'profile_likes_count', 'portfolio_likes_count', 'reviews_count', 'min_price', 'max_price', 'appointments_count', 'name', 'first_name', 'last_name', 'portfolio_visits_count', 'profile_visits_count', 'completed_appointments_count'], '-trending');
 
 
         $queryBuilder = $this->getStylistQueryBuilder($user)->where('role', 'stylist')->whereHas('stylist_profile', function ($qb) {
@@ -384,6 +393,20 @@ class CustomerApiController extends Controller
             $queryBuilder = $queryBuilder->whereHas('stylistAppointments.portfolio', function ($qb) use ($categoryId) {
                 $qb->where('category_id', '=', $categoryId);
             });
+        }
+
+        if ($favourite) {
+            $favouriteBool = filter_var($favourite, FILTER_VALIDATE_BOOLEAN);
+
+            $handler = function ($qb) use ($user) {
+                $qb->where('status', '=', true)->where('user_id', '=', $user->id);
+            };
+
+            if ($favouriteBool) {
+                $queryBuilder = $queryBuilder->whereHas('stylist_profile.likes', $handler);
+            } else {
+                $queryBuilder = $queryBuilder->whereDoesntHave('stylist_profile.likes', $handler);
+            }
         }
 
         if ($query) {
@@ -432,6 +455,7 @@ class CustomerApiController extends Controller
                     'profile_likes_count' => (int) $stylist->profile_likes_count,
                     'trending' => (int) $stylist->trending,
                     'appointments_count' => (int) $stylist->appointments_count,
+                    'completed_appointments_count' => (int) $stylist->completed_appointments_count,
                     'portfolio_visits_count' => (int) $stylist->portfolio_visits_count,
                     'profile_visits_count' => (int) $stylist->profile_visits_count,
                     'years_of_experience' => (int) $stylist->years_of_experience,
@@ -440,7 +464,7 @@ class CustomerApiController extends Controller
                     'distance' => (float) $stylist->distance,
                     'favourite' => (bool) $stylist->favourite,
                     'average_rating' => (float) $stylist->average_rating,
-                    'sample_images' => $stylist->portfolios->pluck('media_urls')->flatten(1)->take(20)->all(),
+                    'media_urls' => $stylist->portfolios->pluck('media_urls')->flatten(1)->take(20)->all(),
                 ]
             );
         });
@@ -511,6 +535,10 @@ class CustomerApiController extends Controller
                 'profile_likes_count' => (int) $stylist->profile_likes_count,
                 'trending' => (int) $stylist->trending,
                 'appointments_count' => (int) $stylist->appointments_count,
+                'completed_appointments_count' => (int) $stylist->completed_appointments_count,
+                'portfolio_visits_count' => (int) $stylist->portfolio_visits_count,
+                'profile_visits_count' => (int) $stylist->profile_visits_count,
+                'years_of_experience' => (int) $stylist->years_of_experience,
                 'min_price' => (float) $stylist->min_price,
                 'max_price' => (float) $stylist->max_price,
                 'distance' => (float) $stylist->distance,
@@ -601,6 +629,7 @@ class CustomerApiController extends Controller
         $query = $request->query('query');
         $categoryId = $request->query('category_id');
         $stylistId = $request->query('stylist_id');
+        $favourite = $request->query('favourite');
         $sortGroups = formatRequestSort($request, ['title', 'average_rating', 'price', 'duration', 'favourite', 'portfolio_likes_count', 'trending', 'reviews_count', 'visits_count', 'category_name', 'appointments_count'], '-trending');
 
 
@@ -614,6 +643,20 @@ class CustomerApiController extends Controller
 
         if ($stylistId) {
             $queryBuilder = $queryBuilder->where('user_id', '=', $stylistId);
+        }
+
+        if ($favourite) {
+            $favouriteBool = filter_var($favourite, FILTER_VALIDATE_BOOLEAN);
+
+            $handler = function ($qb) use ($user) {
+                $qb->where('status', '=', true)->where('user_id', '=', $user->id);
+            };
+
+            if ($favouriteBool) {
+                $queryBuilder = $queryBuilder->whereHas('likes', $handler);
+            } else {
+                $queryBuilder = $queryBuilder->whereDoesntHave('likes', $handler);
+            }
         }
 
         if ($query) {

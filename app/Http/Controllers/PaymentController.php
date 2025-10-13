@@ -9,8 +9,10 @@ use App\Models\Deposit;
 use Illuminate\Http\Request;
 use GuzzleHttp\Client;
 use App\Models\Transaction;  // Your Transaction model
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\URL;
 
 class PaymentController extends Controller
 {
@@ -77,6 +79,219 @@ class PaymentController extends Controller
         ];
 
         return response()->json($list);
+    }
+
+    public function getFundingMethods(Request $request)
+    {
+        $fundingMethods = AdminPaymentMethod::query()
+            ->where('is_active', true)
+            ->get();
+
+        if ($fundingMethods->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No funding method available',
+            ], 404);
+        }
+
+        return $fundingMethods;
+    }
+
+    public function initiatePayfastTxn(Request $request)
+    {
+        $user = $request->user();
+        $payment_method = AdminPaymentMethod::where('bank_name', 'Payfast')->where('is_active', '=', true)->first();
+
+        if (!$payment_method) {
+            return response()->json([
+                'status' => 'false',
+                'message' => 'Payfast payment method is currently not available'
+            ], 400);
+        }
+
+        $validated = $request->validate([
+            'type' => 'required|in:deposit,topup,subscription',
+            'amount' => 'required|numeric|gt:0',
+            'email' => 'sometimes|email',
+            'first_name' => 'sometimes|string',
+            'last_name' => 'sometimes|string',
+            'portfolio_id' => [
+                'required_if:type,deposit',
+                'exists:portfolios,id'
+            ]
+        ]);
+
+        switch ($validated['type']) {
+            case 'topup': {
+                try {
+                    // Generate unique reference
+                    $reference = 'WALLET-TOPUP-' . time();
+
+                    // Create transaction record
+                    $transaction = Transaction::create([
+                        'user_id' => $user->id,
+                        'amount' => $request->amount,
+                        'type' => 'topup',
+                        'status' => 'pending',
+                        'ref' => $reference,
+                        'description' => 'Wallet top-up via ' . $payment_method->bank_name,
+                    ]);
+
+                    $deposit = Deposit::create([
+                        'user_id' => $user->id,
+                        'amount' => $request->amount,
+                        'transaction_id' => $transaction->id,
+                        'admin_payment_method_id' => $payment_method->id,
+                        'status' => 'pending',
+                    ]);
+                    Mail::to('admin@snipfair.com')->send(new DepositNotificationEmail(
+                        deposit: $deposit,
+                        user: $user,
+                        recipientType: 'admin'
+                    ));
+                    Mail::to($user->email)->send(new DepositNotificationEmail(
+                        deposit: $deposit,
+                        user: $user,
+                        recipientType: 'customer'
+                    ));
+                    $m_payment_id = (string) $transaction->id;
+                } catch (\Exception $e) {
+                    Log::info('Topup error: ' . $e->getMessage());
+                    return response()->json([
+                        'status' => false,
+                        'message' => 'Top-up failed. Please try again.'
+                    ], 400);
+                }
+
+                break;
+            }
+
+            case 'deposit': {
+                try {
+                    $deposit = Deposit::create([
+                        'user_id' => $user->id,
+                        'amount' => $request->amount,
+                        'portfolio_id' => $request->portfolio_id,
+                        'admin_payment_method_id' => $payment_method->id,
+                        'status' => 'pending',
+                    ]);
+                    $deposit->load('payment_method');
+                    Mail::to('admin@snipfair.com')->send(new DepositNotificationEmail(
+                        deposit: $deposit,
+                        user: $user,
+                        recipientType: 'admin'
+                    ));
+                    Mail::to($user->email)->send(new DepositNotificationEmail(
+                        deposit: $deposit,
+                        user: $user,
+                        recipientType: 'customer'
+                    ));
+                    $m_payment_id = (string) $request->portfolio_id;
+                } catch (\Exception $e) {
+                    Log::info('Deposit error: ' . $e->getMessage());
+                    return response()->json([
+                        'status' => false,
+                        'message' => 'Deposit failed. Please check your billing details and try again, or contact support if issue persists.'
+                    ], 400);
+                }
+
+                break;
+            }
+
+            default: {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Transaction type is currently not supported'
+                ], 400);
+            }
+        }
+
+        // Prepare Payfast data
+        $data = [
+            'merchant_id' => config('payfast.merchant_id'),
+            'merchant_key' => config('payfast.merchant_key'),
+            'return_url' => URL::to("/payment/success/payfast?deposit_id={$deposit->id}"), // Optional if using callback
+            'cancel_url' => URL::to("/api/payment/cancel/payfast?deposit_id={$deposit->id}"), // Optional if using callback
+            'notify_url' => URL::to('/api/payment/webhook/payfast'), // Webhook endpoint
+            'name_first' => $validated['first_name'] ?? $user->first_name ?? 'Snipfair',
+            'name_last' => $validated['last_name'] ?? $user->last_name ?? 'Customer',
+            'email_address' => $validated['email'] ?? $user->first_name,
+            'm_payment_id' => (string) $m_payment_id ?? '0',
+            'amount' => number_format((float) $validated['amount'], 2, '.', ''),
+            'item_name' => $deposit ? $deposit->id : '0',
+        ];
+
+        // Generate signature
+        $data['signature'] = $this->generateSignature($data, config('payfast.passphrase'));
+
+        // Convert to param string
+        $paramString = http_build_query($data);
+
+        // Endpoint
+        $endpoint = config('payfast.test_mode')
+            ? 'https://sandbox.payfast.co.za/onsite/process'
+            : 'https://www.payfast.co.za/onsite/process';
+
+        // Send request
+        $client = new Client();
+        try {
+            $response = $client->post($endpoint, [
+                'body' => $paramString,
+                'headers' => ['Content-Type' => 'application/x-www-form-urlencoded'],
+            ]);
+
+            $body = json_decode((string) $response->getBody(), true);
+            if (Arr::has($body, 'uuid')) {
+                $inSandbox = (bool) config('payfast.test_mode');
+
+                return response()->json([
+                    'status' => true,
+                    'payfast_uuid' => $body['uuid'],
+                    'deposit_id' => $deposit->id,
+                    'in_sandbox' => $inSandbox,
+                    'payfast_activation_script' => $inSandbox ? 'https://sandbox.payfast.co.za/onsite/engine.js'
+                        : 'https://www.payfast.co.za/onsite/engine.js'
+                ]);
+            } else {
+                Log::error('Payfast transaction initialization failed', $response);
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Transaction failed. Please try again.'
+                ], 400);
+            }
+        } catch (\Exception $e) {
+            Log::error('Payfast initiation error: ' . $e->getMessage());
+            if ($transaction) {
+                $transaction->update(['status' => 'failed']);
+            }
+
+            if ($deposit) {
+                $deposit->update(['status' => 'declined']);
+            }
+
+            return response()->json([
+                'status' => false,
+                'message' => 'Payment initiation failed. Please try again later.'
+            ], 400);
+        }
+    }
+
+    public function handleCancelPayfastTxn(Request $request)
+    {
+        $deposit = Deposit::find($request->deposit_id)->with(['transaction']);
+
+        $transaction = $deposit->transaction;
+        if ($transaction)
+            $transaction->update(['status' => 'failed']);
+        if ($deposit)
+            $deposit->update(['status' => 'declined']);
+        return response()->noContent();
+    }
+
+    public function handleSuccessfulPayfastTxn(Request $request)
+    {
+        //To-DO Write logic to handle successful payfast txn
+        return response()->noContent();
     }
 
     public function initiate(Request $request)
