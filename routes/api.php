@@ -226,6 +226,13 @@ Route::middleware('api')->group(function () {
             Route::group(['prefix' => '/payment'], function () {
                 Route::post('/initiate/payfast', [PaymentController::class, 'initiatePayfastTxn']);
             });
+
+            //Authentcated wallet routes
+            Route::group(['prefix' => '/wallet'], function () {
+                Route::get('', [PaymentController::class, 'getUserWallet']);
+
+                Route::get('/transactions', [PaymentController::class, 'getUserTransactions']);
+            });
         });
     });
 
@@ -235,7 +242,7 @@ Route::middleware('api')->group(function () {
 
         Route::get('/success/payfast', [PaymentController::class, 'handleSuccessfulPayfastTxn']);
 
-        Route::get('/webhook/payfast', [PaymentController::class, 'webhook']);
+        Route::post('/webhook/payfast', [PaymentController::class, 'webhook']);
     });
 });
 // Mobile App API Routes End

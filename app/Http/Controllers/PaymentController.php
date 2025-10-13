@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Jobs\ProcessPayfastDeposit;
 use App\Mail\DepositNotificationEmail;
 use App\Models\AdminPaymentMethod;
+use App\Models\AppointmentPouch;
 use App\Models\Deposit;
 use Illuminate\Http\Request;
 use GuzzleHttp\Client;
@@ -144,16 +145,20 @@ class PaymentController extends Controller
                         'admin_payment_method_id' => $payment_method->id,
                         'status' => 'pending',
                     ]);
-                    Mail::to('admin@snipfair.com')->send(new DepositNotificationEmail(
-                        deposit: $deposit,
-                        user: $user,
-                        recipientType: 'admin'
-                    ));
-                    Mail::to($user->email)->send(new DepositNotificationEmail(
-                        deposit: $deposit,
-                        user: $user,
-                        recipientType: 'customer'
-                    ));
+
+                    defer(function () use ($user, $deposit) {
+                        Mail::to('admin@snipfair.com')->send(new DepositNotificationEmail(
+                            deposit: $deposit,
+                            user: $user,
+                            recipientType: 'admin'
+                        ));
+                        Mail::to($user->email)->send(new DepositNotificationEmail(
+                            deposit: $deposit,
+                            user: $user,
+                            recipientType: 'customer'
+                        ));
+                    });
+
                     $m_payment_id = (string) $transaction->id;
                 } catch (\Exception $e) {
                     Log::info('Topup error: ' . $e->getMessage());
@@ -176,16 +181,21 @@ class PaymentController extends Controller
                         'status' => 'pending',
                     ]);
                     $deposit->load('payment_method');
-                    Mail::to('admin@snipfair.com')->send(new DepositNotificationEmail(
-                        deposit: $deposit,
-                        user: $user,
-                        recipientType: 'admin'
-                    ));
-                    Mail::to($user->email)->send(new DepositNotificationEmail(
-                        deposit: $deposit,
-                        user: $user,
-                        recipientType: 'customer'
-                    ));
+
+
+                    defer(function () use ($user, $deposit) {
+                        Mail::to('admin@snipfair.com')->send(new DepositNotificationEmail(
+                            deposit: $deposit,
+                            user: $user,
+                            recipientType: 'admin'
+                        ));
+                        Mail::to($user->email)->send(new DepositNotificationEmail(
+                            deposit: $deposit,
+                            user: $user,
+                            recipientType: 'customer'
+                        ));
+                    });
+
                     $m_payment_id = (string) $request->portfolio_id;
                 } catch (\Exception $e) {
                     Log::info('Deposit error: ' . $e->getMessage());
@@ -278,13 +288,19 @@ class PaymentController extends Controller
 
     public function handleCancelPayfastTxn(Request $request)
     {
-        $deposit = Deposit::find($request->deposit_id)->with(['transaction']);
+        $deposit = Deposit::query()
+            ->with(['transaction'])
+            ->find($request->deposit_id);
 
         $transaction = $deposit->transaction;
-        if ($transaction)
+        if ($transaction) {
             $transaction->update(['status' => 'failed']);
-        if ($deposit)
+        }
+
+        if ($deposit) {
             $deposit->update(['status' => 'declined']);
+        }
+
         return response()->noContent();
     }
 
@@ -293,6 +309,95 @@ class PaymentController extends Controller
         //To-DO Write logic to handle successful payfast txn
         return response()->noContent();
     }
+
+    public function getUserWallet(Request $request)
+    {
+        $user = $request->user();
+
+        // Get wallet balance (current user balance)
+        $walletBalance = (float) $user->balance ?? 0;
+
+        // Get wallet transactions (topup, refund, payment)
+        $transactions = Transaction::where('user_id', $user->id)
+            ->whereIn('type', ['topup', 'refund', 'payment'])
+            ->orderBy('created_at', 'desc')
+            ->limit(50)
+            ->get()
+            ->map(function ($transaction) {
+                return [
+                    'id' => $transaction->id,
+                    'type' => $transaction->type,
+                    'amount' => (float) $transaction->amount,
+                    'description' => $transaction->description ?? ucfirst($transaction->type) . ' transaction',
+                    'status' => $transaction->status,
+                    'reference' => $transaction->ref,
+                    'created_at' => $transaction->created_at->toISOString(),
+                    'updated_at' => $transaction->updated_at->toISOString(),
+                ];
+            });
+
+        // Calculate wallet stats
+        $totalTopups = Transaction::where('user_id', $user->id)
+            ->where('type', 'topup')
+            ->where('status', 'completed')
+            ->sum('amount');
+
+        $totalRefunds = Transaction::where('user_id', $user->id)
+            ->where('type', 'refund')
+            ->where('status', 'reversed')
+            ->sum('amount');
+
+        $pendingTransactionCount = Transaction::where('user_id', $user->id)
+            ->whereIn('type', ['topup', 'refund', 'payment'])
+            ->whereIn('status', ['pending', 'processing'])
+            ->count();
+
+        $pendingAmount = (float) AppointmentPouch::where('user_id', $user->id)
+            ->where('status', 'holding')
+            ->sum('amount');
+
+        $walletStats = [
+            'currentBalance' => (float) $walletBalance,
+            'totalTopups' => (float) $totalTopups,
+            'totalRefunds' => (float) $totalRefunds,
+            'pendingTransactions' => $pendingTransactionCount,
+        ];
+
+        return [
+            'balance' => $walletBalance,
+            'escrow_balance' => (float) $pendingAmount,
+            'stats' => $walletStats,
+        ];
+    }
+
+    public function getUserTransactions(Request $request)
+    {
+        $perPage = formatPerPage($request);
+        $user = $request->user();
+
+        $transactions = Transaction::where('user_id', $user->id)
+            ->whereIn('type', ['topup', 'refund', 'payment'])
+            ->orderBy('created_at', 'desc')
+            ->cursorPaginate($perPage, ['*'], 'page')
+            ->through(function (Transaction $transaction) {
+                return [
+                    'id' => $transaction->id,
+                    'type' => $transaction->type,
+                    'amount' => (float) $transaction->amount,
+                    'description' => $transaction->description ?? ucfirst($transaction->type) . ' transaction',
+                    'status' => $transaction->status,
+                    'reference' => $transaction->ref,
+                    'created_at' => $transaction->created_at->toISOString(),
+                    'updated_at' => $transaction->updated_at->toISOString(),
+                ];
+            });
+
+        return $transactions;
+    }
+
+    /**
+     * Inertia implementations start
+     */
 
     public function initiate(Request $request)
     {
@@ -491,7 +596,29 @@ class PaymentController extends Controller
             'w2w.payfast.co.za',
         );
 
-        $validIps = [];
+        $validIps = [
+            '3.163.236.237',
+            '3.163.238.237',
+            '3.163.251.237',
+            '3.163.232.237',
+            '3.163.241.237',
+            '3.163.245.237',
+            '3.163.248.237',
+            '3.163.234.237',
+            '3.163.237.237',
+            '3.163.243.237',
+            '3.163.247.237',
+            '3.163.242.237',
+            '3.163.244.237',
+            '3.163.249.237',
+            '3.163.252.237',
+            '3.163.235.237',
+            '3.163.239.237',
+            '3.163.250.237',
+            '3.163.233.237',
+            '3.163.246.237',
+            '3.163.240.237',
+        ];
 
         foreach ($validHosts as $pfHostname) {
             $ips = gethostbynamel($pfHostname);
