@@ -215,6 +215,11 @@ Route::middleware('api')->group(function () {
 
             // get single portfolio
             Route::get('portfolio/{portfolioId}', [CustomerApiController::class, 'getPortfolio']);
+
+            //Customer appointment routes
+            Route::group(['prefix' => '/appointment'], function () {
+
+            });
         });
 
         //General route for complete profiles
@@ -238,6 +243,8 @@ Route::middleware('api')->group(function () {
 
     //UnAuthenticated Payment routes
     Route::group(['prefix' => '/payment'], function () {
+        Route::get('/pay/payfast', [PaymentController::class, 'displayPayfastPage']);
+
         Route::get('/cancel/payfast', [PaymentController::class, 'handleCancelPayfastTxn']);
 
         Route::get('/success/payfast', [PaymentController::class, 'handleSuccessfulPayfastTxn']);

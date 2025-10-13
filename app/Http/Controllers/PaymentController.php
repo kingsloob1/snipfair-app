@@ -254,13 +254,22 @@ class PaymentController extends Controller
             if (Arr::has($body, 'uuid')) {
                 $inSandbox = (bool) config('payfast.test_mode');
 
+                $query = http_build_query([
+                    'uuid' => $body['uuid'],
+                    'deposit_id' => $deposit->id,
+                    'in_sandbox' => $inSandbox,
+                    'amount' => $deposit->amount,
+                ]);
+
                 return response()->json([
                     'status' => true,
                     'payfast_uuid' => $body['uuid'],
                     'deposit_id' => $deposit->id,
                     'in_sandbox' => $inSandbox,
-                    'payfast_activation_script' => $inSandbox ? 'https://sandbox.payfast.co.za/onsite/engine.js'
-                        : 'https://www.payfast.co.za/onsite/engine.js'
+                    'amount' => $deposit->amount,
+                    'payment_url' => URL::to("/api/payment/pay/payfast") . "?{$query}",
+                    'success_url' => URL::to("/api/payment/success/payfast") . "?{$query}",
+                    'cancel_url' => URL::to("/api/payment/cancel/payfast") . "?{$query}"
                 ]);
             } else {
                 Log::error('Payfast transaction initialization failed', $response);
@@ -284,6 +293,21 @@ class PaymentController extends Controller
                 'message' => 'Payment initiation failed. Please try again later.'
             ], 400);
         }
+    }
+
+    public function displayPayfastPage(Request $request)
+    {
+        $isInSandbox = $request->query('in_sandbox') ? (bool) $request->query('in_sandbox') : (bool) config('payfast.test_mode');
+        $uuid = $request->query('uuid');
+        $amount = (float) $request->query('amount');
+        $depositId = $request->query('deposit_id');
+
+        return view('payfast-pay', [
+            'in_sandbox' => $isInSandbox,
+            'uuid' => $uuid,
+            'amount' => $amount,
+            'deposit_id' => $depositId
+        ]);
     }
 
     public function handleCancelPayfastTxn(Request $request)
