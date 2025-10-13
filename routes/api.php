@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\GeneralController as ApiGeneralController;
 use App\Http\Controllers\Auth\ApiAuthController;
 use App\Http\Controllers\CustomerApiController;
+use App\Http\Controllers\LikeController;
 use App\Http\Controllers\LocationServiceController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\StylistController;
@@ -46,6 +47,9 @@ Route::middleware('api')->group(function () {
     Route::middleware('auth:sanctum')->group(function () {
         //Get Bank List
         Route::get('banks', [PaymentController::class, 'bankList']);
+
+        //Toogle like
+        Route::post('/like/toggle', [LikeController::class, 'toggle']);
 
         //Authenticated user routes
         Route::prefix('/user')->group(function () {

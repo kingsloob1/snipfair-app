@@ -17,12 +17,12 @@ class LikeController extends Controller
     public function toggle(Request $request): JsonResponse
     {
         $request->validate([
-            'type' => 'required|in:profile,portfolio,tutorial',
-            'type_id' => 'required|integer|exists:' . $this->getTableName($request->type) . ',id',
+            'type' => 'required|in:profile,portfolio,tutorial,stylist,user',
+            'type_id' => 'required|numeric|exists:' . $this->getTableName($request->type) . ',id',
         ]);
 
         $user = $request->user();
-        $type = $request->type;
+        $type = $this->getDbType($request->type);
         $typeId = $request->type_id;
 
         // Check if the user has already liked this item
@@ -72,8 +72,22 @@ class LikeController extends Controller
     {
         return match ($type) {
             'profile' => 'stylists',
+            'stylist' => 'stylists',
+            'customer' => 'customers',
+            'user' => 'users',
             'portfolio' => 'portfolios',
             'tutorial' => 'tutorials',
+            default => throw new \InvalidArgumentException("Invalid type: {$type}"),
+        };
+    }
+
+    private function getDbType(string $type): string
+    {
+        return match ($type) {
+            'profile' => 'profile',
+            'stylist' => 'profile',
+            'portfolio' => 'portfolio',
+            'tutorial' => 'tutorial',
             default => throw new \InvalidArgumentException("Invalid type: {$type}"),
         };
     }
@@ -119,7 +133,8 @@ class LikeController extends Controller
         return back()->with('message', "$count Notifications marked as read");
     }
 
-    public function userNotification(Request $request, $id){
+    public function userNotification(Request $request, $id)
+    {
         $customer = $request->user();
         $role = $customer->role;
         $route = "$role.notifications";

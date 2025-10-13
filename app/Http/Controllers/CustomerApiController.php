@@ -264,6 +264,17 @@ class CustomerApiController extends Controller
                 'portfolio_likes_count'
             )
             ->selectSub(
+                Like::query()
+                    ->join('stylists', function (JoinClause $join) {
+                        $join->on('likes.type_id', '=', 'stylists.id')
+                            ->whereRaw('`stylists`.`user_id` = `users`.`id`');
+                    })
+                    ->selectRaw('count(`likes`.`id`)')
+                    ->where('likes.status', '=', true)
+                    ->where('likes.type', '=', 'profile'),
+                'profile_likes_count'
+            )
+            ->selectSub(
                 Appointment::query()
                     ->selectRaw('count(id)')
                     ->where('created_at', '>', Carbon::now()->subMonths(3))
@@ -296,12 +307,19 @@ class CustomerApiController extends Controller
                                 1
                             from
                                 `likes`
+                            inner join
+                                `stylists`
+                                on (
+                                    `likes`.`type_id` = `stylists`.`id`
+                                )
                             where
                                 `likes`.`type` = \"profile\"
                                 and
-                                `likes`.`type_id` = `users`.`id`
+                                `stylists`.`user_id` = `users`.`id`
                                 and
                                 `likes`.`user_id` = {$user->id}
+                                and
+                                `likes`.`status` = true
                         )"
                     ),
                 'favourite'
@@ -387,17 +405,13 @@ class CustomerApiController extends Controller
             }
         }
 
-        $paginatedResp = $queryBuilder->with([
-            'stylist_profile',
-            'stylist_certifications',
-            'portfolios' => function ($qb) {
-                $qb->limit(5);
-            }
-        ])
-            ->withCount([
-                'likes as profile_likes_count' => function ($qb) {
-                    $qb->where('status', true);
-                },
+        $paginatedResp = $queryBuilder
+            ->with([
+                'stylist_profile',
+                'stylist_certifications',
+                'portfolios' => function ($qb) {
+                    $qb->limit(5);
+                }
             ])
             ->cursorPaginate($perPage, ['*'], 'page');
 
@@ -448,11 +462,6 @@ class CustomerApiController extends Controller
                 'portfolios' => function ($qb) {
                     $qb->limit(5);
                 }
-            ])
-            ->withCount([
-                'likes as profile_likes_count' => function ($qb) {
-                    $qb->where('status', true);
-                },
             ])
             ->firstOrFail();
 
