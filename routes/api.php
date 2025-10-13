@@ -222,9 +222,9 @@ Route::middleware('api')->group(function () {
             Route::group(['prefix' => '/appointment'], function () {
                 Route::post('/book', [CustomerApiController::class, 'bookAppointment']);
 
-                Route::get('{appointmentId}', [CustomerApiController::class, 'getAppointment']);
-
                 Route::get('/list', [CustomerApiController::class, 'getAppointments']);
+
+                Route::get('{appointmentId}', [CustomerApiController::class, 'getAppointment']);
 
                 Route::post('{appointmentId}/review', [CustomerApiController::class, 'submitAppointmentReview']);
 

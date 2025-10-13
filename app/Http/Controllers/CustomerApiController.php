@@ -766,8 +766,7 @@ class CustomerApiController extends Controller
     {
         $request->validate([
             'portfolio_id' => 'required|exists:portfolios,id',
-            'stylist_id' => 'required|exists:users,id',
-            'amount' => 'required|numeric|min:0|gt:0',
+            // 'amount' => 'required|numeric|min:0|gt:0',
             'selected_date' => ['required', 'date'],
             'selected_time' => 'required|string',
             'address' => 'sometimes|string',
@@ -801,14 +800,14 @@ class CustomerApiController extends Controller
         // Create appointment with processing status
         $appointment_time = Carbon::createFromFormat('g:i A', $request->selected_time)->format('H:i:s');
         $appointment = Appointment::create([
-            'stylist_id' => $request->stylist_id,
+            'stylist_id' => $portfolio->user_id,
             'customer_id' => $customer->id,
-            'portfolio_id' => $request->portfolio_id,
-            'amount' => $request->amount,
+            'portfolio_id' => $portfolio->id,
+            'amount' => $portfolio->price,
             'duration' => $portfolio->duration,
             'appointment_code' => $appointmentCode,
             'completion_code' => $completionCode,
-            'status' => $request->type,
+            'status' => 'pending', //SInce amount was deducted from the wallet
             'booking_id' => 'BK-' . time() . '-' . $customer->id,
             'appointment_date' => $request->selected_date,
             'appointment_time' => $appointment_time,
@@ -939,9 +938,8 @@ class CustomerApiController extends Controller
     public function disputeAppointment(Request $request, $appointmentId)
     {
         $validated = $request->validate([
-            'stylist' => 'required|string|max:255',
             'comment' => 'required|string',
-            'images' => 'required|array|max:10',
+            'images' => 'required|array|max:10|min:1',
             'images.*' => 'image|max:5120',
         ]);
 
