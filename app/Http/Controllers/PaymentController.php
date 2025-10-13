@@ -269,7 +269,8 @@ class PaymentController extends Controller
                     'amount' => $deposit->amount,
                     'payment_url' => URL::to("/api/payment/pay/payfast") . "?{$query}",
                     'success_url' => URL::to("/api/payment/success/payfast") . "?{$query}",
-                    'cancel_url' => URL::to("/api/payment/cancel/payfast") . "?{$query}"
+                    'cancel_url' => URL::to("/api/payment/cancel/payfast") . "?{$query}",
+                    'notify_url' => URL::to('/api/payment/webhook/payfast')
                 ]);
             } else {
                 Log::error('Payfast transaction initialization failed', $response);

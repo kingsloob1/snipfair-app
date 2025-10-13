@@ -15,6 +15,7 @@
 
                 $success_url = URL::to("/api/payment/success/payfast")."?{$query}";
                 $cancel_url = URL::to("/api/payment/cancel/payfast")."?{$query}";
+                $notify_url = URL::to('/api/payment/webhook/payfast');
             @endphp
             // DO NOT MODIFY THE CODE BELOW
 
@@ -24,18 +25,15 @@
             var uuid = '{{ $uuid }}' ? '{{ $uuid }}' : urlParams.get('uuid');
             var depositId = {{ $deposit_id }} ?? urlParams.get('deposit_id');
             var successUrl = '<?php echo $success_url ?>';
-            var cancelUrl = '<?php echo $cancel_url ?>'
+            var cancelUrl = '<?php echo $cancel_url ?>';
+            var notifyUrl = '<?php echo $notify_url ?>';
 
 
-            window.payfast_do_onsite_payment({"uuid":uuid}, function (result) {
-                if (result === true) {
-                    // Payment Completed
-                    location.href = successUrl; // triggers payment completed widget on app
-                }
-                else {
-                    // Payment Window Closed
-                    location.href = cancelUrl; // triggers payment cancelled widget on app
-                }
+            window.payfast_do_onsite_payment({
+                "uuid": uuid,
+                'return_url': successUrl,
+                'cancel_url': cancelUrl,
+                'notify_url': notifyUrl
             });
         </script>
     </body>
