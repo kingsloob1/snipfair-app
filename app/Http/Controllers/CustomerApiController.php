@@ -2,13 +2,19 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\AdminNotificationHelper;
+use App\Mail\AppointmentBookedStylistEmail;
+use App\Mail\AppointmentDisputeEmail;
+use App\Models\Admin;
 use App\Models\Appointment;
+use App\Models\AppointmentDispute;
 use App\Models\Category;
 use App\Models\Like;
 use App\Models\LocationService;
 use App\Models\Portfolio;
 use App\Models\Review;
 use App\Models\Stylist;
+use App\Models\Transaction;
 use App\Models\User;
 use App\Rules\PhoneNumber;
 use App\Rules\UrlOrFile;
@@ -18,6 +24,7 @@ use Illuminate\Database\Query\JoinClause;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
@@ -755,6 +762,240 @@ class CustomerApiController extends Controller
         );
     }
 
+    public function bookAppointment(Request $request)
+    {
+        $request->validate([
+            'portfolio_id' => 'required|exists:portfolios,id',
+            'stylist_id' => 'required|exists:users,id',
+            'amount' => 'required|numeric|min:0|gt:0',
+            'selected_date' => ['required', 'date'],
+            'selected_time' => 'required|string',
+            'address' => 'sometimes|string',
+            'extra' => 'nullable|string',
+        ]);
+
+        $customer = $request->user();
+        $portfolio = Portfolio::findOrFail($request->portfolio_id);
+
+        $price = abs((float) $portfolio->price);
+        $customerWalletBalance = (float) $customer->balance;
+
+        // Check if customer has insufficient balance
+        if ($customerWalletBalance < $price) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Insufficient balance. Please add funds to continue.',
+                'required_amount' => $price - $customerWalletBalance,
+            ], 400);
+        }
+
+        // Create appointment codes
+        do {
+            $appointmentCode = 'SF-' . strtoupper(substr(md5(uniqid()), 0, 6));
+        } while (Appointment::where('appointment_code', $appointmentCode)->exists());
+
+        do {
+            $completionCode = 'CP-' . strtoupper(substr(md5(uniqid() . 'complete'), 0, 6));
+        } while (Appointment::where('completion_code', $completionCode)->exists());
+
+        // Create appointment with processing status
+        $appointment_time = Carbon::createFromFormat('g:i A', $request->selected_time)->format('H:i:s');
+        $appointment = Appointment::create([
+            'stylist_id' => $request->stylist_id,
+            'customer_id' => $customer->id,
+            'portfolio_id' => $request->portfolio_id,
+            'amount' => $request->amount,
+            'duration' => $portfolio->duration,
+            'appointment_code' => $appointmentCode,
+            'completion_code' => $completionCode,
+            'status' => $request->type,
+            'booking_id' => 'BK-' . time() . '-' . $customer->id,
+            'appointment_date' => $request->selected_date,
+            'appointment_time' => $appointment_time,
+            'extra' => $request->extra ?? null,
+            'service_notes' => $request->address ?? null,
+        ]);
+
+        if ($request->address) {
+            $customer->update(['country' => $request->address]);
+        }
+
+        // Deduct amount from customer balance
+        User::query()
+            ->where('id', '=', $customer->id)
+            ->where('balance', '>=', $portfolio->price)
+            ->update(['balance' => DB::raw("balance - {$portfolio->price}")]);
+
+        /*$transaction = */
+        Transaction::create([
+            'user_id' => $customer->id,
+            'appointment_id' => $appointment->id,
+            'amount' => $portfolio->price,
+            'type' => 'payment',
+            'status' => 'approved',
+            'description' => 'Appointment booking payment from wallet',
+            'ref' => 'PAY-' . time(),
+        ]);
+
+        // Load relationships for events
+        $appointment->load(['customer', 'stylist', 'portfolio', 'portfolio.category']);
+
+        // Broadcast appointment created event
+        // broadcast(new AppointmentCreated($appointment));
+        sendNotification(
+            $appointment->stylist_id,
+            route('stylist.appointment', $appointment->id),
+            'New Appointment',
+            'You have a new appointment from ' . $appointment->customer->name,
+            'normal',
+        );
+
+        defer(function () use ($appointment) {
+            Mail::to($appointment->stylist->email)->send(new AppointmentBookedStylistEmail(
+                appointment: $appointment,
+                stylist: $appointment->stylist,
+                customer: $appointment->customer,
+                portfolio: $appointment->portfolio
+            ));
+        });
+
+        return $appointment;
+    }
+
+    public function getAppointments(Request $request)
+    {
+        $customer = $request->user();
+        $customer->load(['location_service']);
+        $perPage = formatPerPage($request);
+
+        $appointments = $customer->customerAppointments()
+            ->whereHas('stylist')->with(['stylist', 'stylist.location_service', 'portfolio', 'portfolio.category'])
+            ->orderBy('appointment_date', 'desc')
+            ->cursorPaginate($perPage, ['*'], 'page')
+            ->through(function ($appointment) use ($customer) {
+                $stylist = $appointment->stylist;
+                $locationService = $customer->location_service;
+                $targetLocationService = $stylist->location_service;
+
+                if (!$locationService || !$locationService->hasLocation() || !$targetLocationService || !$targetLocationService->hasLocation()) {
+                    $distance = null;
+                } else {
+                    $distance = $locationService->distanceTo($targetLocationService);
+                    $distance = $distance !== null ? round($distance, 2) . 'km away' : null;
+                }
+
+                $appointment = $appointment->toArray();
+                return Arr::set($appointment, 'distance_from_stylist', $distance);
+            });
+
+        return $appointments;
+    }
+
+    public function getAppointment(Request $request, $appointmentId)
+    {
+        $customer = $request->user();
+        $customer->load(['location_service']);
+        $appointment = $customer->customerAppointments()->with(['stylist', 'stylist.location_service', 'portfolio', 'portfolio.category', 'review', 'disputes', 'proof', 'pouches', 'reminders'])->where('id', $appointmentId)->firstOrFail();
+
+        $stylist = $appointment->stylist;
+        $locationService = $customer->location_service;
+        $targetLocationService = $stylist->location_service;
+
+        if (!$locationService || !$locationService->hasLocation() || !$targetLocationService || !$targetLocationService->hasLocation()) {
+            $distance = null;
+        } else {
+            $distance = $locationService->distanceTo($targetLocationService);
+            $distance = $distance !== null ? round($distance, 2) . 'km away' : null;
+        }
+
+        $appointment = $appointment->toArray();
+        return Arr::set($appointment, 'distance_from_stylist', $distance);
+    }
+
+    public function submitAppointmentReview(Request $request, $appointmentId)
+    {
+        $request->validate([
+            'rating' => 'required|integer|min:1|max:5',
+            'review' => 'nullable|string|max:1000'
+        ]);
+
+        $appointment = Appointment::findOrFail($appointmentId);
+        $customer = $request->user();
+        if ($appointment->customer_id == $customer->id) {
+            Review::updateOrCreate([
+                'user_id' => $customer->id,
+                'appointment_id' => $appointment->id,
+            ], [
+                'user_id' => $customer->id,
+                'appointment_id' => $appointment->id,
+                'rating' => $request->rating,
+                'comment' => $request->review,
+            ]);
+        }
+
+        return response()->noContent();
+    }
+
+    public function disputeAppointment(Request $request, $appointmentId)
+    {
+        $validated = $request->validate([
+            'stylist' => 'required|string|max:255',
+            'comment' => 'required|string',
+            'images' => 'required|array|max:10',
+            'images.*' => 'image|max:5120',
+        ]);
+
+        $appointment = Appointment::findOrFail($appointmentId);
+
+        $imagePaths = [];
+
+        if ($request->hasFile('images')) {
+            foreach ($request->file('images') as $file) {
+                $imagePaths[] = $file->store('works/dispute', 'public');
+            }
+        }
+
+        $dispute = AppointmentDispute::create([
+            'appointment_id' => $appointment->id,
+            'customer_id' => $appointment->customer_id,
+            'stylist_id' => $appointment->stylist_id,
+            'from' => 'customer',
+            'comment' => $validated['comment'],
+            'image_urls' => $imagePaths,
+            'status' => 'open',
+            'priority' => 'medium',
+            'ref_id' => $appointment->id,
+            'resolution_amount' => $appointment->amount,
+        ]);
+
+        $appointment->update(['status' => 'escalated']);
+
+        defer(function () use ($appointment, $dispute) {
+            Mail::to('admin@snipfair.com')->send(new AppointmentDisputeEmail(
+                dispute: $dispute,
+                appointment: $appointment,
+                recipient: null, // admin doesn't need recipient object
+                recipientType: 'admin'
+            ));
+        });
+
+        $superAdmins = Admin::where('role', 'super-admin')
+            ->where('is_active', true)
+            ->get();
+
+        foreach ($superAdmins as $admin) {
+            AdminNotificationHelper::create(
+                $admin->id,
+                route('admin.disputes.show', $dispute->id),
+                'New Dispute from ' . $appointment->customer->name,
+                "Email: {$appointment->customer->email}\nMessage: " . substr($validated['comment'], 0, 100) . '...',
+                'normal'
+            );
+        }
+
+        return response()->noContent();
+    }
+
 
     // public function explore(Request $request)
     // {
@@ -1386,87 +1627,5 @@ class CustomerApiController extends Controller
     //     $notificationSetting->save();
 
     //     return back()->with('success', 'Notification settings updated successfully.');
-    // }
-
-    // public function submitReview(Request $request, $appointmentId)
-    // {
-    //     $request->validate([
-    //         'rating' => 'required|integer|min:1|max:5',
-    //         'review' => 'nullable|string|max:1000',
-    //         'name' => 'required|string|exists:users,name',
-    //     ]);
-
-    //     $appointment = Appointment::findOrFail($appointmentId);
-    //     $customer = $request->user();
-    //     if ($appointment->customer_id == $customer->id) {
-    //         Review::create([
-    //             'user_id' => $customer->id,
-    //             'appointment_id' => $appointment->id,
-    //             'rating' => $request->rating,
-    //             'comment' => $request->review,
-    //         ]);
-    //     }
-
-    //     return back()->with('success', 'Review submitted successfully.');
-    // }
-
-    // public function disputeAppointment(Request $request, $appointmentId)
-    // {
-    //     $validated = $request->validate([
-    //         'stylist' => 'required|string|max:255',
-    //         'comment' => 'required|string',
-    //         'images' => 'required|array|max:10',
-    //         'images.*' => 'file|mimes:jpg,jpeg,png|max:5120',
-    //     ]);
-
-    //     $appointment = Appointment::findOrFail($appointmentId);
-
-    //     $imagePaths = [];
-
-    //     if ($request->hasFile('images')) {
-    //         foreach ($request->file('images') as $file) {
-    //             $imagePaths[] = $file->store('works/dispute', 'public');
-    //         }
-    //     }
-
-    //     $dispute = AppointmentDispute::create([
-    //         'appointment_id' => $appointment->id,
-    //         'customer_id' => $appointment->customer_id,
-    //         'stylist_id' => $appointment->stylist_id,
-    //         'from' => 'customer',
-    //         'comment' => $validated['comment'],
-    //         'image_urls' => $imagePaths,
-    //         'status' => 'open',
-    //         'priority' => 'medium',
-    //         'ref_id' => $appointment->id,
-    //         'resolution_amount' => $appointment->amount,
-    //     ]);
-
-    //     $appointment->update(['status' => 'escalated']);
-
-    //     Mail::to('admin@snipfair.com')->send(new AppointmentDisputeEmail(
-    //         dispute: $dispute,
-    //         appointment: $appointment,
-    //         recipient: null, // admin doesn't need recipient object
-    //         recipientType: 'admin'
-    //     ));
-    //     $superAdmins = Admin::where('role', 'super-admin')
-    //         ->where('is_active', true)
-    //         ->get();
-
-    //     foreach ($superAdmins as $admin) {
-    //         AdminNotificationHelper::create(
-    //             $admin->id,
-    //             route('admin.disputes.show', $dispute->id),
-    //             'New Dispute from ' . $appointment->customer->name,
-    //             "Email: {$appointment->customer->email}\nMessage: " . substr($validated['comment'], 0, 100) . '...',
-    //             'normal'
-    //         );
-    //     }
-
-    //     if ($dispute)
-    //         return redirect()->route('customer.explore')->with('message', 'Appointment disputed successfully! You will receive a response shortly from the Administrators.');
-    //     else
-    //         return back()->with('message', 'Something went wrong');
     // }
 }

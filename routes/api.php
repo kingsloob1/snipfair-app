@@ -95,6 +95,8 @@ Route::middleware('api')->group(function () {
             });
         });
 
+        Route::get('/categories', [StylistWorkController::class, 'getWorkCategories']);
+
         //Stylist routes
         Route::group(['prefix' => '/stylist', 'middleware' => ['is.stylist', 'email.verified']], function () {
             // Get stylist profile data
@@ -218,7 +220,15 @@ Route::middleware('api')->group(function () {
 
             //Customer appointment routes
             Route::group(['prefix' => '/appointment'], function () {
+                Route::post('/book', [CustomerApiController::class, 'bookAppointment']);
 
+                Route::get('{appointmentId}', [CustomerApiController::class, 'getAppointment']);
+
+                Route::get('/list', [CustomerApiController::class, 'getAppointments']);
+
+                Route::post('{appointmentId}/review', [CustomerApiController::class, 'submitAppointmentReview']);
+
+                Route::post('{appointmentId}/dispute', [CustomerApiController::class, 'disputeAppointment']);
             });
         });
 
