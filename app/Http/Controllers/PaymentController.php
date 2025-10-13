@@ -220,7 +220,7 @@ class PaymentController extends Controller
         $data = [
             'merchant_id' => config('payfast.merchant_id'),
             'merchant_key' => config('payfast.merchant_key'),
-            'return_url' => URL::to("/payment/success/payfast?deposit_id={$deposit->id}"), // Optional if using callback
+            'return_url' => URL::to("/api/payment/success/payfast?deposit_id={$deposit->id}"), // Optional if using callback
             'cancel_url' => URL::to("/api/payment/cancel/payfast?deposit_id={$deposit->id}"), // Optional if using callback
             'notify_url' => URL::to('/api/payment/webhook/payfast'), // Webhook endpoint
             'name_first' => $validated['first_name'] ?? $user->first_name ?? 'Snipfair',
