@@ -61,7 +61,12 @@ export default function Register() {
                 onFinish: () => {
                     reset('password', 'password_confirmation');
                 },
-                onSuccess: () => {
+                onSuccess: (pageEvt) => {
+                    console.log('Page Evt and flash is =====> ', {
+                        pageEvt,
+                        flash,
+                    });
+
                     if (flash?.error) {
                         router.visit(window.route('home'));
                     } else {

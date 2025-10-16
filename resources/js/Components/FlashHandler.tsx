@@ -71,7 +71,7 @@ export default function FlashHandler({
         <>
             <Toaster richColors position="top-right" />
             <FullscreenOverlay />
-            {!route().current('admin.*') && <CookiePopup />}
+            {!window.route().current('admin.*') && <CookiePopup />}
             {children}
         </>
     );
