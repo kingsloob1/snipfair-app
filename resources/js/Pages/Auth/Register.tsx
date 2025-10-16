@@ -8,7 +8,7 @@ import { Label } from '@/Components/ui/label';
 import AuthLayout from '@/Layouts/AuthLayout';
 import { cn } from '@/lib/utils';
 import { registerSchema } from '@/schema/Forms';
-import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
 import { FocusEvent, FormEventHandler, useState } from 'react';
 import { z } from 'zod';
 import Socials from './_Partials/Socials';
@@ -22,16 +22,6 @@ type RegisterFormProps = {
 };
 
 export default function Register() {
-    const { flash } = usePage().props as {
-        flash?: {
-            success?: string;
-            error?: string;
-            info?: string;
-            warning?: string;
-            message?: string;
-        };
-    };
-
     const [showPassword, toggleEyeIcon] = useState(false);
     const [isOpen, setIsOpen] = useState(false);
     const [showPasswordConfirm, toggleEyeIconConfirm] = useState(false);
@@ -62,12 +52,17 @@ export default function Register() {
                     reset('password', 'password_confirmation');
                 },
                 onSuccess: (pageEvt) => {
-                    console.log('Page Evt and flash is =====> ', {
-                        pageEvt,
-                        flash,
-                    });
+                    const newPageProps = pageEvt.props as {
+                        flash?: {
+                            success?: string;
+                            error?: string;
+                            info?: string;
+                            warning?: string;
+                            message?: string;
+                        };
+                    };
 
-                    if (flash?.error) {
+                    if (newPageProps.flash?.error) {
                         router.visit(window.route('home'));
                     } else {
                         setIsOpen(true);

@@ -66,8 +66,18 @@ export default function Register() {
                 onFinish: () => {
                     reset('password', 'password_confirmation');
                 },
-                onSuccess: () => {
-                    if (flash?.error) {
+                onSuccess: (pageEvt) => {
+                    const newPageProps = pageEvt.props as {
+                        flash?: {
+                            success?: string;
+                            error?: string;
+                            info?: string;
+                            warning?: string;
+                            message?: string;
+                        };
+                    };
+
+                    if (newPageProps.flash?.error) {
                         router.visit(window.route('home'));
                     } else {
                         setIsOpen(true);
