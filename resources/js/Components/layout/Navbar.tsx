@@ -190,7 +190,7 @@ const Navbar = ({ auth }: PageProps) => {
                             </AnimatePresence>
                         </div>
 
-                        {!auth.user && (
+                        {auth.user && (
                             <Link
                                 method="post"
                                 href={window.route('logout')}
@@ -363,6 +363,29 @@ const Navbar = ({ auth }: PageProps) => {
                                                 >
                                                     Join as Stylist
                                                 </motion.button>
+                                            </Link>
+                                        )}
+                                        {auth.user && (
+                                            <Link
+                                                method="post"
+                                                href={window.route('logout')}
+                                                as="button"
+                                                className="w-full"
+                                            >
+                                                <motion.div
+                                                    whileHover={{
+                                                        backgroundColor:
+                                                            '#f9fafb',
+                                                    }}
+                                                    className="flex w-full items-center space-x-3 rounded-lg px-4 py-4 text-sm text-gray-700 transition-colors duration-200 hover:bg-gray-50"
+                                                >
+                                                    <div className="text-danger-normal">
+                                                        <LogOut />
+                                                    </div>
+                                                    <span className="font-medium text-danger-normal">
+                                                        Logout
+                                                    </span>
+                                                </motion.div>
                                             </Link>
                                         )}
                                     </div>
