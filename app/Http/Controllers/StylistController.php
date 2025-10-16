@@ -217,7 +217,8 @@ class StylistController extends Controller
         $request->validate([
             'identification_id' => 'required|string|max:255',
             'identification_file' => 'required|array|max:1',
-            'identification_file.*' => 'mimes:jpeg,png,gif,pdf,docx|max:5120',
+            'identification_file.*' => 'mimes:jpeg,png,gif,webp,pdf,docx,doc|max:5120',
+            'identification_proof' => 'required|image|max:5120',
         ]);
 
         $portfolioUrls = [];
@@ -239,6 +240,8 @@ class StylistController extends Controller
 
         $stylist->identification_id = $request->identification_id;
         $stylist->identification_file = $portfolioUrls[0];
+        $stylist->identification_proof = $request->file('identification_proof')->store('identification_proofs', 'public');
+
         $stylist->save();
 
         if ($request->expectsJson()) {

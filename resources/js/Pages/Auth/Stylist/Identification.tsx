@@ -7,11 +7,13 @@ import AuthLayout from '@/Layouts/AuthLayout';
 import { mergeInertiaFieldErrors } from '@/lib/helper';
 import { Head, router, useForm } from '@inertiajs/react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { motion } from 'motion/react';
 import { FocusEvent, FormEventHandler } from 'react';
 
 type SkillFormProps = {
     identification_id?: string;
     identification_file: File[];
+    identification_proof?: File;
 };
 
 export default function Identification() {
@@ -19,14 +21,15 @@ export default function Identification() {
         useForm<SkillFormProps>({
             identification_id: '',
             identification_file: [],
+            identification_proof: undefined,
         });
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
 
-        post(route('stylist.complete.identity'), {
+        post(window.route('stylist.complete.identity'), {
             onFinish: () => {
-                route('stylist.dashboard');
+                window.route('stylist.dashboard');
             },
         });
     };
@@ -34,7 +37,10 @@ export default function Identification() {
     const handleFocus = (
         event: FocusEvent<HTMLInputElement | HTMLTextAreaElement, Element>,
     ) => {
-        let el: 'identification_id' | 'identification_file';
+        let el:
+            | 'identification_id'
+            | 'identification_file'
+            | 'identification_proof';
 
         if (typeof event === 'string') {
             el = event;
@@ -46,6 +52,22 @@ export default function Identification() {
     };
 
     const mergedErrors = mergeInertiaFieldErrors(errors, 'identification_file');
+
+    const logoutUser = () => {
+        router.visit(window.route('logout'), {
+            method: 'post',
+            onBefore: () =>
+                confirm(
+                    'Are you sure you want to restart stylist registration process?',
+                ),
+            onSuccess() {
+                window.location.href = window.route('stylist.register');
+            },
+            onError() {
+                window.location.href = window.route('stylist.register');
+            },
+        });
+    };
 
     return (
         <AuthLayout
@@ -74,13 +96,28 @@ export default function Identification() {
                             onChange={(files) =>
                                 setData('identification_file', files)
                             }
-                            type="file"
+                            type="document_or_image"
                             maxFiles={1}
                             disabled={processing}
                             error={mergedErrors[0] ?? ''}
                             isRequired={true}
                             label="Government ID"
                             extra="(Driver's license, passport, or state ID)"
+                        />
+                    </div>
+                    <div>
+                        <FileInput
+                            value={data.identification_file}
+                            onChange={(files) =>
+                                setData('identification_proof', files[0])
+                            }
+                            type="image"
+                            maxFiles={1}
+                            disabled={processing}
+                            error={errors.identification_proof}
+                            isRequired={true}
+                            label="Identification Proof"
+                            extra="(Image of you holding your Government identification"
                         />
                     </div>
                     <CustomInput
@@ -115,7 +152,7 @@ export default function Identification() {
                             variant="secondary"
                             onClick={() =>
                                 router.visit(
-                                    route('stylist.complete', {
+                                    window.route('stylist.complete', {
                                         previous: 'yes',
                                     }),
                                 )
@@ -127,6 +164,25 @@ export default function Identification() {
                                 Previous
                             </div>
                         </CustomButton>
+                    </div>
+                    <div className="flex items-center justify-center gap-2">
+                        <motion.button
+                            whileHover={{
+                                scale: 1.05,
+                                color: 'rgba(10, 34, 255, 1)',
+                            }}
+                            whileTap={{ scale: 0.95 }}
+                            animate={{ scale: 1, color: 'rgb(10, 177, 255)' }}
+                            initial={{
+                                scale: 1.1,
+                                color: 'rgba(10, 34, 255, 1)',
+                            }}
+                            onClick={logoutUser}
+                            className="mt-3 text-sm text-sf-primary"
+                        >
+                            Made a mistake? Click to restart registration
+                            process
+                        </motion.button>
                     </div>
                 </form>
             </main>

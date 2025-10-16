@@ -1,10 +1,19 @@
+/* eslint-disable jsx-a11y/no-static-element-interactions */
+/* eslint-disable jsx-a11y/click-events-have-key-events */
 import { cn } from '@/lib/utils';
 import { FolderPlus } from 'lucide-react';
+import mime from 'mime/lite';
 import React, { useRef, useState } from 'react';
+
+interface CustomFileSetting {
+    acceptMime: string[];
+    acceptExt: string;
+    description: string;
+}
 
 interface PortfolioUploadProps {
     value?: File[];
-    type?: 'file' | 'image';
+    type?: 'file' | 'image' | 'document_or_image' | 'custom';
     onChange: (files: File[]) => void;
     maxFiles?: number;
     disabled?: boolean;
@@ -14,6 +23,7 @@ interface PortfolioUploadProps {
     extra?: string;
     fullWidth?: boolean;
     disableInput?: boolean;
+    customFileSetting?: CustomFileSetting;
 }
 
 const FileInput: React.FC<PortfolioUploadProps> = ({
@@ -28,14 +38,28 @@ const FileInput: React.FC<PortfolioUploadProps> = ({
     extra,
     fullWidth,
     disableInput = false,
+    customFileSetting = {
+        acceptMime: ['*'],
+        acceptExt: '*',
+        description: 'Any file (Max 5MB each)',
+    } as CustomFileSetting,
 }) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [dragActive, setDragActive] = useState(false);
 
-    const fileSettings = {
+    const fileSettings: Record<
+        NonNullable<PortfolioUploadProps['type']>,
+        CustomFileSetting
+    > = {
         image: {
-            acceptMime: ['image/jpeg', 'image/png', 'image/gif'],
-            acceptExt: '.jpg,.jpeg,.png,.gif',
+            acceptMime: [
+                'image/jpeg',
+                'image/png',
+                'image/gif',
+                'image/webp',
+                'image/jpg',
+            ],
+            acceptExt: '.jpg,.jpeg,.png,.gif,.webp',
             description: 'JPG, PNG, GIF (Max 5MB each)',
         },
         file: {
@@ -47,6 +71,21 @@ const FileInput: React.FC<PortfolioUploadProps> = ({
             acceptExt: '.pdf,.doc,.docx',
             description: 'PDF, DOC, DOCX (Max 5MB each)',
         },
+        document_or_image: {
+            acceptMime: [
+                'image/jpeg',
+                'image/png',
+                'image/gif',
+                'image/webp',
+                'image/jpg',
+                'application/pdf',
+                'application/msword',
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            ],
+            acceptExt: '.jpg,.jpeg,.png,.gif,.webp,.pdf,.doc,.docx',
+            description: 'JPG, PNG, GIF, PDF, DOC, DOCX (Max 5MB each)',
+        },
+        custom: customFileSetting,
     };
 
     const settings = fileSettings[type];
@@ -102,6 +141,10 @@ const FileInput: React.FC<PortfolioUploadProps> = ({
         if (!disabled) {
             fileInputRef.current?.click();
         }
+    };
+
+    const isFileImage = (file: File) => {
+        return mime.getType(file.name)?.startsWith('image/');
     };
 
     return (
@@ -182,7 +225,7 @@ const FileInput: React.FC<PortfolioUploadProps> = ({
                     >
                         {value.map((file, index) => (
                             <div key={index} className="group relative">
-                                {type === 'image' && (
+                                {(type === 'image' || isFileImage(file)) && (
                                     <div className="aspect-square overflow-hidden rounded-lg bg-gray-100">
                                         {type === 'image' ? (
                                             <img

@@ -7,8 +7,9 @@ import InputLabel from '@/Components/InputLabel';
 import RegisterSteps from '@/Components/stylist/RegisterSteps';
 import AuthLayout from '@/Layouts/AuthLayout';
 import { PageProps } from '@/types';
-import { Head, useForm } from '@inertiajs/react';
+import { Head, router, useForm } from '@inertiajs/react';
 import { ChevronRight } from 'lucide-react';
+import { motion } from 'motion/react';
 import { FocusEvent, FormEventHandler, useEffect } from 'react';
 
 type SkillFormProps = {
@@ -46,9 +47,9 @@ export default function Skills({ auth }: PageProps) {
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
 
-        post(route('stylist.complete.skill'), {
+        post(window.route('stylist.complete.skill'), {
             onFinish: () => {
-                route('stylist.dashboard');
+                window.route('stylist.dashboard');
             },
         });
     };
@@ -76,6 +77,22 @@ export default function Skills({ auth }: PageProps) {
             value: String(num),
         };
     });
+
+    const logoutUser = () => {
+        router.visit(window.route('logout'), {
+            method: 'post',
+            onBefore: () =>
+                confirm(
+                    'Are you sure you want to restart stylist registration process?',
+                ),
+            onSuccess() {
+                window.location.href = window.route('stylist.register');
+            },
+            onError() {
+                window.location.href = window.route('stylist.register');
+            },
+        });
+    };
 
     return (
         <AuthLayout
@@ -173,6 +190,25 @@ export default function Skills({ auth }: PageProps) {
                                 <ChevronRight />
                             </div>
                         </CustomButton>
+                    </div>
+                    <div className="flex items-center justify-center gap-2">
+                        <motion.button
+                            whileHover={{
+                                scale: 1.05,
+                                color: 'rgba(10, 34, 255, 1)',
+                            }}
+                            whileTap={{ scale: 0.95 }}
+                            animate={{ scale: 1, color: 'rgb(10, 177, 255)' }}
+                            initial={{
+                                scale: 1.1,
+                                color: 'rgba(10, 34, 255, 1)',
+                            }}
+                            onClick={logoutUser}
+                            className="mt-3 text-sm text-sf-primary"
+                        >
+                            Made a mistake? Click to restart registration
+                            process
+                        </motion.button>
                     </div>
                 </form>
             </main>

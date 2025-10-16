@@ -11,9 +11,12 @@ use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\Auth\VerifyEmailController;
 use App\Http\Controllers\EmailVerificationOtpController;
 use App\Http\Controllers\Auth\SocialController;
+use App\Http\Controllers\HomeController;
 use App\Http\Controllers\StylistController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+
+Route::get('test-view', [HomeController::class, 'testView']);
 
 Route::middleware('guest')->group(function () {
     Route::get('register', [RegisteredUserController::class, 'create'])
@@ -49,15 +52,19 @@ Route::middleware('guest')->group(function () {
 });
 
 Route::prefix('stylist')->middleware('guest')->group(function () {
-    Route::get('/register', function() { return Inertia::render('Auth/Stylist/Register'); })->name('stylist.register');
-    Route::post('/store', [StylistController::class,'store'])->name('stylist.store');
+    Route::get('/register', function () {
+        return Inertia::render('Auth/Stylist/Register');
+    })->name('stylist.register');
+    Route::post('/store', [StylistController::class, 'store'])->name('stylist.store');
 });
 
 Route::middleware('auth')->group(function () {
     Route::get('/verify-email-otp', [EmailVerificationOtpController::class, 'show'])
         ->name('verification.notice');
 
-    Route::get('verify-email/{id}/{hash}', function() { return redirect()->route('verification.notice'); })
+    Route::get('verify-email/{id}/{hash}', function () {
+        return redirect()->route('verification.notice');
+    })
         ->name('verification.verify');
 
     Route::post('/verify-email-otp', [EmailVerificationOtpController::class, 'store'])

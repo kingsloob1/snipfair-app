@@ -8,6 +8,7 @@ use App\Models\StylistSetting;
 use App\Models\User;
 use App\Rules\PhoneNumber;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password as FacadesPassword;
 use Illuminate\Support\Str;
@@ -256,14 +257,24 @@ class ApiAuthController extends Controller
         $validated = $request->validate([
             'use_location' => 'sometimes|boolean',
             'country' => 'sometimes|string|max:200',
+            'firebase_device_token' => 'sometimes|string|max:255'
         ]);
 
-        if (count($validated)) {
-            $user = $request->user();
-            $user->update([
-                'use_location' => $request->use_location,
-                'country' => $request->country,
-            ]);
+
+        $user = $request->user();
+
+        if (Arr::has($validated, 'use_location')) {
+            $user->use_location = $validated['use_location'];
+        }
+
+        if (Arr::has($validated, 'country')) {
+            $user->country = $validated['country'];
+        }
+
+        $user->save();
+
+        if (Arr::has($validated, 'firebase_device_token')) {
+            $user->addFirebaseToken($validated['firebase_device_token']);
         }
 
         return response()->noContent();

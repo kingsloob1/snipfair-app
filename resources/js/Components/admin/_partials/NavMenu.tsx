@@ -77,7 +77,7 @@ export default function NavMenu({
             <DropdownMenuContent className="w-72">
                 <div className="px-2">
                     {menuItems.map((item) => (
-                        <Link key={item.label} href={route(item.route)}>
+                        <Link key={item.label} href={window.route(item.route)}>
                             <motion.button
                                 whileHover={{
                                     backgroundColor: '#f9fafb',
@@ -94,7 +94,7 @@ export default function NavMenu({
                     <hr />
                     <Link
                         method="post"
-                        href={route('admin.logout')}
+                        href={window.route('admin.logout')}
                         as="button"
                         className="w-full"
                     >

@@ -16,7 +16,13 @@ use Inertia\Inertia;
 
 class HomeController extends Controller
 {
-    public function home(){
+    public function testView()
+    {
+        return Inertia::render('Auth/Stylist/Complete');
+    }
+
+    public function home()
+    {
         $faqs = FAQ::all();
         $categories = Category::all()->map(function ($category) {
             $imageUrl = null;
@@ -87,7 +93,8 @@ class HomeController extends Controller
         ]);
     }
 
-    public function about(){
+    public function about()
+    {
         $faqs = FAQ::all();
         $categories = Category::all()->map(function ($category) {
             $imageUrl = null;
@@ -127,7 +134,7 @@ class HomeController extends Controller
             [
                 'id' => 4,
                 'name' => 'Customer Satisfaction',
-                'count' => (int)($config->customer_satisfaction ?? 99),
+                'count' => (int) ($config->customer_satisfaction ?? 99),
                 'unit' => '%',
             ],
         ];
@@ -139,14 +146,16 @@ class HomeController extends Controller
         ]);
     }
 
-    public function faqs(){
+    public function faqs()
+    {
         $faqs = FAQ::all();
         return Inertia::render('Landing/FaqPage', [
             'faqs' => $faqs,
         ]);
     }
 
-    public function explore(){
+    public function explore()
+    {
         // $portfolios = Portfolio::with(['user', 'category', 'appointments.review', 'likes' => function ($query) {
         //     $query->where('status', true);
         // }])->get()
@@ -217,7 +226,8 @@ class HomeController extends Controller
         ]);
     }
 
-    public function services(){
+    public function services()
+    {
         $categories = Category::all()->map(function ($category) {
             $imageUrl = null;
             if ($category->banner) {
@@ -239,7 +249,8 @@ class HomeController extends Controller
         ]);
     }
 
-    public function terms(){
+    public function terms()
+    {
         $config = WebsiteConfiguration::first();
 
         return Inertia::render('Landing/Terms', [
@@ -247,7 +258,8 @@ class HomeController extends Controller
         ]);
     }
 
-    public function privacyPolicy(){
+    public function privacyPolicy()
+    {
         $config = WebsiteConfiguration::first();
 
         return Inertia::render('Landing/PrivacyPolicy', [
@@ -255,7 +267,8 @@ class HomeController extends Controller
         ]);
     }
 
-    public function cookies(){
+    public function cookies()
+    {
         $config = WebsiteConfiguration::first();
 
         return Inertia::render('Landing/Cookies', [
@@ -271,15 +284,17 @@ class HomeController extends Controller
         if (!$user) {
             return redirect()->route('home')->with('error', 'Stylist not found.');
         } else {
-            if( $user->role === 'customer') return redirect()->route('stylists.show', $user->id);
-            else return redirect()->route('link.show', $user->id);
+            if ($user->role === 'customer')
+                return redirect()->route('stylists.show', $user->id);
+            else
+                return redirect()->route('link.show', $user->id);
         }
     }
 
     public function showStylist($id)
     {
         $user = User::where('role', 'stylist')->where('id', $id)->whereHas('stylist_profile')->firstOrFail();
-        if($user->stylist_profile->status !== 'approved' && !$user->stylist_profile->is_available){
+        if ($user->stylist_profile->status !== 'approved' && !$user->stylist_profile->is_available) {
             return back()->with('error', 'Stylist public profile is not available.');
         }
         $stylist = User::where('role', 'stylist')->where('id', $id)->whereHas('stylist_profile', function ($query) {
@@ -406,7 +421,7 @@ class HomeController extends Controller
                 'categories' => $categories,
                 'years_of_experience' => $stylist->stylist_profile->years_of_experience ?? 0,
                 'likes_count' => $total_likes,
-                'section' => $stylist->plan === 'Premium Plan' ?  'top_rated' : 'online',
+                'section' => $stylist->plan === 'Premium Plan' ? 'top_rated' : 'online',
                 'appointment_counts' => $appointment_counts,
                 'services_completed' => $appointment_counts . '+',
                 'work_experience' => ($stylist->stylist_profile->years_of_experience ?? 0) . '+ years',

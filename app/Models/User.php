@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable implements MustVerifyEmail
@@ -501,5 +502,64 @@ class User extends Authenticatable implements MustVerifyEmail
     public function deposits()
     {
         return $this->hasMany(Deposit::class);
+    }
+
+    public function settings()
+    {
+        return $this->hasMany(UserSetting::class);
+    }
+
+    public function getFirebaseTokens()
+    {
+        $setting = $this->settings()->firstOrCreate([
+            'key' => 'firebase-device-tokens'
+        ], [
+            'value' => json_encode([])
+        ]);
+
+        /**
+         * @var (array{token: string, created_at: string, last_used_at: string})[] $decodedTokens
+         */
+        $decodedTokens = json_decode($setting->value, true);
+        $last3Months = Carbon::now()->subMonths(3);
+
+        return collect($decodedTokens)->map(function ($tokenObj) {
+            $tokenObj['created_at'] = Carbon::parse(Arr::get($tokenObj, 'created_at', now()));
+            $tokenObj['last_used_at'] = Carbon::parse(Arr::get($tokenObj, 'last_used_at', now()));
+
+            return collect($tokenObj);
+        })->filter(function ($tokenCollection) use ($last3Months) {
+            return $tokenCollection->get('last_used_at')->gt($last3Months);
+        });
+    }
+
+    public function saveFirebaseTokens(Collection $tokens)
+    {
+        $setting = $this->settings()->firstOrCreate([
+            'key' => 'firebase-device-tokens'
+        ], [
+            'value' => json_encode([])
+        ]);
+
+        $setting->update([
+            'value' => $tokens->toJson()
+        ]);
+    }
+
+    public function addFirebaseToken(string $token)
+    {
+        $tokens = $this->getFirebaseTokens();
+        $tokenCollection = collect([
+            'token' => $token,
+            'created_at' => Carbon::now(),
+            'last_used_at' => Carbon::now()
+        ]);
+
+        $existingToken = $tokens->firstWhere('token', '===', $token);
+        if (!$existingToken) {
+            $tokens->add($tokenCollection);
+        }
+
+        $this->saveFirebaseTokens($tokens);
     }
 }

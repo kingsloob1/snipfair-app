@@ -1,17 +1,17 @@
 import CookiePopup from '@/Pages/CookiePopup';
 import { usePage } from '@inertiajs/react';
-import { useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { toast } from 'sonner';
 import FullscreenOverlay from './FullscreenOverlay';
 import { Toaster } from './ui/sonner';
 
 declare global {
+    // eslint-disable-next-line no-unused-vars
     interface Window {
         Tawk_API?: {
             toggle: () => void;
             showWidget: () => void;
             hideWidget: () => void;
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             [key: string]: any;
         };
     }
@@ -36,17 +36,17 @@ export default function FlashHandler({
     useEffect(() => {
         if (typeof window.Tawk_API !== 'undefined') {
             // const isShowRoute =
-            //     route().current('terms') ||
-            //     route().current('privacy-policy') ||
-            //     route().current('cookies') ||
-            //     route().current('faqs') ||
-            //     route().current('contact') ||
-            //     route().current('support.*');
+            //     window.route().current('terms') ||
+            //     window.route().current('privacy-policy') ||
+            //     window.route().current('cookies') ||
+            //     window.route().current('faqs') ||
+            //     window.route().current('contact') ||
+            //     window.route().current('support.*');
             const isShowRoute =
-                route().current('admin.*') ||
-                route().current('login') ||
-                route().current('register') ||
-                route().current('stylist.register');
+                window.route().current('admin.*') ||
+                window.route().current('login') ||
+                window.route().current('register') ||
+                window.route().current('stylist.register');
 
             setTimeout(() => {
                 if (!window.Tawk_API) return;
@@ -71,7 +71,7 @@ export default function FlashHandler({
         <>
             <Toaster richColors position="top-right" />
             <FullscreenOverlay />
-            {!window.route().current('admin.*') && <CookiePopup />}
+            {!window.window.route().current('admin.*') && <CookiePopup />}
             {children}
         </>
     );

@@ -17,6 +17,7 @@ import {
     LucideClockFading,
     TriangleAlert,
 } from 'lucide-react';
+import { motion } from 'motion/react';
 import { useEffect, useState } from 'react';
 
 export default function Complete({
@@ -34,9 +35,25 @@ export default function Complete({
     }, [stylist_status]);
 
     const submit = () => {
-        post(route('stylist.complete.success'), {
+        post(window.route('stylist.complete.success'), {
             onFinish: () => {
-                route('stylist.dashboard');
+                window.route('stylist.dashboard');
+            },
+        });
+    };
+
+    const logoutUser = () => {
+        router.visit(window.route('logout'), {
+            method: 'post',
+            onBefore: () =>
+                confirm(
+                    'Are you sure you want to restart stylist registration process?',
+                ),
+            onSuccess() {
+                window.location.href = window.route('stylist.register');
+            },
+            onError() {
+                window.location.href = window.route('stylist.register');
             },
         });
     };
@@ -54,7 +71,7 @@ export default function Complete({
                             <div className="mb-4">
                                 <LogoWrapper
                                     title="Account Under Review"
-                                    subtitle="Thank you for registering! Your account is currently being reviewed by our team."
+                                    subtitle="Thank you for registering! Your account is currently being reviewed by our team. Do well to complete your stylist profile"
                                 />
                             </div>
                         </DialogTitle>
@@ -153,8 +170,11 @@ export default function Complete({
                                 type="button"
                                 variant="secondary"
                                 fullWidth={false}
-                                className="px-3 py-2"
-                                onClick={() => router.visit(route('contact'))}
+                                className="mr-3 px-3 py-2"
+                                onClick={() => {
+                                    window.location.href =
+                                        window.route('contact');
+                                }}
                             >
                                 Contact Support
                             </CustomButton>
@@ -162,11 +182,13 @@ export default function Complete({
                                 type="button"
                                 className="px-3 py-2"
                                 fullWidth={false}
-                                onClick={() =>
-                                    router.visit(route('stylist.verification'))
-                                }
+                                onClick={() => {
+                                    window.location.href = window.route(
+                                        'stylist.verification',
+                                    );
+                                }}
                             >
-                                Request Verification
+                                Complete Profile
                             </CustomButton>
                         </div>
                     </DialogFooter>
@@ -209,6 +231,24 @@ export default function Complete({
                     >
                         Next
                     </CustomButton>
+                </div>
+                <div className="flex items-center justify-center gap-2">
+                    <motion.button
+                        whileHover={{
+                            scale: 1.05,
+                            color: 'rgba(10, 34, 255, 1)',
+                        }}
+                        whileTap={{ scale: 0.95 }}
+                        animate={{ scale: 1, color: 'rgb(10, 177, 255)' }}
+                        initial={{
+                            scale: 1.1,
+                            color: 'rgba(10, 34, 255, 1)',
+                        }}
+                        onClick={logoutUser}
+                        className="mt-3 text-sm text-sf-primary"
+                    >
+                        Made a mistake? Click to restart registration process
+                    </motion.button>
                 </div>
             </main>
         </AuthLayout>

@@ -34,6 +34,7 @@ export default function Stylist({
         }[];
         identification_image?: string;
         identification_id?: string;
+        identification_proof?: string;
         works: string[];
     };
     portfolios: Array<{
@@ -86,7 +87,7 @@ export default function Stylist({
     const routes = [
         {
             name: 'Users',
-            path: route('admin.users'),
+            path: window.route('admin.users'),
             active: false,
         },
     ];
@@ -335,6 +336,9 @@ export default function Stylist({
                                 identification_id={stylist.identification_id}
                                 identification_image={
                                     stylist.identification_image
+                                }
+                                identification_proof={
+                                    stylist.identification_proof
                                 }
                             />
                             <SocialLinksCard

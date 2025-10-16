@@ -7,6 +7,7 @@ import RegisterSteps from '@/Components/stylist/RegisterSteps';
 import AuthLayout from '@/Layouts/AuthLayout';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { X } from 'lucide-react';
+import { motion } from 'motion/react';
 import { FormEventHandler, useEffect, useState } from 'react';
 
 interface PageProps {
@@ -30,7 +31,7 @@ export default function VerifyEmail({ status }: { status?: string }) {
 
     useEffect(() => {
         if (data.otp.length > 5) {
-            post(route('verification.otp.store'), {
+            post(window.route('verification.otp.store'), {
                 preserveScroll: true,
                 onSuccess: () => {
                     setData('otp', '');
@@ -43,7 +44,7 @@ export default function VerifyEmail({ status }: { status?: string }) {
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
 
-        post(route('verification.otp.store'), {
+        post(window.route('verification.otp.store'), {
             preserveScroll: true,
             onSuccess: () => {
                 setData('otp', '');
@@ -68,12 +69,28 @@ export default function VerifyEmail({ status }: { status?: string }) {
     };
 
     const resendOtp = () => {
-        post(route('verification.otp.resend'), {
+        post(window.route('verification.otp.resend'), {
             preserveScroll: true,
             onSuccess: () => {
                 setData('otp', '');
                 startCountdown();
                 setStatus(true);
+            },
+        });
+    };
+
+    const logoutUser = () => {
+        router.visit(window.route('logout'), {
+            method: 'post',
+            onBefore: () =>
+                confirm(
+                    'Are you sure you want to restart stylist registration process?',
+                ),
+            onSuccess() {
+                window.location.href = window.route('stylist.register');
+            },
+            onError() {
+                window.location.href = window.route('stylist.register');
             },
         });
     };
@@ -174,6 +191,25 @@ export default function VerifyEmail({ status }: { status?: string }) {
                             </span>
                         )}
                     </div>
+                    <div className="flex items-center justify-center gap-2">
+                        <motion.button
+                            whileHover={{
+                                scale: 1.05,
+                                color: 'rgba(10, 34, 255, 1)',
+                            }}
+                            whileTap={{ scale: 0.95 }}
+                            animate={{ scale: 1, color: 'rgb(10, 177, 255)' }}
+                            initial={{
+                                scale: 1.1,
+                                color: 'rgba(10, 34, 255, 1)',
+                            }}
+                            onClick={logoutUser}
+                            className="mt-3 text-sm text-sf-primary"
+                        >
+                            Made a mistake? Click to restart registration
+                            process
+                        </motion.button>
+                    </div>
                 </form>
             </main>
             <Success
@@ -182,7 +218,7 @@ export default function VerifyEmail({ status }: { status?: string }) {
                 primaryButtonText="Complete Registration"
                 // secondaryButtonText="Go to Dashboard"
                 handlePrimaryClick={() =>
-                    router.visit(route('stylist.dashboard'))
+                    router.visit(window.route('stylist.dashboard'))
                 }
                 // handleSecondaryClick={() => router.visit(route('dashboard'))}
                 title="Email Verified!"

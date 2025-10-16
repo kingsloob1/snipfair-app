@@ -1,6 +1,7 @@
 import { cn } from '@/lib/utils';
 import { PageProps } from '@/types';
 import { Link } from '@inertiajs/react';
+import { LogOut } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import React, { useState } from 'react';
 import ApplicationLogo from '../ApplicationLogo';
@@ -26,7 +27,7 @@ const Navbar = ({ auth }: PageProps) => {
         { label: 'About Us', route: 'about' },
         { label: 'Explore Styles', route: 'explore' },
     ];
-    // route().current('dashboard')
+    // window.route().current('dashboard')
     const menuItems: MenuItem[] = [
         {
             label: 'Sign Up',
@@ -66,12 +67,12 @@ const Navbar = ({ auth }: PageProps) => {
                     <div className="hidden items-center space-x-3 lg:flex">
                         {navItems.map((item) => (
                             <div key={item.label} className="relative">
-                                <Link href={route(item.route)}>
+                                <Link href={window.route(item.route)}>
                                     <motion.button
                                         whileHover={{ scale: 1.02 }}
                                         whileTap={{ scale: 0.98 }}
                                         className={`rounded-lg px-4 py-3 text-sm font-medium transition-colors duration-200 ${
-                                            route().current(item.route)
+                                            window.route().current(item.route)
                                                 ? 'text-sf-gradient-purple'
                                                 : 'text-gray-800 hover:text-sf-gradient-purple'
                                         }`}
@@ -89,7 +90,9 @@ const Navbar = ({ auth }: PageProps) => {
                     <div className="hidden items-center space-x-4 lg:flex">
                         <Link
                             href={
-                                auth.user ? route('dashboard') : route('login')
+                                auth.user
+                                    ? window.route('dashboard')
+                                    : window.route('login')
                             }
                         >
                             <motion.button
@@ -102,7 +105,7 @@ const Navbar = ({ auth }: PageProps) => {
                         </Link>
 
                         {!auth.user && (
-                            <Link href={route('stylist.register')}>
+                            <Link href={window.route('stylist.register')}>
                                 <motion.button
                                     whileHover={{ scale: 1.05 }}
                                     whileTap={{ scale: 0.95 }}
@@ -154,7 +157,9 @@ const Navbar = ({ auth }: PageProps) => {
                                             {menuItems.map((item) => (
                                                 <Link
                                                     key={item.label}
-                                                    href={route(item.route)}
+                                                    href={window.route(
+                                                        item.route,
+                                                    )}
                                                     className={cn(
                                                         (item.route ===
                                                             'register' ||
@@ -184,6 +189,29 @@ const Navbar = ({ auth }: PageProps) => {
                                 )}
                             </AnimatePresence>
                         </div>
+
+                        {!auth.user && (
+                            <Link
+                                method="post"
+                                href={window.route('logout')}
+                                as="button"
+                                className="w-full"
+                            >
+                                <motion.div
+                                    whileHover={{
+                                        backgroundColor: '#f9fafb',
+                                    }}
+                                    className="flex w-full items-center space-x-3 rounded-lg px-4 py-4 text-sm text-gray-700 transition-colors duration-200 hover:bg-gray-50"
+                                >
+                                    <div className="text-danger-normal">
+                                        <LogOut />
+                                    </div>
+                                    <span className="font-medium text-danger-normal">
+                                        Logout
+                                    </span>
+                                </motion.div>
+                            </Link>
+                        )}
                     </div>
 
                     {/* Mobile Menu Button */}
@@ -269,7 +297,7 @@ const Navbar = ({ auth }: PageProps) => {
                                             <motion.a
                                                 key={item.label}
                                                 whileHover={{ x: 10 }}
-                                                href={route(item.route)}
+                                                href={window.route(item.route)}
                                                 className="block rounded-lg px-2 py-3 text-gray-800 transition-colors duration-200 hover:bg-gray-50 hover:text-sf-gradient-purple"
                                                 onClick={toggleMobileMenu}
                                             >
@@ -285,7 +313,7 @@ const Navbar = ({ auth }: PageProps) => {
                                             <motion.a
                                                 key={item.label}
                                                 whileHover={{ x: 10 }}
-                                                href={route(item.route)}
+                                                href={window.route(item.route)}
                                                 className={cn(
                                                     'flex items-center space-x-3 rounded-lg px-2 py-3 text-gray-800 transition-colors duration-200 hover:bg-gray-50 hover:text-sf-gradient-purple',
                                                     (item.route ===
@@ -307,8 +335,8 @@ const Navbar = ({ auth }: PageProps) => {
                                         <Link
                                             href={
                                                 auth.user
-                                                    ? route('dashboard')
-                                                    : route('login')
+                                                    ? window.route('dashboard')
+                                                    : window.route('login')
                                             }
                                         >
                                             <motion.button
@@ -323,7 +351,9 @@ const Navbar = ({ auth }: PageProps) => {
                                         </Link>
                                         {!auth.user && (
                                             <Link
-                                                href={route('stylist.register')}
+                                                href={window.route(
+                                                    'stylist.register',
+                                                )}
                                                 className="block"
                                             >
                                                 <motion.button
