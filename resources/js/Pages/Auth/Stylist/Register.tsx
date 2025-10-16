@@ -1,3 +1,4 @@
+/* eslint-disable jsx-a11y/aria-role */
 import CustomButton from '@/Components/common/CustomButton';
 import Success from '@/Components/common/dialogs/Success';
 import CustomInput from '@/Components/common/forms/CustomInput';
@@ -9,7 +10,7 @@ import { Label } from '@/Components/ui/label';
 import AuthLayout from '@/Layouts/AuthLayout';
 import { cn } from '@/lib/utils';
 import { registerStylistSchema } from '@/schema/Forms';
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { FocusEvent, FormEventHandler, useState } from 'react';
 import { z } from 'zod';
 import Socials from '../_Partials/Socials';
@@ -25,6 +26,15 @@ type RegisterFormProps = {
 };
 
 export default function Register() {
+    const { flash } = usePage().props as {
+        flash?: {
+            success?: string;
+            error?: string;
+            info?: string;
+            warning?: string;
+            message?: string;
+        };
+    };
     const [showPassword, toggleEyeIcon] = useState(false);
     const [isOpen, setIsOpen] = useState(false);
     const [showPasswordConfirm, toggleEyeIconConfirm] = useState(false);
@@ -52,12 +62,16 @@ export default function Register() {
 
         try {
             registerStylistSchema.parse(data);
-            post(route('stylist.store'), {
+            post(window.route('stylist.store'), {
                 onFinish: () => {
                     reset('password', 'password_confirmation');
                 },
                 onSuccess: () => {
-                    setIsOpen(true);
+                    if (flash?.error) {
+                        router.visit(window.route('home'));
+                    } else {
+                        setIsOpen(true);
+                    }
                 },
             });
         } catch (error) {
@@ -283,7 +297,7 @@ export default function Register() {
                                 Already have a stylist account?
                             </span>
                             <Link
-                                href={route('login')}
+                                href={window.route('login')}
                                 className="text-sm font-medium text-sf-primary no-underline transition-colors duration-200 hover:text-sf-primary-hover hover:underline"
                             >
                                 Sign in
@@ -299,7 +313,7 @@ export default function Register() {
                 onClose={() => setIsOpen(false)}
                 primaryButtonText="Get Started"
                 handlePrimaryClick={() =>
-                    router.visit(route('stylist.dashboard'))
+                    router.visit(window.route('stylist.dashboard'))
                 }
                 title="Registration Successful"
                 description="Your Snipfair account have been successfully set up. Kindly proceed to verify your account"

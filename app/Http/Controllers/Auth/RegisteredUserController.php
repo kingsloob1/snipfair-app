@@ -35,11 +35,11 @@ class RegisteredUserController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|string|lowercase|email|max:255|unique:'.User::class,
+            'email' => 'required|string|lowercase|email|max:255|unique:' . User::class,
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
-        if(!getAdminConfig('allow_registration_customers')){
+        if (!getAdminConfig('allow_registration_customers')) {
             return back()->with('error', 'Registration is disabled currently, try again later or contact support if issue persists');
         }
 
