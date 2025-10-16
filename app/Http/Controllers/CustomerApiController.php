@@ -689,7 +689,9 @@ class CustomerApiController extends Controller
         $paginatedResp = $queryBuilder
             ->with([
                 'category',
-                'user',
+                'user' => function ($qb) {
+                    $qb->withTrashed();
+                },
                 'user.stylist_profile',
             ])
             ->cursorPaginate($perPage, ['*'], 'page');
@@ -727,7 +729,9 @@ class CustomerApiController extends Controller
             ->where('id', '=', $portfolioId)
             ->with([
                 'category',
-                'user',
+                'user' => function ($qb) {
+                    $qb->withTrashed();
+                },
                 'user.stylist_profile',
             ])
             ->firstOrFail();
@@ -837,7 +841,16 @@ class CustomerApiController extends Controller
         ]);
 
         // Load relationships for events
-        $appointment->load(['customer', 'stylist', 'portfolio', 'portfolio.category']);
+        $appointment->load([
+            'customer' => function ($qb) {
+                $qb->withTrashed();
+            },
+            'stylist' => function ($qb) {
+                $qb->withTrashed();
+            },
+            'portfolio',
+            'portfolio.category'
+        ]);
 
         // Broadcast appointment created event
         // broadcast(new AppointmentCreated($appointment));
@@ -868,7 +881,14 @@ class CustomerApiController extends Controller
         $perPage = formatPerPage($request);
 
         $appointments = $customer->customerAppointments()
-            ->whereHas('stylist')->with(['stylist', 'stylist.location_service', 'portfolio', 'portfolio.category'])
+            ->whereHas('stylist')->with([
+                    'stylist' => function ($qb) {
+                        $qb->withTrashed();
+                    },
+                    'stylist.location_service',
+                    'portfolio',
+                    'portfolio.category'
+                ])
             ->orderBy('appointment_date', 'desc')
             ->cursorPaginate($perPage, ['*'], 'page')
             ->through(function ($appointment) use ($customer) {
@@ -894,7 +914,19 @@ class CustomerApiController extends Controller
     {
         $customer = $request->user();
         $customer->load(['location_service']);
-        $appointment = $customer->customerAppointments()->with(['stylist', 'stylist.location_service', 'portfolio', 'portfolio.category', 'review', 'disputes', 'proof', 'pouches', 'reminders'])->where('id', $appointmentId)->firstOrFail();
+        $appointment = $customer->customerAppointments()->with([
+            'stylist' => function ($qb) {
+                $qb->withTrashed();
+            },
+            'stylist.location_service',
+            'portfolio',
+            'portfolio.category',
+            'review',
+            'disputes',
+            'proof',
+            'pouches',
+            'reminders'
+        ])->where('id', $appointmentId)->firstOrFail();
 
         $stylist = $appointment->stylist;
         $locationService = $customer->location_service;
