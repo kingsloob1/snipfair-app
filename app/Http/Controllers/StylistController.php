@@ -565,14 +565,13 @@ class StylistController extends Controller
     {
         $profile_completeness = $this->checkProfileCompleteness($user, $canUnVerify);
 
-        $collection = collect($profile_completeness)->mapWithKeys(function (bool $value, string $key) {
+        $collection = collect($profile_completeness)->keys()->map(function (string $key) use ($profile_completeness) {
             return [
                 'key' => $key,
-                'value' => $value,
+                'value' => $profile_completeness[$key],
             ];
         });
 
-        dd($collection);
 
         $nextRequirement = $collection->firstWhere('key', '===', false);
         $nextRequirement = $nextRequirement ? $nextRequirement['key'] : null;
@@ -618,6 +617,9 @@ class StylistController extends Controller
             }
         }
 
+
+        dd($collection, $nextRequirement, $nextRequirementPageName);
+
         return [
             'completness' => $profile_completeness,
             'next_requirement' => $nextRequirement,
@@ -630,53 +632,50 @@ class StylistController extends Controller
         $nextRequirement = Arr::get($requirementsResp, 'next_requirement');
         $nextRequirementPageName = Arr::get($requirementsResp, 'next_requirement_page_name');
 
-
-        dd($nextRequirement, $nextRequirementPageName, $requirementsResp);
-
         if ($nextRequirement) {
             switch ($nextRequirement) {
                 case 'user_bio': {
-                    request()->session()->put('info', $messagePrefix . 'Kindly update your biography to continue.');
+                    request()->session()->flash('info', $messagePrefix . 'Kindly update your biography to continue.');
                     break;
                 }
 
                 case 'address': {
-                    request()->session()->put('info', $messagePrefix . 'Kindly update your address to continue.');
+                    request()->session()->flash('info', $messagePrefix . 'Kindly update your address to continue.');
                     break;
                 }
 
                 case 'location_service': {
-                    request()->session()->put('info', $messagePrefix . 'Kindly update your blocation service');
+                    request()->session()->flash('info', $messagePrefix . 'Kindly update your blocation service');
                     break;
                 }
 
                 case 'user_avatar': {
-                    request()->session()->put('info', $messagePrefix . 'Kindly update your profile picture / avatar');
+                    request()->session()->flash('info', $messagePrefix . 'Kindly update your profile picture / avatar');
                     break;
                 }
 
                 case 'user_banner': {
-                    request()->session()->put('info', $messagePrefix . 'Kindly update your profile banner picture');
+                    request()->session()->flash('info', $messagePrefix . 'Kindly update your profile banner picture');
                     break;
                 }
 
                 case 'social_links': {
-                    request()->session()->put('info', $messagePrefix . 'Kindly update your social media accounts');
+                    request()->session()->flash('info', $messagePrefix . 'Kindly update your social media accounts');
                     break;
                 }
 
                 case 'works': {
-                    request()->session()->put('info', $messagePrefix . 'Kindly upload images of your past works');
+                    request()->session()->flash('info', $messagePrefix . 'Kindly upload images of your past works');
                     break;
                 }
 
                 case 'portfolio': {
-                    request()->session()->put('info', $messagePrefix . 'Kindly add at least one (1) service you render');
+                    request()->session()->flash('info', $messagePrefix . 'Kindly add at least one (1) service you render');
                     break;
                 }
 
                 case 'payment_method': {
-                    request()->session()->put('info', $messagePrefix . 'Kindly add at least one (1) payout method');
+                    request()->session()->flash('info', $messagePrefix . 'Kindly add at least one (1) payout method');
                     break;
                 }
 
