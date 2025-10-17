@@ -99,7 +99,7 @@ const AppointmentMatch: React.FC<AppointmentDetailsProps> = ({
                 <div>{JSON.stringify(customer)}</div>
                 <Link
                     href={window.route('stylist.customer.show', {
-                        id: customer?.id,
+                        id: customer?.id || 10,
                     })}
                     className="flex flex-row-reverse items-center gap-1 md:flex-row md:gap-2 xl:gap-4"
                 >
