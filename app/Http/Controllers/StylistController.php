@@ -33,6 +33,7 @@ use Carbon\CarbonPeriod;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\URL;
 
 class StylistController extends Controller
@@ -372,6 +373,11 @@ class StylistController extends Controller
             'user_id' => $user->id,
         ]);
 
+        $requirementsResp = $this->runRequirementManager($user);
+        if ($requirementsResp['next_requirement']) {
+            $this->executeRequirementAction($requirementsResp, 'Work / Portfolio was created successfully. ', false);
+        }
+
         if ($work)
             return redirect()->route('stylist.work')->with('success', 'Work created successfully!');
         else
@@ -421,6 +427,12 @@ class StylistController extends Controller
         }
 
         $work->update($validated);
+
+
+        $requirementsResp = $this->runRequirementManager($user);
+        if ($requirementsResp['next_requirement']) {
+            $this->executeRequirementAction($requirementsResp, 'Work / Portfolio was updated successfully. ', false);
+        }
 
         return redirect()->route('stylist.work')->with('success', 'Work updated successfully!');
     }
@@ -517,17 +529,17 @@ class StylistController extends Controller
         }
 
         $profile_completeness = [
+            'user_bio' => $user->bio !== null && $user->bio !== '',
+            'address' => $user->country !== null && $user->country !== '',
+            'location_service' => !!$user->location_service,
+            'user_avatar' => $user->avatar !== null && $user->avatar !== '',
+            'user_banner' => $user->stylist_profile?->banner !== null && $user->stylist_profile?->banner !== '',
+            'social_links' => $user->stylist_profile?->socials && count($user->stylist_profile->socials) > 0,
+            'works' => $user->stylist_profile?->works && count($user->stylist_profile->works) > 0,
             'portfolio' => $user->portfolios()->exists(),
             'payment_method' => $user->stylistPaymentMethods()->where('is_active', true)->exists(),
             'status_approved' => $user->stylist_profile?->status === 'approved',
-            'location_service' => $user->location_service,
-            'address' => $user->country !== null && $user->country !== '',
             'subscription_status' => $user->subscription_status === 'active',
-            'social_links' => $user->stylist_profile?->socials && count($user->stylist_profile->socials) > 0,
-            'works' => $user->stylist_profile?->works && count($user->stylist_profile->works) > 0,
-            'user_avatar' => $user->avatar !== null && $user->avatar !== '',
-            'user_bio' => $user->bio !== null && $user->bio !== '',
-            'user_banner' => $user->stylist_profile?->banner !== null && $user->stylist_profile?->banner !== '',
         ];
 
         $isProfileComplete = count($profile_completeness) === count(array_filter($profile_completeness));
@@ -549,11 +561,139 @@ class StylistController extends Controller
         return $profile_completeness;
     }
 
+    public function runRequirementManager(User $user, bool $canUnVerify = true)
+    {
+        $profile_completeness = $this->checkProfileCompleteness($user, $canUnVerify);
+
+        $collection = collect($profile_completeness)->mapWithKeys(function (bool $value, string $key) {
+            return [
+                'key' => $key,
+                'value' => $value,
+            ];
+        });
+
+        $nextRequirement = $collection->firstWhere('key', '===', false);
+        $nextRequirement = $nextRequirement ? $nextRequirement['key'] : null;
+        $nextRequirementPageName = '';
+
+
+        switch ($nextRequirement) {
+            case 'user_bio':
+            case 'address': {
+                $nextRequirementPageName = 'stylist.complete.skill';
+                break;
+            }
+
+            case 'location_service': {
+                $nextRequirementPageName = 'stylist.appointments.availabilityprofile';
+                break;
+            }
+
+            case 'user_avatar':
+            case 'user_banner': {
+                $nextRequirementPageName = 'stylist.profile';
+                break;
+            }
+
+            case 'social_links':
+            case 'works': {
+                $nextRequirementPageName = 'stylist.verification';
+                break;
+            }
+
+            case 'portfolio': {
+                $nextRequirementPageName = 'stylist.work.create';
+                break;
+            }
+
+            case 'payment_method': {
+                $nextRequirementPageName = 'stylist.earnings.methods';
+                break;
+            }
+
+            default: {
+                $nextRequirementPageName = '';
+            }
+        }
+
+        return [
+            'completness' => $profile_completeness,
+            'next_requirement' => $nextRequirement,
+            'next_requirement_page_name' => $nextRequirementPageName
+        ];
+    }
+
+    public function executeRequirementAction(array $requirementsResp, string $messagePrefix = '', bool $redirectToRequirement = true)
+    {
+        $nextRequirement = Arr::get($requirementsResp, 'next_requirement');
+        $nextRequirementPageName = Arr::get($requirementsResp, 'next_requirement_page_name');
+
+        if ($nextRequirement) {
+            switch ($nextRequirement) {
+                case 'user_bio': {
+                    Session::flash('info', $messagePrefix . 'Kindly update your biography to continue.');
+                    break;
+                }
+
+                case 'address': {
+                    Session::flash('info', $messagePrefix . 'Kindly update your address to continue.');
+                    break;
+                }
+
+                case 'location_service': {
+                    Session::flash('info', $messagePrefix . 'Kindly update your blocation service');
+                    break;
+                }
+
+                case 'user_avatar': {
+                    Session::flash('info', $messagePrefix . 'Kindly update your profile picture / avatar');
+                    break;
+                }
+
+                case 'user_banner': {
+                    Session::flash('info', $messagePrefix . 'Kindly update your profile banner picture');
+                    break;
+                }
+
+                case 'social_links': {
+                    Session::flash('info', $messagePrefix . 'Kindly update your social media accounts');
+                    break;
+                }
+
+                case 'works': {
+                    Session::flash('info', $messagePrefix . 'Kindly upload images of your past works');
+                    break;
+                }
+
+                case 'portfolio': {
+                    Session::flash('info', $messagePrefix . 'Kindly add at least one (1) service you render');
+                    break;
+                }
+
+                case 'payment_method': {
+                    Session::flash('info', $messagePrefix . 'Kindly add at least one (1) payout method');
+                    break;
+                }
+
+                default: {
+                    //
+                }
+            }
+        }
+
+
+        if ($redirectToRequirement) {
+            return redirect()->route($nextRequirementPageName ?: 'stylist.profile');
+        }
+    }
+
+
     public function profile(Request $request)
     {
         $user = $request->user();
         $user = $user->load(['stylist_profile']);
-        $profile_completeness = $this->checkProfileCompleteness($user);
+        $requirementsResp = $this->runRequirementManager($user);
+        $profile_completeness = $requirementsResp['completness'];
 
         $profile_link = getSlug($user->id);
         $profile_link = url('/link/' . $profile_link);
@@ -578,6 +718,10 @@ class StylistController extends Controller
 
         if ($request->expectsJson()) {
             return $respData;
+        }
+
+        if ($requirementsResp['next_requirement']) {
+            $this->executeRequirementAction($requirementsResp, '', false);
         }
 
         return Inertia::render('Stylist/Profile/Index', $respData);
@@ -611,7 +755,7 @@ class StylistController extends Controller
             'business_name' => 'nullable|string|max:255',
             'socials' => 'sometimes|required|array|list',
             'socials.*.social_app' => 'required|string|max:255',
-            'socials.*.url' => 'required|url|max:255',
+            'socials.*.url' => 'required|string|max:255',
             'media' => 'sometimes|required|array|max:10',
             'media.*' => [
                 new UrlOrFile(
@@ -781,6 +925,11 @@ class StylistController extends Controller
             return response()->noContent();
         }
 
+        $requirementsResp = $this->runRequirementManager($user);
+        if ($requirementsResp['next_requirement']) {
+            return $this->executeRequirementAction($requirementsResp, 'Avatar updated successfully. ', true);
+        }
+
         return redirect()->back()->with('success', 'Avatar updated successfully.');
     }
 
@@ -807,6 +956,11 @@ class StylistController extends Controller
 
         if ($request->expectsJson()) {
             return response()->noContent();
+        }
+
+        $requirementsResp = $this->runRequirementManager($user);
+        if ($requirementsResp['next_requirement']) {
+            return $this->executeRequirementAction($requirementsResp, 'Banner updated successfully. ', true);
         }
 
         return redirect()->back()->with('success', 'Banner updated successfully.');
@@ -838,15 +992,15 @@ class StylistController extends Controller
             'business_name' => 'nullable|string|max:255',
             'socials_array' => 'required|array',
             'socials_array.*.social_app' => 'required|string|max:255',
-            'socials_array.*.url' => 'required|url|max:255',
+            'socials_array.*.url' => 'required|string|max:255',
             'media' => 'required|array|max:10',
             'media.*' => 'file|mimes:jpg,jpeg,png|max:5120',
         ], [
             'socials_array.required' => 'Please add at least one social media link.',
             'socials_array.array' => 'The social media links must be in a list format.',
             'socials_array.*.social_app.required' => 'The social media application name is required for all links.',
-            'socials_array.*.url.required' => 'A URL is required for each social media link.',
-            'socials_array.*.url.url' => 'The URL for a social media link is not a valid format.',
+            'socials_array.*.url.required' => 'A valid social handle is required',
+            'socials_array.*.url.string' => 'A valid social handle is required',
         ]);
 
         $socials = [];
@@ -890,6 +1044,11 @@ class StylistController extends Controller
             }
             $stylist->works = array_slice($newFiles, 0, 10);
             $stylist->save();
+        }
+
+        $requirementsResp = $this->runRequirementManager($user);
+        if ($requirementsResp['next_requirement']) {
+            return $this->executeRequirementAction($requirementsResp, 'Social media handles and past works was updated successfully. ', true);
         }
 
         return redirect()->back()->with('success', 'Verification request updated successfully.');

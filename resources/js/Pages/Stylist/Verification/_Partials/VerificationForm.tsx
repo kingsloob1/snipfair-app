@@ -7,7 +7,7 @@ import InputLabel from '@/Components/InputLabel';
 import { mergeInertiaFieldErrors, openFullscreenOverlay } from '@/lib/helper';
 import { router, useForm } from '@inertiajs/react';
 import { ExternalLink, Loader2, Pen, Plus, Trash2 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 interface Social {
@@ -135,7 +135,7 @@ export default function VerificationForm({
 
     useEffect(() => {
         if (avatarData.avatar) {
-            postAvatar(route('stylist.profile.avatar.update'), {
+            postAvatar(window.route('stylist.profile.avatar.update'), {
                 forceFormData: true,
                 preserveScroll: true,
                 onSuccess: () => {
@@ -152,7 +152,7 @@ export default function VerificationForm({
     }, [avatarData.avatar, postAvatar, resetAvatar]);
 
     const handlePortfolioRedirect = () => {
-        router.visit(route('stylist.work.create'));
+        router.visit(window.route('stylist.work.create'));
     };
 
     const handleSocialChange = (
@@ -201,7 +201,7 @@ export default function VerificationForm({
                 action: 'Submit For Verification',
                 onConfirm: () => {
                     router.post(
-                        route('stylist.profile.verification.update'),
+                        window.route('stylist.profile.verification.update'),
                         {
                             completeness,
                             status: profile_completeness?.status_approved
@@ -240,7 +240,7 @@ export default function VerificationForm({
 
             // Submit directly with the data
             router.post(
-                route('stylist.profile.verification.update'),
+                window.route('stylist.profile.verification.update'),
                 {
                     // name: data.name,
                     media: data.media,
@@ -300,7 +300,7 @@ export default function VerificationForm({
         ) {
             return {
                 isDisabled: false,
-                text: 'Submit Requirements',
+                text: 'Next',
             };
         }
 

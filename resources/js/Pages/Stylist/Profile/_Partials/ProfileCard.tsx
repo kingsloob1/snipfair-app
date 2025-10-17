@@ -96,7 +96,7 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ profile_details }) => {
     useEffect(() => {
         if (!type) return;
         if (data.avatar) {
-            post(route(`stylist.profile.${type}.update`), {
+            post(window.route(`stylist.profile.${type}.update`), {
                 forceFormData: true,
                 preserveScroll: true,
                 onSuccess: () => {

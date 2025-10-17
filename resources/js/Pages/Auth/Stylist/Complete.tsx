@@ -186,9 +186,8 @@ export default function Complete({
                                 className="px-3 py-2"
                                 fullWidth={false}
                                 onClick={() => {
-                                    window.location.href = window.route(
-                                        'stylist.verification',
-                                    );
+                                    window.location.href =
+                                        window.route('stylist.profile');
                                 }}
                             >
                                 Complete Profile

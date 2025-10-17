@@ -644,6 +644,10 @@ class AppointmentController extends Controller
             'country' => $request->country,
         ]);
 
+        if (!$user->location_service) {
+            $user->location_service()->create();
+        }
+
         return redirect()->back()->with('success', 'Location settings updated successfully.');
     }
 

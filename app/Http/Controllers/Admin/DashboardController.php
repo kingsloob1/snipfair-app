@@ -267,6 +267,24 @@ class DashboardController extends Controller
                 return $stylist;
             }));
 
+        // Get rejected stylists
+        $rejectedStylists = Inertia::defer(fn() => User::where('role', 'stylist')
+            ->whereHas('stylist_profile', function ($query) {
+                $query->whereIn('status', ['rejected']);
+            })
+            ->withCount([
+                'stylistAppointments as total_appointments',
+                'portfolios as portfolios_count'
+            ])
+            ->with('stylist_profile', 'stylistAppointments', 'stylistAppointments.customer', 'stylistAppointments.portfolio.category', 'transactions')
+            ->get()
+            ->map(function ($stylist) {
+                $stylist->total_earned = $stylist->transactions()->where('type', 'earning')->where('status', 'completed')->sum('amount');
+                $stylist->subscription = $stylist->plan ?? 'Yet to Subscribe';
+                $stylist->avatar = $this->getAvatar($stylist);
+                return $stylist;
+            }));
+
         // Get pending stylist applications
         $stylist_approvals = Inertia::defer(fn() => User::where('role', 'stylist')
             ->whereHas('stylist_profile', function ($query) {
@@ -308,6 +326,7 @@ class DashboardController extends Controller
         return Inertia::render('Admin/Account/Users/Index', [
             'customers' => $customers,
             'all_stylists' => $allStylists,
+            'rejected_stylists' => $rejectedStylists,
             'stylists' => $stylists,
             'stylist_approvals' => $stylist_approvals,
             'deleted_users' => $deleted_users,

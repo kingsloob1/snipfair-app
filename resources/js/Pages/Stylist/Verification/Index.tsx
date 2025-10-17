@@ -55,7 +55,7 @@ export default function Index({
     const routes = [
         {
             name: 'Profile Verification',
-            path: route('stylist.verification'),
+            path: window.route('stylist.verification'),
             active: false,
         },
     ];

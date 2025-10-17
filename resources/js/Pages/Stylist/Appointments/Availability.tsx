@@ -51,7 +51,7 @@ export default function Availability({
     const routes = [
         {
             name: 'Appointments',
-            path: route('stylist.appointments'),
+            path: window.route('stylist.appointments'),
             active: true,
         },
         {
@@ -64,7 +64,7 @@ export default function Availability({
     const saveChanges = () => {
         setLoading(true);
         router.post(
-            route('stylist.appointments.availability.save'),
+            window.route('stylist.appointments.availability.save'),
             {
                 schedules: schedules,
             },
@@ -87,10 +87,18 @@ export default function Availability({
                 routes={routes}
                 sub="Configure your working hours and available time slots"
                 cta="View Schedules"
-                ctaAction={() => router.visit(route('stylist.schedules'))}
+                ctaAction={() =>
+                    router.visit(window.route('stylist.schedules'))
+                }
             />
             <section className="mx-auto max-w-7xl px-5">
-                <div className="rounded-lg border border-sf-stroke bg-sf-white p-4 shadow-sm md:p-6">
+                <div
+                    id="location"
+                    className="rounded-lg border border-sf-stroke bg-sf-white p-4 shadow-sm md:p-6"
+                >
+                    <LocationSetting settings={settings} />
+                </div>
+                <div className="mt-3 rounded-lg border border-sf-stroke bg-sf-white p-4 shadow-sm md:p-6">
                     <div className="space-y-4">
                         <Schedule
                             schedules={schedules}
@@ -118,12 +126,6 @@ export default function Availability({
                             </CustomButton>
                         </div>
                     </div>
-                </div>
-                <div
-                    id="location"
-                    className="rounded-lg border border-sf-stroke bg-sf-white p-4 shadow-sm md:p-6"
-                >
-                    <LocationSetting settings={settings} />
                 </div>
             </section>
         </StylistAuthLayout>

@@ -89,6 +89,7 @@ interface DeletedUser {
 interface UsersProps {
     customers: Customer[];
     all_stylists: Stylist[];
+    rejected_stylists: Stylist[];
     stylists: Stylist[];
     stylist_approvals: StylistApplication[];
     deleted_users?: DeletedUser[];
@@ -97,25 +98,37 @@ interface UsersProps {
 export default function Users({
     customers,
     all_stylists,
+    rejected_stylists,
     stylists,
     stylist_approvals,
     deleted_users,
 }: UsersProps) {
     const [activeTab, setActiveTab] = useState<
-        'customers' | 'all_stylists' | 'stylists' | 'approvals' | 'deleted_users'
+        | 'customers'
+        | 'all_stylists'
+        | 'rejected_stylists'
+        | 'stylists'
+        | 'approvals'
+        | 'deleted_users'
     >('customers');
 
     const routes = [
         {
             name: 'Manage Users',
-            path: route('admin.users'),
+            path: window.route('admin.users'),
             active: false,
         },
     ];
 
     const handleTabChange = (value: string) => {
         setActiveTab(
-            value as 'customers' | 'all_stylists' | 'stylists' | 'approvals' | 'deleted_users',
+            value as
+                | 'customers'
+                | 'all_stylists'
+                | 'rejected_stylists'
+                | 'stylists'
+                | 'approvals'
+                | 'deleted_users',
         );
     };
 
@@ -125,6 +138,8 @@ export default function Users({
                 return <CustomersTable customers={customers} />;
             case 'all_stylists':
                 return <StylistsTable stylists={all_stylists} />;
+            case 'rejected_stylists':
+                return <StylistsTable stylists={rejected_stylists} />;
             case 'stylists':
                 return <StylistsTable stylists={stylists} />;
             case 'approvals':
@@ -166,8 +181,12 @@ export default function Users({
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem value="customers">Customers</SelectItem>
-                        <SelectItem value="all_stylists">All Stylists</SelectItem>
-                        <SelectItem value="stylists">Approved Stylists</SelectItem>
+                        <SelectItem value="all_stylists">
+                            All Stylists
+                        </SelectItem>
+                        <SelectItem value="stylists">
+                            Approved Stylists
+                        </SelectItem>
                         <SelectItem value="approvals">
                             Stylist Approvals
                         </SelectItem>

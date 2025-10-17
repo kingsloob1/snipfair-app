@@ -183,6 +183,7 @@ const Schedule = ({ schedules, setSchedules }: AvailabilityProps) => {
                                             <input
                                                 type="time"
                                                 value={slot.from}
+                                                max={slot.to ?? undefined}
                                                 step="3600"
                                                 onChange={(e) =>
                                                     updateTimeSlot(
@@ -204,6 +205,7 @@ const Schedule = ({ schedules, setSchedules }: AvailabilityProps) => {
                                                 <input
                                                     type="time"
                                                     value={slot.to}
+                                                    min={slot.from ?? undefined}
                                                     step="3600"
                                                     onChange={(e) =>
                                                         updateTimeSlot(

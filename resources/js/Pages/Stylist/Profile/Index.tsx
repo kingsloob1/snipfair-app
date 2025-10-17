@@ -90,7 +90,7 @@ export default function Index({
     const routes = [
         {
             name: 'Profile Management',
-            path: route('stylist.profile'),
+            path: window.route('stylist.profile'),
             active: false,
         },
     ];
@@ -122,7 +122,7 @@ export default function Index({
             >
                 <CustomButton
                     onClick={() =>
-                        router.visit(route('stylist.profile.services'))
+                        router.visit(window.route('stylist.profile.services'))
                     }
                     fullWidth={false}
                 >
@@ -157,7 +157,7 @@ export default function Index({
                 <ServicesPricing
                     services={portfolios}
                     addNewService={() =>
-                        router.visit(route('stylist.profile.services'))
+                        router.visit(window.route('stylist.profile.services'))
                     }
                 />
                 <CertificatesAwards
