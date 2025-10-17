@@ -35,7 +35,6 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
-        dd($request->session()->get('info'));
         return [
             ...parent::share($request),
             'auth' => [

@@ -647,7 +647,7 @@ class StylistController extends Controller
                 }
 
                 case 'user_avatar': {
-                    request()->session()->flash('info', $messagePrefix . 'Kindly update your profile picture / avatar');
+                    request()->session()->put('info', $messagePrefix . 'Kindly update your profile picture / avatar');
                     break;
                 }
 
