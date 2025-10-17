@@ -10,7 +10,7 @@ import { PageProps } from '@/types';
 import { Head, router, useForm } from '@inertiajs/react';
 import { ChevronRight } from 'lucide-react';
 import { motion } from 'motion/react';
-import { FocusEvent, FormEventHandler, useEffect } from 'react';
+import React, { FocusEvent, FormEventHandler, useEffect } from 'react';
 
 type SkillFormProps = {
     business_name?: string;
@@ -78,7 +78,10 @@ export default function Skills({ auth }: PageProps) {
         };
     });
 
-    const logoutUser = () => {
+    const logoutUser = (e: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
+        e.preventDefault();
+        e.stopPropagation();
+
         router.visit(window.route('logout'), {
             method: 'post',
             onBefore: () =>
@@ -86,9 +89,11 @@ export default function Skills({ auth }: PageProps) {
                     'Are you sure you want to restart stylist registration process?',
                 ),
             onSuccess() {
+                console.log('Err from logout ====> ', err);
                 window.location.href = window.route('stylist.register');
             },
-            onError() {
+            onError(err) {
+                console.log('Err from logout ====> ', err);
                 window.location.href = window.route('stylist.register');
             },
         });

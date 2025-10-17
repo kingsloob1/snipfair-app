@@ -27,8 +27,6 @@ export default function VerifyEmail({ status }: { status?: string }) {
         otp: '',
     });
 
-    console.log(user);
-
     useEffect(() => {
         if (data.otp.length > 5) {
             post(window.route('verification.otp.store'), {
