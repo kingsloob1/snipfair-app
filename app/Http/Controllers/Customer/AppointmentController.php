@@ -36,7 +36,7 @@ class AppointmentController extends Controller
 
         // Get existing appointment for this portfolio/stylist combination
         $appointment = null;
-        if($request->query('appointment')){
+        if ($request->query('appointment')) {
             $appointment = Appointment::find($request->query('appointment'));
         }
 
@@ -151,9 +151,9 @@ class AppointmentController extends Controller
         ]);
 
         // Deduct amount from customer balance
-        if($request->type === 'pending') {
+        if ($request->type === 'pending') {
             // $customer->update(['balance' => $customer->balance - $request->amount]);
-            if($request->address){
+            if ($request->address) {
                 $customer->update(['country' => $request->address]);
             }
             $transaction = Transaction::create([
@@ -165,30 +165,31 @@ class AppointmentController extends Controller
                 'description' => 'Appointment booking payment from wallet',
                 'ref' => 'PAY-' . time(),
             ]);
-        } elseif($request->type === 'processing') {
-            $deposit = Deposit::where('user_id', $customer->id)->where('portfolio_id', $request->portfolio_id)->where('status', 'pending')->latest()->first();
-            if(!$deposit){
+        } elseif ($request->type === 'processing') {
+            $deposit = Deposit::where('user_id', $customer->id)->where('portfolio_id', $request->portfolio_id)->where('status', 'pending')->whereNull('appointment_id')->latest()->first();
+
+            if (!$deposit) {
                 return response()->json([
                     'success' => false,
                     'message' => 'No pending deposit found for this appointment.',
                 ], 400);
             }
             $deposit->update(['appointment_id' => $appointment->id]);
-            if($customer->balance > 0){
+            if ($customer->balance > 0) {
                 // $portfolio = Portfolio::find($request->portfolio_id);
                 // if($customer->balance + $request->amount == $portfolio->price){
-                    // $customer->update(['balance' => 0]);
-                    $transaction = Transaction::create([
-                        'user_id' => $customer->id,
-                        'appointment_id' => $appointment->id,
-                        'amount' => $request->amount,
-                        'type' => 'payment',
-                        'status' => 'pending',
-                        'description' => 'Partial appointment booking payment',
-                        'ref' => 'PAY-' . time(),
-                    ]);
+                // $customer->update(['balance' => 0]);
+                $transaction = Transaction::create([
+                    'user_id' => $customer->id,
+                    'appointment_id' => $appointment->id,
+                    'amount' => $request->amount,
+                    'type' => 'payment',
+                    'status' => 'pending',
+                    'description' => 'Partial appointment booking payment',
+                    'ref' => 'PAY-' . time(),
+                ]);
                 // }
-            }else{
+            } else {
                 $transaction = Transaction::create([
                     'user_id' => $customer->id,
                     'appointment_id' => $appointment->id,
@@ -215,7 +216,7 @@ class AppointmentController extends Controller
         );
 
         // Broadcast payment verification request to admin
-        if($request->type === 'processing')
+        if ($request->type === 'processing')
             broadcast(new PaymentVerificationRequested($appointment, $request->amount, $transaction->ref));
 
         Mail::to($appointment->stylist->email)->send(new AppointmentBookedStylistEmail(
@@ -298,7 +299,8 @@ class AppointmentController extends Controller
         ]);
     }
 
-    public function update(Request $request){
+    public function update(Request $request)
+    {
         $request->validate([
             'appointment_id' => 'required|exists:appointments,id',
             'verdict' => 'required|string|in:canceled,rescheduled',
@@ -335,7 +337,8 @@ class AppointmentController extends Controller
                 ]);
                 if (in_array($appointment->status, ['approved', 'confirmed'])) {
                     $pouch = $appointment->pouch;
-                    if($pouch && $pouch->amount > 0) $pouch->update([ 'status' => 'refunded' ]);
+                    if ($pouch && $pouch->amount > 0)
+                        $pouch->update(['status' => 'refunded']);
                 }
                 Transaction::create([
                     'user_id' => $request->user()->id,
@@ -351,7 +354,8 @@ class AppointmentController extends Controller
                     $currentStatus = $appointment->status;
                     if (in_array($currentStatus, ['approved', 'confirmed'])) {
                         $pouch = $appointment->pouch;
-                        if($pouch && $pouch->amount > 0) $pouch->update([ 'status' => 'refunded' ]);
+                        if ($pouch && $pouch->amount > 0)
+                            $pouch->update(['status' => 'refunded']);
                     }
                     $amount_to_stylist = $appointment->amount * ($reschedulePenaltyPercentage / 100) * (1 - getAdminConfig('commission_rate') / 100);
                     AppointmentPouch::create([
@@ -386,7 +390,8 @@ class AppointmentController extends Controller
                     $currentStatus = $appointment->status;
                     if (in_array($currentStatus, ['approved', 'confirmed'])) {
                         $pouch = $appointment->pouch;
-                        if($pouch && $pouch->amount > 0) $pouch->update([ 'status' => 'refunded' ]);
+                        if ($pouch && $pouch->amount > 0)
+                            $pouch->update(['status' => 'refunded']);
                     }
                     $amount_to_stylist = $appointment->amount * ($cancelPenaltyPercentage / 100) * (1 - getAdminConfig('commission_rate') / 100);
                     AppointmentPouch::create([

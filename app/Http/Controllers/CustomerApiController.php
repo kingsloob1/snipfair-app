@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\PaymentVerificationRequested;
 use App\Helpers\AdminNotificationHelper;
 use App\Mail\AppointmentBookedStylistEmail;
 use App\Mail\AppointmentDisputeEmail;
@@ -9,6 +10,7 @@ use App\Models\Admin;
 use App\Models\Appointment;
 use App\Models\AppointmentDispute;
 use App\Models\Category;
+use App\Models\Deposit;
 use App\Models\Like;
 use App\Models\LocationService;
 use App\Models\Portfolio;
@@ -780,11 +782,14 @@ class CustomerApiController extends Controller
         $customer = $request->user();
         $portfolio = Portfolio::findOrFail($request->portfolio_id);
 
+        $deposit = Deposit::where('user_id', $customer->id)->where('portfolio_id', $request->portfolio_id)->where('status', 'pending')->whereNull('appointment_id')->latest()->first();
+
         $price = abs((float) $portfolio->price);
+        $amountTodebitFromWallet = $deposit ? ($price - ((float) $deposit->amount)) : $price;
         $customerWalletBalance = (float) $customer->balance;
 
         // Check if customer has insufficient balance
-        if ($customerWalletBalance < $price) {
+        if ($amountTodebitFromWallet < $price) {
             return response()->json([
                 'success' => false,
                 'message' => 'Insufficient balance. Please add funds to continue.',
@@ -792,65 +797,100 @@ class CustomerApiController extends Controller
             ], 400);
         }
 
-        // Create appointment codes
-        do {
-            $appointmentCode = 'SF-' . strtoupper(substr(md5(uniqid()), 0, 6));
-        } while (Appointment::where('appointment_code', $appointmentCode)->exists());
 
-        do {
-            $completionCode = 'CP-' . strtoupper(substr(md5(uniqid() . 'complete'), 0, 6));
-        } while (Appointment::where('completion_code', $completionCode)->exists());
+        $appointment = null;
+        DB::transaction(function () use ($deposit, $amountTodebitFromWallet, $portfolio, $customer, $request, &$appointment) {
+            // Create appointment codes
+            do {
+                $appointmentCode = 'SF-' . strtoupper(substr(md5(uniqid()), 0, 6));
+            } while (Appointment::where('appointment_code', $appointmentCode)->exists());
 
-        // Create appointment with processing status
-        $appointment_time = Carbon::createFromFormat('g:i A', $request->selected_time)->format('H:i:s');
-        $appointment = Appointment::create([
-            'stylist_id' => $portfolio->user_id,
-            'customer_id' => $customer->id,
-            'portfolio_id' => $portfolio->id,
-            'amount' => $portfolio->price,
-            'duration' => $portfolio->duration,
-            'appointment_code' => $appointmentCode,
-            'completion_code' => $completionCode,
-            'status' => 'pending', //SInce amount was deducted from the wallet
-            'booking_id' => 'BK-' . time() . '-' . $customer->id,
-            'appointment_date' => $request->selected_date,
-            'appointment_time' => $appointment_time,
-            'extra' => $request->extra ?? null,
-            'service_notes' => $request->address ?? null,
-        ]);
+            do {
+                $completionCode = 'CP-' . strtoupper(substr(md5(uniqid() . 'complete'), 0, 6));
+            } while (Appointment::where('completion_code', $completionCode)->exists());
 
-        if ($request->address) {
-            $customer->update(['country' => $request->address]);
+            // Create appointment with processing status
+            $appointment_time = Carbon::createFromFormat('g:i A', $request->selected_time)->format('H:i:s');
+            $appointment = Appointment::create([
+                'stylist_id' => $portfolio->user_id,
+                'customer_id' => $customer->id,
+                'portfolio_id' => $portfolio->id,
+                'amount' => $portfolio->price,
+                'duration' => $portfolio->duration,
+                'appointment_code' => $appointmentCode,
+                'completion_code' => $completionCode,
+                'status' => $deposit ? 'processing' : 'pending', //Since amount was deducted from the wallet or processing if there is a deposit
+                'booking_id' => 'BK-' . time() . '-' . $customer->id,
+                'appointment_date' => $request->selected_date,
+                'appointment_time' => $appointment_time,
+                'extra' => $request->extra ?? null,
+                'service_notes' => $request->address ?? null,
+            ]);
+
+            if ($request->address) {
+                $customer->update(['country' => $request->address]);
+            }
+
+            // Deduct amount from customer balance
+            User::query()
+                ->where('id', '=', $customer->id)
+                ->where('balance', '>=', $amountTodebitFromWallet)
+                ->update(['balance' => DB::raw("balance - {$amountTodebitFromWallet}")]);
+
+            if ($deposit) {
+                $deposit->update(['appointment_id' => $appointment->id]);
+                Transaction::create([
+                    'user_id' => $customer->id,
+                    'appointment_id' => $appointment->id,
+                    'amount' => $amountTodebitFromWallet,
+                    'type' => 'payment',
+                    'status' => 'approved',
+                    'description' => 'Partial appointment booking payment from wallet',
+                    'ref' => 'PAY-' . time(),
+                ]);
+
+                $pendingAppointmentTxn = Transaction::create([
+                    'user_id' => $customer->id,
+                    'appointment_id' => $appointment->id,
+                    'amount' => $deposit->amount,
+                    'type' => 'payment',
+                    'status' => 'pending',
+                    'description' => 'Partial appointment booking payment',
+                    'ref' => 'PAY-' . time(),
+                ]);
+
+                broadcast(new PaymentVerificationRequested($appointment, $deposit->amount, $pendingAppointmentTxn->ref));
+            } else {
+                /*$transaction = */
+                Transaction::create([
+                    'user_id' => $customer->id,
+                    'appointment_id' => $appointment->id,
+                    'amount' => $portfolio->price,
+                    'type' => 'payment',
+                    'status' => 'approved',
+                    'description' => 'Appointment booking payment from wallet',
+                    'ref' => 'PAY-' . time(),
+                ]);
+            }
+
+            // Load relationships for events
+            $appointment->load([
+                'customer' => function ($qb) {
+                    $qb->withTrashed();
+                },
+                'stylist' => function ($qb) {
+                    $qb->withTrashed();
+                },
+                'portfolio',
+                'portfolio.category'
+            ]);
+        });
+
+        if (!$appointment) {
+            return response()->json([
+                'message' => 'An error occurred while booking appointment'
+            ], 400);
         }
-
-        // Deduct amount from customer balance
-        User::query()
-            ->where('id', '=', $customer->id)
-            ->where('balance', '>=', $portfolio->price)
-            ->update(['balance' => DB::raw("balance - {$portfolio->price}")]);
-
-        /*$transaction = */
-        Transaction::create([
-            'user_id' => $customer->id,
-            'appointment_id' => $appointment->id,
-            'amount' => $portfolio->price,
-            'type' => 'payment',
-            'status' => 'approved',
-            'description' => 'Appointment booking payment from wallet',
-            'ref' => 'PAY-' . time(),
-        ]);
-
-        // Load relationships for events
-        $appointment->load([
-            'customer' => function ($qb) {
-                $qb->withTrashed();
-            },
-            'stylist' => function ($qb) {
-                $qb->withTrashed();
-            },
-            'portfolio',
-            'portfolio.category'
-        ]);
 
         // Broadcast appointment created event
         // broadcast(new AppointmentCreated($appointment));

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\GeneralController as ApiGeneralController;
 use App\Http\Controllers\Auth\ApiAuthController;
+use App\Http\Controllers\ChatApiController;
 use App\Http\Controllers\CustomerApiController;
 use App\Http\Controllers\LikeController;
 use App\Http\Controllers\LocationServiceController;
@@ -247,6 +248,27 @@ Route::middleware('api')->group(function () {
                 Route::get('', [PaymentController::class, 'getUserWallet']);
 
                 Route::get('/transactions', [PaymentController::class, 'getUserTransactions']);
+            });
+
+            //Authenticated conversation routes
+            Route::group(['prefix' => '/conversations'], function () {
+                //Get conversations
+                Route::get('/', [ChatApiController::class, 'getConversations']);
+
+                //Initiate a conversation
+                Route::post('/', [ChatApiController::class, 'startConversation']);
+
+                //Get conversation messages
+                Route::get('/{conversationId}/messages', [ChatApiController::class, 'getConversationMessages']);
+
+                //Send a conversation message
+                Route::post('/{conversationId}/messages', [ChatApiController::class, 'sendMessage']);
+
+                //Mark chat message as read
+                Route::patch('/{conversationId}/messages/{messageId}/read', [ChatApiController::class, 'markAsRead']);
+
+                //Send a typing event in a conversation
+                Route::post('/{conversationId}', [ChatApiController::class, 'typing']);
             });
         });
     });

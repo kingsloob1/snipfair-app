@@ -104,7 +104,6 @@ export const ChatsComponent: React.FC<ChatComponentProps> = ({
                 `conversation.${activeConversationId}`,
             );
 
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (conversationChannel as any).listen(
                 '.message.sent',
                 (e: unknown) => {
