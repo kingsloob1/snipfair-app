@@ -189,6 +189,9 @@ export default function Users({
                         <SelectItem value="stylists">
                             Approved Stylists
                         </SelectItem>
+                        <SelectItem value="rejected_stylists">
+                            Rejected Stylists
+                        </SelectItem>
                         <SelectItem value="approvals">
                             Stylist Approvals
                         </SelectItem>
