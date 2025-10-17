@@ -119,6 +119,15 @@ const Schedule = ({ schedules, setSchedules }: AvailabilityProps) => {
                                     );
                                 }
 
+                                console.log('Date fields =====> ', {
+                                    from: fromDate,
+                                    to: toDate,
+                                    isToAfterFrom: isDateAfter(
+                                        toDate,
+                                        fromDate,
+                                    ),
+                                });
+
                                 if (!isDateAfter(toDate, fromDate)) {
                                     toDate = addMinutes(fromDate, 1);
 
