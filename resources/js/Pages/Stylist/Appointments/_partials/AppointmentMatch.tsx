@@ -96,8 +96,11 @@ const AppointmentMatch: React.FC<AppointmentDetailsProps> = ({
                 </div>
 
                 {/* Customer */}
+                <div>{JSON.stringify(customer)}</div>
                 <Link
-                    href={route('stylist.customer.show', customer?.id)}
+                    href={window.route('stylist.customer.show', {
+                        id: customer?.id,
+                    })}
                     className="flex flex-row-reverse items-center gap-1 md:flex-row md:gap-2 xl:gap-4"
                 >
                     <div className="text-right">
