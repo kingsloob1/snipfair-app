@@ -11,7 +11,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/Components/ui/dialog';
-import { router, useForm } from '@inertiajs/react';
+import { useForm } from '@inertiajs/react';
 import { Dispatch, SetStateAction, useEffect } from 'react';
 
 interface ModalProps {
@@ -56,13 +56,19 @@ export default function AppointmentModal({
         if (variant === 'success') setIsOpen(false);
         else {
             if (variant === 'start')
-                post(route('stylist.appointment.update', appointmentId), {
-                    onSuccess: () => setIsOpen(false),
-                });
+                post(
+                    window.route('stylist.appointment.update', appointmentId),
+                    {
+                        onSuccess: () => setIsOpen(false),
+                    },
+                );
             else
-                post(route('stylist.appointment.update', appointmentId), {
-                    onSuccess: () => setVariant('success'),
-                });
+                post(
+                    window.route('stylist.appointment.update', appointmentId),
+                    {
+                        onSuccess: () => setVariant('success'),
+                    },
+                );
         }
     };
 
@@ -148,7 +154,7 @@ export default function AppointmentModal({
                             <ul className="flex flex-col gap-1 rounded-lg bg-sf-primary-hover/10 p-3 text-xs text-sf-primary-hover md:p-4">
                                 <p>
                                     {variant === 'start'
-                                        ? 'Ask your customer to generate verification code for you, input the code to verify appointment. Only confirm arrival at client\'s location'
+                                        ? "Ask your customer to generate verification code for you, input the code to verify appointment. Only confirm arrival at client's location"
                                         : 'Ask your customer to generate job completion code for you. input the code to verify Job.'}
                                 </p>
                             </ul>
@@ -175,9 +181,10 @@ export default function AppointmentModal({
                                 type="button"
                                 variant="secondary"
                                 className="px-3 py-2"
-                                onClick={() =>
-                                    router.visit(route('stylist.dashboard'))
-                                }
+                                onClick={() => {
+                                    window.location.href =
+                                        window.route('stylist.dashboard');
+                                }}
                             >
                                 Go to Dashboard
                             </CustomButton>

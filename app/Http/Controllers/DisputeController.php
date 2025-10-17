@@ -17,12 +17,13 @@ class DisputeController extends Controller
     /**
      * Display a listing of disputes for the authenticated user.
      */
-    public function index()
+    public function index(Request $request)
     {
         $user = Auth::user();
+        $perPage = formatPerPage($request);
         $conversationType = $user->role === 'customer' ? 'admin_customer' : 'admin_stylist';
 
-        $disputes = AppointmentDispute::with([
+        $disputeQueryBuilder = AppointmentDispute::with([
             'appointment',
             'appointment.portfolio',
             'customer',
@@ -31,23 +32,28 @@ class DisputeController extends Controller
                 $query->where('sender_type', $conversationType)->latest()->limit(1);
             }
         ])
-        ->where(function ($query) use ($user) {
-            $query->where('customer_id', $user->id)
-                  ->orWhere('stylist_id', $user->id);
-        })
-        ->where('status', '!=', 'open') // Only show disputes that are in progress or resolved
-        ->orderBy('updated_at', 'desc')
-        ->paginate(10);
+            ->where(function ($query) use ($user) {
+                $query->where('customer_id', $user->id)
+                    ->orWhere('stylist_id', $user->id);
+            })
+            ->where('status', '!=', 'open') // Only show disputes that are in progress or resolved
+            ->orderBy('updated_at', 'desc');
+
+        if ($request->expectsJson()) {
+            return $disputeQueryBuilder->cursorPaginate($perPage, ['*'], 'page');
+        }
+
 
         return Inertia::render('Disputes/Index', [
-            'disputes' => $disputes,
+            'disputes' => $disputeQueryBuilder
+                ->paginate(max($perPage, 10)),
         ]);
     }
 
     /**
      * Display the specified dispute.
      */
-    public function show(AppointmentDispute $dispute)
+    public function show(Request $request, AppointmentDispute $dispute)
     {
         $user = Auth::user();
 
@@ -73,7 +79,12 @@ class DisputeController extends Controller
             'customer',
             'stylist',
         ]);
+
         $dispute->messages = $messages;
+
+        if ($request->expectsJson()) {
+            return $dispute;
+        }
 
         // Mark messages as read for the current user
         // $dispute->messages()

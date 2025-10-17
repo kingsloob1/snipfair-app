@@ -15,10 +15,13 @@ use App\Models\AppointmentDispute;
 use App\Models\AppointmentPouch;
 use App\Models\AppointmentProof;
 use App\Models\Transaction;
+use App\Models\User;
+use App\Models\WebsiteConfiguration;
 use Carbon\Carbon;
 use DateTime;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -304,97 +307,6 @@ class AppointmentController extends Controller
             'success' => true,
             'appointment' => $appointment,
         ]);
-    }
-
-    public function updateAppointment(Request $request)
-    {
-        $request->validate([
-            'appointment_id' => 'required|exists:appointments,id',
-            'verdict' => 'required|in:processing,pending,approved,rescheduled,confirmed,completed,canceled,escalated',
-        ]);
-
-        //approved,canceled
-        $appointment = Appointment::find($request->appointment_id);
-        if ($request->verdict === 'approved') {
-            if (!$appointment || ($appointment->amount > $appointment->customer->balance)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Appointment not found or failed payment.',
-                ], 404);
-            }
-            $appointment->customer->update([
-                'balance' => $appointment->customer->balance - $appointment->amount,
-            ]);
-            $amount_to_stylist = $appointment->amount * (1 - getAdminConfig('commission_rate') / 100);
-            AppointmentPouch::create([
-                'appointment_id' => $appointment->id,
-                'amount' => $amount_to_stylist,
-                'status' => 'holding',
-                'user_id' => $appointment->stylist_id,
-            ]);
-            Transaction::create([
-                'user_id' => $appointment->stylist_id,
-                'appointment_id' => $appointment->id,
-                'amount' => $appointment->amount * (getAdminConfig('commission_rate') / 100),
-                'type' => 'other',
-                'status' => 'completed',
-                'ref' => 'AdminCommission',
-                'description' => 'Commission for cancellation',
-            ]);
-            sendNotification(
-                $appointment->customer_id,
-                route('customer.appointment.show', $appointment->id),
-                'Appointment Approved',
-                'Your appointment with ' . $appointment->stylist->name . ' has been accepted.',
-                'normal',
-            );
-
-            $appointment->update(['status' => 'approved']);
-            Mail::to($appointment->customer->email)->send(new BookingSuccessfulCustomerEmail(
-                appointment: $appointment,
-                customer: $appointment->customer,
-                stylist: $appointment->stylist
-            ));
-
-        } else if ($request->verdict === 'canceled') {
-            $appointment->update(['status' => 'canceled']);
-        }
-
-        return response()->json([
-            'success' => true,
-            'appointment' => $appointment,
-            'message' => 'Appointment updated successfully.',
-        ]);
-    }
-
-    public function update(Request $request, $appointmentId)
-    {
-        $request->validate([
-            'variant' => 'required|in:confirmed,completed',
-            'name' => 'required|exists:users,name',
-            'code' => 'required|string',
-        ]);
-
-        $appointment = Appointment::findOrFail($appointmentId);
-
-        if ($request->variant === 'confirmed') {
-            if ($appointment->appointment_code == $request->code) {
-                $appointment->update(['status' => 'confirmed']);
-            } else {
-                return back()->withErrors(['code' => 'Invalid verification code.']);
-            }
-        } else if ($request->variant === 'completed') {
-            if ($appointment->completion_code == $request->code) {
-                $appointment->transactions()->update(['status' => 'completed']);
-                $appointment->update([
-                    'status' => 'completed',
-                ]);
-            } else {
-                return back()->withErrors(['code' => 'Invalid completion code.']);
-            }
-        }
-
-        return back()->with('success', 'Appointment updated successfully.');
     }
 
     public function forms(Request $request, $appointmentId)
@@ -830,6 +742,97 @@ class AppointmentController extends Controller
         return $appointment;
     }
 
+    public function updateAppointment(Request $request)
+    {
+        $request->validate([
+            'appointment_id' => 'required|exists:appointments,id',
+            'verdict' => 'required|in:processing,pending,approved,rescheduled,confirmed,completed,canceled,escalated',
+        ]);
+
+        //approved,canceled
+        $appointment = Appointment::find($request->appointment_id);
+        if ($request->verdict === 'approved') {
+            if (!$appointment || ($appointment->amount > $appointment->customer->balance)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Appointment not found or failed payment.',
+                ], 404);
+            }
+            $appointment->customer->update([
+                'balance' => $appointment->customer->balance - $appointment->amount,
+            ]);
+            $amount_to_stylist = $appointment->amount * (1 - getAdminConfig('commission_rate') / 100);
+            AppointmentPouch::create([
+                'appointment_id' => $appointment->id,
+                'amount' => $amount_to_stylist,
+                'status' => 'holding',
+                'user_id' => $appointment->stylist_id,
+            ]);
+            Transaction::create([
+                'user_id' => $appointment->stylist_id,
+                'appointment_id' => $appointment->id,
+                'amount' => $appointment->amount * (getAdminConfig('commission_rate') / 100),
+                'type' => 'other',
+                'status' => 'completed',
+                'ref' => 'AdminCommission',
+                'description' => 'Commission for cancellation',
+            ]);
+            sendNotification(
+                $appointment->customer_id,
+                route('customer.appointment.show', $appointment->id),
+                'Appointment Approved',
+                'Your appointment with ' . $appointment->stylist->name . ' has been accepted.',
+                'normal',
+            );
+
+            $appointment->update(['status' => 'approved']);
+            Mail::to($appointment->customer->email)->send(new BookingSuccessfulCustomerEmail(
+                appointment: $appointment,
+                customer: $appointment->customer,
+                stylist: $appointment->stylist
+            ));
+
+        } else if ($request->verdict === 'canceled') {
+            $appointment->update(['status' => 'canceled']);
+        }
+
+        return response()->json([
+            'success' => true,
+            'appointment' => $appointment,
+            'message' => 'Appointment updated successfully.',
+        ]);
+    }
+
+    public function update(Request $request, $appointmentId)
+    {
+        $request->validate([
+            'variant' => 'required|in:confirmed,completed',
+            'name' => 'required|exists:users,name',
+            'code' => 'required|string',
+        ]);
+
+        $appointment = Appointment::findOrFail($appointmentId);
+
+        if ($request->variant === 'confirmed') {
+            if ($appointment->appointment_code == $request->code) {
+                $appointment->update(['status' => 'confirmed']);
+            } else {
+                return back()->withErrors(['code' => 'Invalid verification code.']);
+            }
+        } else if ($request->variant === 'completed') {
+            if ($appointment->completion_code == $request->code) {
+                $appointment->transactions()->update(['status' => 'completed']);
+                $appointment->update([
+                    'status' => 'completed',
+                ]);
+            } else {
+                return back()->withErrors(['code' => 'Invalid completion code.']);
+            }
+        }
+
+        return back()->with('success', 'Appointment updated successfully.');
+    }
+
     public function updateSpecificAppointment(Request $request, $appointmentId)
     {
         $user = $request->user();
@@ -840,30 +843,137 @@ class AppointmentController extends Controller
         }
 
         $request->validate([
-            'variant' => 'required|in:confirmed,completed',
-            'code' => 'required|string',
+            'verdict' => 'required|in:confirm,approve,complete,reject',
+            'code' => [
+                Rule::requiredIf(in_array($request->verdict, ['confirm', 'complete'])),
+                'string'
+            ],
         ]);
 
-        $appointment = Appointment::where('stylist_id', '=', $user->id)->where('id', '=', $appointmentId)->firstOrFail();
+        $appointment = $user->stylistAppointments()->where('id', '=', $appointmentId)->firstOrFail();
 
         $validator = Validator::make([], []);
+        $config = WebsiteConfiguration::first();
+        $comissionRate = $config->commission_rate ? ((float) $config->commission_rate) : 0;
 
-        if ($request->variant === 'confirmed') {
-            if ($appointment->appointment_code == $request->code) {
-                $appointment->update(['status' => 'confirmed']);
-            } else {
-                $validator->errors()->add('code', 'Appointment code is invalid');
-                throw new ValidationException($validator);
-            }
-        } else if ($request->variant === 'completed') {
-            if ($appointment->completion_code == $request->code) {
-                $appointment->transactions()->update(['status' => 'completed']);
-                $appointment->update([
-                    'status' => 'completed',
+        switch ($request->verdict) {
+            case 'approve': {
+                if ($appointment->status !== 'pending') {
+                    $validator->errors()->add('verdict', 'Ooops.. You can only approve a pending appointment');
+                    throw new ValidationException($validator);
+                }
+
+                $totalAmountToStylist = (float) $appointment->amount;
+
+                //Platform comission from the amount stylist made
+                $platformComissionFromTotalAmountToStylist = $totalAmountToStylist * ($comissionRate / 100);
+
+                //Actual amount to fund stylist
+                $amountToFundStylist = $totalAmountToStylist - $platformComissionFromTotalAmountToStylist;
+
+                AppointmentPouch::create([
+                    'appointment_id' => $appointment->id,
+                    'amount' => $amountToFundStylist,
+                    'status' => 'holding',
+                    'user_id' => $appointment->stylist_id,
                 ]);
-            } else {
-                $validator->errors()->add('code', 'Appointment completion code is invalid');
-                throw new ValidationException($validator);
+
+                Transaction::create([
+                    'user_id' => $appointment->stylist_id,
+                    'appointment_id' => $appointment->id,
+                    'amount' => $platformComissionFromTotalAmountToStylist,
+                    'type' => 'other',
+                    'status' => 'completed',
+                    'ref' => 'AdminCommission',
+                    'description' => 'Commission for appointment approval',
+                ]);
+
+                $previousStatus = $appointment->status;
+                $appointment->status = 'approved';
+                $appointment->save();
+
+                defer(function () use ($appointment, $previousStatus) {
+                    broadcast(new AppointmentStatusUpdated($appointment, $previousStatus));
+
+                    sendNotification(
+                        $appointment->customer_id,
+                        route('customer.appointment.show', $appointment->id),
+                        'Appointment Approved',
+                        'Your appointment with ' . $appointment->stylist->name . ' has been accepted.',
+                        'normal',
+                    );
+
+                    Mail::to($appointment->customer->email)->send(new BookingSuccessfulCustomerEmail(
+                        appointment: $appointment,
+                        customer: $appointment->customer,
+                        stylist: $appointment->stylist
+                    ));
+                });
+                break;
+            }
+
+            case 'confirm': {
+                if ($appointment->status !== 'approved') {
+                    $validator->errors()->add('verdict', 'Ooops.. You can only confirm an approved appointment');
+                    throw new ValidationException($validator);
+                }
+
+                if ($appointment->appointment_code != $request->code) {
+                    $validator->errors()->add('code', 'Appointment confirmation code is invalid');
+                    throw new ValidationException($validator);
+                }
+
+
+                $previousStatus = $appointment->status;
+                $appointment->status = 'confirmed';
+                $appointment->save();
+
+                defer(function () use ($appointment, $previousStatus) {
+                    broadcast(new AppointmentStatusUpdated($appointment, $previousStatus));
+                });
+                break;
+            }
+
+            case 'complete': {
+                if ($appointment->status !== 'approve') {
+                    $validator->errors()->add('verdict', 'Ooops.. You can only complete a confirmed appointment');
+                    throw new ValidationException($validator);
+                }
+
+                if ($appointment->completion_code != $request->code) {
+                    $validator->errors()->add('code', 'Appointment completion code is invalid');
+                    throw new ValidationException($validator);
+                }
+
+                $previousStatus = $appointment->status;
+                $appointment->status = 'completed';
+                $appointment->save();
+
+                defer(function () use ($appointment, $previousStatus) {
+                    broadcast(new AppointmentStatusUpdated($appointment, $previousStatus));
+                });
+                break;
+            }
+
+            case 'reject': {
+                if ($appointment->status !== 'pending') {
+                    $validator->errors()->add('verdict', 'Ooops.. You can only reject a pending appointment');
+                    throw new ValidationException($validator);
+                }
+
+                $previousStatus = $appointment->status;
+                $appointment->status = 'canceled';
+                $appointment->save();
+
+                defer(function () use ($appointment, $previousStatus) {
+                    broadcast(new AppointmentStatusUpdated($appointment, $previousStatus));
+                });
+
+                // refund appoitment amount to customer
+                User::query()
+                    ->where('id', '=', $appointment->customer_id)
+                    ->update(['balance' => DB::raw("balance + {$appointment->amount}")]);
+                break;
             }
         }
 

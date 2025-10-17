@@ -42,6 +42,18 @@ class ChatApiController extends Controller
 
                 $conversation->recipient->is_online = $conversation->recipient->isOnline();
 
+                $conversation->id = (string) $conversation->id;
+                $conversation->initiator_id = (string) $conversation->initiator_id;
+                $conversation->recipient_id = (string) $conversation->recipient_id;
+                $conversation->messages = $conversation->messages->map(function ($message) {
+                    $message->is_read = (bool) $message->is_read;
+                    $message->id = (string) $message->id;
+                    $message->conversation_id = (string) $message->conversation_id;
+                    $message->sender_id = (string) $message->sender_id;
+                    $message->receiver_id = (string) $message->receiver_id;
+                    return $message;
+                });
+
                 return $conversation;
             });
 
@@ -61,7 +73,16 @@ class ChatApiController extends Controller
                     ->orWhere('receiver_id', '=', $user->id);
             })
             ->orderBy('created_at', 'desc')
-            ->cursorPaginate($perPage, ['*'], 'page');
+            ->cursorPaginate($perPage, ['*'], 'page')
+            ->through(function ($message) {
+                $message->is_read = (bool) $message->is_read;
+                $message->id = (string) $message->id;
+                $message->conversation_id = (string) $message->conversation_id;
+                $message->sender_id = (string) $message->sender_id;
+                $message->receiver_id = (string) $message->receiver_id;
+
+                return $message;
+            });
     }
 
     /**
@@ -115,6 +136,13 @@ class ChatApiController extends Controller
 
         $conversation->initiator->is_online = $conversation->initiator->isOnline();
         $conversation->recipient->is_online = $conversation->recipient->isOnline();
+        $conversation->id = (string) $conversation->id;
+        $conversation->initiator_id = (string) $conversation->initiator_id;
+        $conversation->recipient_id = (string) $conversation->recipient_id;
+        $conversation->messages = $conversation->messages->map(function ($message) {
+            $message->is_read = (bool) $message->is_read;
+            return $message;
+        });
 
         return $conversation;
     }

@@ -256,6 +256,7 @@ const AppointmentActions: React.FC<AppointmentActionsProps> = ({
                 toast.error(data.message || 'Failed to create appointment');
             }
         } catch (error) {
+            console.error(error);
             toast.error('Failed to process booking');
         } finally {
             setIsLoading(false);
@@ -286,7 +287,9 @@ const AppointmentActions: React.FC<AppointmentActionsProps> = ({
                 'The details are being verified, you will be invited by support team soon',
             );
         } else if (appointment?.first_dispute?.status == 'in_progress') {
-            router.visit(route('disputes.show', appointment?.first_dispute.id));
+            router.visit(
+                window.route('disputes.show', appointment?.first_dispute.id),
+            );
         } else if (appointment?.first_dispute?.status == 'closed') {
             toast.info('Dispute Already Closed');
         } else if (appointment?.first_dispute?.status == 'resolved') {
@@ -354,7 +357,7 @@ const AppointmentActions: React.FC<AppointmentActionsProps> = ({
                         variant="secondary"
                         onClick={() =>
                             router.post(
-                                route('chat.start', {
+                                window.route('chat.start', {
                                     recipient_id: customerId,
                                 }),
                             )

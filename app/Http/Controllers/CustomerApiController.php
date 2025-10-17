@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\AppointmentStatusUpdated;
 use App\Events\PaymentVerificationRequested;
 use App\Helpers\AdminNotificationHelper;
 use App\Mail\AppointmentBookedStylistEmail;
@@ -9,6 +10,7 @@ use App\Mail\AppointmentDisputeEmail;
 use App\Models\Admin;
 use App\Models\Appointment;
 use App\Models\AppointmentDispute;
+use App\Models\AppointmentPouch;
 use App\Models\Category;
 use App\Models\Deposit;
 use App\Models\Like;
@@ -18,6 +20,7 @@ use App\Models\Review;
 use App\Models\Stylist;
 use App\Models\Transaction;
 use App\Models\User;
+use App\Models\WebsiteConfiguration;
 use App\Rules\PhoneNumber;
 use App\Rules\UrlOrFile;
 use Carbon\Carbon;
@@ -987,37 +990,36 @@ class CustomerApiController extends Controller
 
     public function submitAppointmentReview(Request $request, $appointmentId)
     {
+        $customer = $request->user();
+        $appointment = $customer->customerAppointments()->findOrFail($appointmentId);
         $request->validate([
             'rating' => 'required|integer|min:1|max:5',
             'review' => 'nullable|string|max:1000'
         ]);
 
-        $appointment = Appointment::findOrFail($appointmentId);
-        $customer = $request->user();
-        if ($appointment->customer_id == $customer->id) {
-            Review::updateOrCreate([
-                'user_id' => $customer->id,
-                'appointment_id' => $appointment->id,
-            ], [
-                'user_id' => $customer->id,
-                'appointment_id' => $appointment->id,
-                'rating' => $request->rating,
-                'comment' => $request->review,
-            ]);
-        }
+        Review::updateOrCreate([
+            'user_id' => $customer->id,
+            'appointment_id' => $appointment->id,
+        ], [
+            'user_id' => $customer->id,
+            'appointment_id' => $appointment->id,
+            'rating' => $request->rating,
+            'comment' => $request->review,
+        ]);
 
         return response()->noContent();
     }
 
     public function disputeAppointment(Request $request, $appointmentId)
     {
+        $customer = $request->user();
         $validated = $request->validate([
             'comment' => 'required|string',
             'images' => 'required|array|max:10|min:1',
             'images.*' => 'image|max:5120',
         ]);
 
-        $appointment = Appointment::findOrFail($appointmentId);
+        $appointment = $customer->customerAppointments()->findOrFail($appointmentId);
 
         $imagePaths = [];
 
@@ -1064,6 +1066,145 @@ class CustomerApiController extends Controller
                 'normal'
             );
         }
+
+        return response()->noContent();
+    }
+
+    public function updateAppointment(Request $request, $appointmentId)
+    {
+        $customer = $request->user();
+        $request->validate([
+            'verdict' => 'required|string|in:cancel,reschedule',
+        ]);
+
+        $appointment = $customer
+            ->customerAppointments()
+            ->with([
+                'customer' => function ($qb) {
+                    return $qb->withTrashed();
+                },
+                'stylist' => function ($qb) {
+                    return $qb->withTrashed();
+                },
+                'pouch'
+            ])
+            ->findOrFail($appointmentId);
+
+        $appointmentDateTime = Carbon::parse(
+            $appointment->appointment_date . ' ' . $appointment->appointment_time
+        );
+        $hoursUntilAppointment = now()->diffInHours($appointmentDateTime, false);
+
+        $config = WebsiteConfiguration::first();
+        $comissionRate = $config->commission_rate ? ((float) $config->commission_rate) : 0;
+
+        if (!in_array($appointment->status, ['pending', 'approved', 'confirmed'])) {
+            return response()->json([
+                'message' => "You can only {$request->verdict} a pending, approved or confirmed booking"
+            ], 400);
+        }
+
+        $totalAmountToStylist = 0;
+
+        switch ($request->verdict) {
+            case 'cancel': {
+                $cancelPenaltyPercentage = 0;
+
+                //if the customer cancels beyond the set threshold by the super admin
+                if ($config->appointment_canceling_threshold > $hoursUntilAppointment) {
+                    $cancelPenaltyPercentage = $config->appointment_canceling_percentage;
+                }
+
+                $totalAmountToStylist = $appointment->amount * ($cancelPenaltyPercentage / 100);
+                break;
+            }
+
+            case 'reschedule': {
+                $reschedulePenaltyPercentage = 0;
+
+                //if the customer rescheduled beyond the set threshold by the super admin
+                if ($config->appointment_reschedule_threshold > $hoursUntilAppointment) {
+                    $reschedulePenaltyPercentage = $config->appointment_canceling_percentage;
+                }
+
+                $totalAmountToStylist = $appointment->amount * ($reschedulePenaltyPercentage / 100);
+                break;
+            }
+        }
+
+
+        DB::transaction(function () use ($request, $customer, $appointment, $totalAmountToStylist, $comissionRate) {
+            //Platform comission from the amount stylist made
+            $platformComissionFromTotalAmountToStylist = $totalAmountToStylist * ($comissionRate / 100);
+
+            //Actual amount to fund stylist
+            $amountToFundStylist = $totalAmountToStylist - $platformComissionFromTotalAmountToStylist;
+
+            $amountToFundCustomer = ((float) $appointment->amount) - $totalAmountToStylist;
+
+            $statusToUpdateTo = match ($request->verdict) {
+                'cancel' => 'canceled',
+                'reschedule' => 'rescheduled',
+                default => $appointment->status
+            };
+
+            $previousStatus = $appointment->status;
+            $appointment->status = $statusToUpdateTo;
+            $appointment->save();
+
+            defer(function () use ($appointment, $previousStatus) {
+                broadcast(new AppointmentStatusUpdated($appointment, $previousStatus));
+            });
+
+            $statusActionStr = match ($request->verdict) {
+                'cancel' => 'cancellation',
+                'reschedule' => 'rescheduling',
+                default => ''
+            };
+
+            //Escrow balance for stylist
+            $pouch = in_array($appointment->status, ['approved', 'confirmed']) && $appointment->pouch ? $appointment->pouch : null;
+
+            if ($pouch && $pouch->amount > 0) {
+                $pouch->status = 'refunded';
+                $pouch->save();
+            }
+
+            // refund appoitment amount to customer less charges
+            User::query()
+                ->where('id', '=', $customer->id)
+                ->update(['balance' => DB::raw("balance + {$amountToFundCustomer}")]);
+
+            $txnDescriptionSuffix = $amountToFundStylist > 0 ? 'after default deductions' : 'with no deduction';
+            Transaction::create([
+                'user_id' => $customer->id,
+                'appointment_id' => $appointment->id,
+                'amount' => $amountToFundCustomer,
+                'type' => 'refund',
+                'status' => 'completed',
+                'ref' => 'RSC-' . time(),
+                'description' => "Refund for {$statusActionStr} {$txnDescriptionSuffix}",
+            ]);
+
+            if ($amountToFundStylist > 0) {
+                AppointmentPouch::create([
+                    'appointment_id' => $appointment->id,
+                    'amount' => $amountToFundStylist,
+                    'status' => 'holding',
+                    'user_id' => $appointment->stylist_id,
+                ]);
+
+                Transaction::create([
+                    'user_id' => $appointment->stylist_id,
+                    'appointment_id' => $appointment->id,
+                    'amount' => $platformComissionFromTotalAmountToStylist,
+                    'type' => 'other',
+                    'status' => 'completed',
+                    'ref' => 'AdminCommission',
+                    'description' => "Commission for {$statusActionStr}",
+                ]);
+            }
+        });
 
         return response()->noContent();
     }

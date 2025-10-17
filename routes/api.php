@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\GeneralController as ApiGeneralController;
 use App\Http\Controllers\Auth\ApiAuthController;
 use App\Http\Controllers\ChatApiController;
 use App\Http\Controllers\CustomerApiController;
+use App\Http\Controllers\DisputeController;
 use App\Http\Controllers\LikeController;
 use App\Http\Controllers\LocationServiceController;
 use App\Http\Controllers\PaymentController;
@@ -230,6 +231,8 @@ Route::middleware('api')->group(function () {
                 Route::post('{appointmentId}/review', [CustomerApiController::class, 'submitAppointmentReview']);
 
                 Route::post('{appointmentId}/dispute', [CustomerApiController::class, 'disputeAppointment']);
+
+                Route::patch('{appointmentId}', [CustomerApiController::class, 'updateAppointment']);
             });
         });
 
@@ -269,6 +272,18 @@ Route::middleware('api')->group(function () {
 
                 //Send a typing event in a conversation
                 Route::post('/{conversationId}', [ChatApiController::class, 'typing']);
+            });
+
+            //Authenticated dispute routes
+            // Dispute functionality
+            Route::group(['prefix' => '/dispute'], function () {
+                Route::get('/list', [DisputeController::class, 'index']);
+
+                Route::get('/{disputeId}', [DisputeController::class, 'show']);
+
+                Route::post('/{disputeId}/messages', [DisputeController::class, 'storeMessage']);
+
+                Route::get('/messages/{message}/attachments/{index}', [DisputeController::class, 'downloadAttachment']);
             });
         });
     });
