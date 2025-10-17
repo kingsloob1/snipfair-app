@@ -191,7 +191,7 @@ Route::group(['middleware' => ['auth', 'verified']], function () {
         Route::get('/appointment/{id}', [AppointmentController::class, 'appointment'])->name('appointment'); //stylist.appointment.update
         Route::post('/appointment/{id}/update', [AppointmentController::class, 'update'])->name('appointment.update');
         Route::post('/appointment/{id}/forms', [AppointmentController::class, 'forms'])->name('appointment.forms');
-        Route::get('/availability', [AppointmentController::class, 'getSchedules'])->name('appointments.availabilityprofile');
+        Route::get('/availability', [AppointmentController::class, 'getSchedules'])->name('appointments.availability');
         Route::post('/availability', [AppointmentController::class, 'updateSchedules'])->name('appointments.availability.save');
         Route::post('/availability/location', [AppointmentController::class, 'updateLocation'])->name('appointments.location.update');
         Route::get('/calendar', [AppointmentController::class, 'getCalendar'])->name('appointments.calendar');
