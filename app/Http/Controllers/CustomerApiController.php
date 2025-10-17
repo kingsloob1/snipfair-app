@@ -859,7 +859,9 @@ class CustomerApiController extends Controller
                     'ref' => 'PAY-' . time(),
                 ]);
 
-                broadcast(new PaymentVerificationRequested($appointment, $deposit->amount, $pendingAppointmentTxn->ref));
+                defer(function () use ($appointment, $deposit, $pendingAppointmentTxn) {
+                    broadcast(new PaymentVerificationRequested($appointment, $deposit->amount, $pendingAppointmentTxn->ref));
+                });
             } else {
                 /*$transaction = */
                 Transaction::create([
@@ -929,7 +931,7 @@ class CustomerApiController extends Controller
                     'portfolio',
                     'portfolio.category'
                 ])
-            ->orderBy('appointment_date', 'desc')
+            ->orderBy('created_at', 'desc')
             ->cursorPaginate($perPage, ['*'], 'page')
             ->through(function ($appointment) use ($customer) {
                 $stylist = $appointment->stylist;

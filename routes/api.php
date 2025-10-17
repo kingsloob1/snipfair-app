@@ -265,7 +265,7 @@ Route::middleware('api')->group(function () {
                 Route::post('/{conversationId}/messages', [ChatApiController::class, 'sendMessage']);
 
                 //Mark chat message as read
-                Route::patch('/{conversationId}/messages/{messageId}/read', [ChatApiController::class, 'markAsRead']);
+                Route::post('/{conversationId}/messages/{messageId}/read', [ChatApiController::class, 'markAsRead']);
 
                 //Send a typing event in a conversation
                 Route::post('/{conversationId}', [ChatApiController::class, 'typing']);

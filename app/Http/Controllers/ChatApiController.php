@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\MessageRead;
 use App\Models\Conversation;
 use App\Models\Message;
 use Illuminate\Http\Request;
@@ -23,9 +24,11 @@ class ChatApiController extends Controller
             'initiator' => function ($query) {
                 $query->withTrashed();
             },
+            'initiator.stylist_profile',
             'recipient' => function ($query) {
                 $query->withTrashed();
-            }
+            },
+            'recipient.stylist_profile',
         ])
             ->where('initiator_id', $user->id)
             ->orWhere('recipient_id', $user->id)
@@ -103,9 +106,11 @@ class ChatApiController extends Controller
             'initiator' => function ($query) {
                 $query->withTrashed();
             },
+            'initiator.stylist_profile',
             'recipient' => function ($query) {
                 $query->withTrashed();
-            }
+            },
+            'recipient.stylist_profile',
         ]);
 
         $conversation->initiator->is_online = $conversation->initiator->isOnline();
@@ -151,8 +156,10 @@ class ChatApiController extends Controller
         // Update conversation timestamp
         $conversation->touch();
 
-        // Broadcast the message to both users
-        broadcast(new MessageSent($message, $conversation))->toOthers();
+        defer(function () use ($message, $conversation) {
+            // Broadcast the message to both users
+            broadcast(new MessageSent($message, $conversation))->toOthers();
+        });
 
         return response()->noContent();
     }
@@ -176,10 +183,22 @@ class ChatApiController extends Controller
             ->firstOrFail();
 
         // Mark all messages from other user as read
-        Message::where('conversation_id', $conversation->id)
+        $message = Message::where('conversation_id', $conversation->id)
             ->where('receiver_id', $user->id)
             ->where('is_read', false)
-            ->update(['is_read' => true]);
+            ->first();
+
+        if (!$message) {
+            return response()->noContent();
+        }
+
+        $message->is_read = true;
+        $message->save();
+
+        defer(function () use ($message, $conversation) {
+            // Broadcast the message to both users
+            broadcast(new MessageRead($message, $conversation))->toOthers();
+        });
 
         return response()->noContent();
     }
@@ -205,7 +224,10 @@ class ChatApiController extends Controller
         ]);
 
         // Broadcast typing status to other user
-        broadcast(new UserTyping($user, $conversation, $request->is_typing))->toOthers();
+
+        defer(function () use ($user, $request, $conversation) {
+            broadcast(new UserTyping($user, $conversation, $request->is_typing))->toOthers();
+        });
 
         return response()->noContent();
     }
