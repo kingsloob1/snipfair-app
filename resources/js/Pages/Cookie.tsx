@@ -2,6 +2,7 @@ import { apiCall } from '@/hooks/api';
 import { getCookie, setCookie } from '@/lib/helper';
 import { AnimatePresence, motion } from 'motion/react';
 import { useCallback, useEffect, useState } from 'react';
+import { toast } from 'sonner';
 
 interface LocationCoords {
     latitude: number;
@@ -196,7 +197,13 @@ const CookiePopup = () => {
         return new Promise((resolve, reject) => {
             if (!navigator.geolocation) {
                 reject(
-                    new Error('Geolocation is not supported by this browser'),
+                    new Error(
+                        'Geolocation is not supported by this browser or the permission was denied to device location',
+                    ),
+                );
+
+                toast.warning(
+                    'Geolocation is not supported by this browser or the permission was denied to device location. Kindly ensure location permission is allowed on this browser',
                 );
                 return;
             }
