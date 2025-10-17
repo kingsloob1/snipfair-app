@@ -629,7 +629,7 @@ class StylistController extends Controller
         $nextRequirementPageName = Arr::get($requirementsResp, 'next_requirement_page_name');
 
 
-        dd($nextRequirement, $nextRequirementPageName);
+        dd($nextRequirement, $nextRequirementPageName, $requirementsResp);
 
         if ($nextRequirement) {
             switch ($nextRequirement) {
