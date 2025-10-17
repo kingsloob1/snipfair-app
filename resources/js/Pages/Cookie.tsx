@@ -82,7 +82,7 @@ const CookiePopup = () => {
 
     // Auto-update location every 5 minutes if consent is granted
     useEffect(() => {
-        let intervalId: NodeJS.Timeout | null = null;
+        let intervalId: ReturnType<typeof setInterval> | null = null;
 
         if (
             consentStatus.cookieConsent === 'accepted' &&
