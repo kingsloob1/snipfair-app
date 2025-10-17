@@ -573,7 +573,7 @@ class StylistController extends Controller
         });
 
 
-        $nextRequirement = $collection->firstWhere('key', '===', false);
+        $nextRequirement = $collection->firstWhere('value', '===', false);
         $nextRequirement = $nextRequirement ? $nextRequirement['key'] : null;
         $nextRequirementPageName = '';
 
