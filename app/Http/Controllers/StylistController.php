@@ -628,6 +628,9 @@ class StylistController extends Controller
         $nextRequirement = Arr::get($requirementsResp, 'next_requirement');
         $nextRequirementPageName = Arr::get($requirementsResp, 'next_requirement_page_name');
 
+
+        dd($nextRequirement, $nextRequirementPageName);
+
         if ($nextRequirement) {
             switch ($nextRequirement) {
                 case 'user_bio': {

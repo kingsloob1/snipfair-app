@@ -35,8 +35,6 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
-        request()->session()->put('info', 'Kindly update your biography to continue.');
-        dd($request->session()->get('info'));
         return [
             ...parent::share($request),
             'auth' => [
