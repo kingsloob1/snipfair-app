@@ -723,6 +723,8 @@ class StylistController extends Controller
             return $respData;
         }
 
+        dd($requirementsResp);
+
         if ($requirementsResp['next_requirement']) {
             $this->executeRequirementAction($requirementsResp, '', false);
         }
