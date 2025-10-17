@@ -98,7 +98,7 @@ const Schedule = ({ schedules, setSchedules }: AvailabilityProps) => {
                                 );
 
                                 let toDate = parseDate(
-                                    updatedSlotData.from,
+                                    updatedSlotData.to,
                                     'HH:mm',
                                     todayDate,
                                 );
