@@ -632,17 +632,17 @@ class StylistController extends Controller
         if ($nextRequirement) {
             switch ($nextRequirement) {
                 case 'user_bio': {
-                    request()->session()->flash('info', $messagePrefix . 'Kindly update your biography to continue.');
+                    request()->session()->put('info', $messagePrefix . 'Kindly update your biography to continue.');
                     break;
                 }
 
                 case 'address': {
-                    request()->session()->flash('info', $messagePrefix . 'Kindly update your address to continue.');
+                    request()->session()->put('info', $messagePrefix . 'Kindly update your address to continue.');
                     break;
                 }
 
                 case 'location_service': {
-                    request()->session()->flash('info', $messagePrefix . 'Kindly update your blocation service');
+                    request()->session()->put('info', $messagePrefix . 'Kindly update your blocation service');
                     break;
                 }
 
@@ -652,27 +652,27 @@ class StylistController extends Controller
                 }
 
                 case 'user_banner': {
-                    request()->session()->flash('info', $messagePrefix . 'Kindly update your profile banner picture');
+                    request()->session()->put('info', $messagePrefix . 'Kindly update your profile banner picture');
                     break;
                 }
 
                 case 'social_links': {
-                    request()->session()->flash('info', $messagePrefix . 'Kindly update your social media accounts');
+                    request()->session()->put('info', $messagePrefix . 'Kindly update your social media accounts');
                     break;
                 }
 
                 case 'works': {
-                    request()->session()->flash('info', $messagePrefix . 'Kindly upload images of your past works');
+                    request()->session()->put('info', $messagePrefix . 'Kindly upload images of your past works');
                     break;
                 }
 
                 case 'portfolio': {
-                    request()->session()->flash('info', $messagePrefix . 'Kindly add at least one (1) service you render');
+                    request()->session()->put('info', $messagePrefix . 'Kindly add at least one (1) service you render');
                     break;
                 }
 
                 case 'payment_method': {
-                    request()->session()->flash('info', $messagePrefix . 'Kindly add at least one (1) payout method');
+                    request()->session()->put('info', $messagePrefix . 'Kindly add at least one (1) payout method');
                     break;
                 }
 
