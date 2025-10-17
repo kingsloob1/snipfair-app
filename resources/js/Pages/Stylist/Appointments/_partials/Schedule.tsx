@@ -1,3 +1,11 @@
+import {
+    addMinutes,
+    format as formatDate,
+    isAfter as isDateAfter,
+    isValid as isDateValid,
+    isSameDay,
+    parse as parseDate,
+} from 'date-fns';
 import { ChevronDown, Filter, Plus, Trash2 } from 'lucide-react';
 import { Dispatch, SetStateAction } from 'react';
 
@@ -71,18 +79,73 @@ const Schedule = ({ schedules, setSchedules }: AvailabilityProps) => {
         value: string,
     ) => {
         setSchedules((prev) =>
-            prev.map((schedule, index) =>
-                index === dayIndex
-                    ? {
-                          ...schedule,
-                          timeSlots: schedule.timeSlots.map((slot) =>
-                              slot.id === slotId
-                                  ? { ...slot, [field]: value }
-                                  : slot,
-                          ),
-                      }
-                    : schedule,
-            ),
+            prev.map((schedule, index) => {
+                if (index === dayIndex) {
+                    return {
+                        ...schedule,
+                        timeSlots: schedule.timeSlots.map((slot) => {
+                            if (slot.id === slotId) {
+                                const updatedSlotData = {
+                                    ...slot,
+                                    [field]: value,
+                                };
+
+                                const todayDate = new Date();
+                                let fromDate = parseDate(
+                                    updatedSlotData.from,
+                                    'HH:mm',
+                                    todayDate,
+                                );
+
+                                let toDate = parseDate(
+                                    updatedSlotData.from,
+                                    'HH:mm',
+                                    todayDate,
+                                );
+
+                                if (!isDateValid(fromDate)) {
+                                    fromDate = parseDate(
+                                        '00:00',
+                                        'HH:mm',
+                                        todayDate,
+                                    );
+                                }
+
+                                if (!isDateValid(toDate)) {
+                                    toDate = parseDate(
+                                        '00:01',
+                                        'HH:mm',
+                                        todayDate,
+                                    );
+                                }
+
+                                if (!isDateAfter(toDate, fromDate)) {
+                                    toDate = addMinutes(fromDate, 1);
+
+                                    if (!isSameDay(toDate, todayDate)) {
+                                        toDate = fromDate;
+                                    }
+                                }
+
+                                updatedSlotData.from = formatDate(
+                                    fromDate,
+                                    'HH:mm',
+                                );
+                                updatedSlotData.to = formatDate(
+                                    toDate,
+                                    'HH:mm',
+                                );
+
+                                return updatedSlotData;
+                            }
+
+                            return slot;
+                        }),
+                    };
+                }
+
+                return schedule;
+            }),
         );
     };
 

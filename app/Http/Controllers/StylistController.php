@@ -631,51 +631,52 @@ class StylistController extends Controller
         if ($nextRequirement) {
             switch ($nextRequirement) {
                 case 'user_bio': {
-                    Session::flash('info', $messagePrefix . 'Kindly update your biography to continue.');
+                    Session::put('info', $messagePrefix . 'Kindly update your biography to continue.');
                     break;
                 }
 
                 case 'address': {
-                    Session::flash('info', $messagePrefix . 'Kindly update your address to continue.');
+                    Session::put('info', $messagePrefix . 'Kindly update your address to continue.');
                     break;
                 }
 
                 case 'location_service': {
-                    Session::flash('info', $messagePrefix . 'Kindly update your blocation service');
+                    Session::put('info', $messagePrefix . 'Kindly update your blocation service');
                     break;
                 }
 
                 case 'user_avatar': {
-                    Session::flash('info', $messagePrefix . 'Kindly update your profile picture / avatar');
+                    Session::put('info', $messagePrefix . 'Kindly update your profile picture / avatar');
                     break;
                 }
 
                 case 'user_banner': {
-                    Session::flash('info', $messagePrefix . 'Kindly update your profile banner picture');
+                    Session::put('info', $messagePrefix . 'Kindly update your profile banner picture');
                     break;
                 }
 
                 case 'social_links': {
-                    Session::flash('info', $messagePrefix . 'Kindly update your social media accounts');
+                    Session::put('info', $messagePrefix . 'Kindly update your social media accounts');
                     break;
                 }
 
                 case 'works': {
-                    Session::flash('info', $messagePrefix . 'Kindly upload images of your past works');
+                    Session::put('info', $messagePrefix . 'Kindly upload images of your past works');
                     break;
                 }
 
                 case 'portfolio': {
-                    Session::flash('info', $messagePrefix . 'Kindly add at least one (1) service you render');
+                    Session::put('info', $messagePrefix . 'Kindly add at least one (1) service you render');
                     break;
                 }
 
                 case 'payment_method': {
-                    Session::flash('info', $messagePrefix . 'Kindly add at least one (1) payout method');
+                    Session::put('info', $messagePrefix . 'Kindly add at least one (1) payout method');
                     break;
                 }
 
                 default: {
+                    Session::forget('info');
                     //
                 }
             }

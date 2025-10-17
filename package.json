@@ -58,6 +58,7 @@
         "@tailwindcss/typography": "^0.5.16",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
+        "date-fns": "^4.1.0",
         "jodit": "^4.6.2",
         "jodit-react-ts": "^0.9.0",
         "lodash-es": "^4.17.21",
