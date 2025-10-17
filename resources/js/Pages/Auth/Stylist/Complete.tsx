@@ -18,7 +18,7 @@ import {
     TriangleAlert,
 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 export default function Complete({
     stylist_status,
@@ -42,7 +42,10 @@ export default function Complete({
         });
     };
 
-    const logoutUser = () => {
+    const logoutUser = (e: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
+        e.preventDefault();
+        e.stopPropagation();
+
         router.visit(window.route('logout'), {
             method: 'post',
             onBefore: () =>
@@ -53,7 +56,7 @@ export default function Complete({
                 window.location.href = window.route('stylist.register');
             },
             onError() {
-                window.location.href = window.route('stylist.register');
+                window.location.href = window.route('logout');
             },
         });
     };

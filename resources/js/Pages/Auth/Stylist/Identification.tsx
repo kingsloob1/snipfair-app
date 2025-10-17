@@ -8,7 +8,7 @@ import { mergeInertiaFieldErrors } from '@/lib/helper';
 import { Head, router, useForm } from '@inertiajs/react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion } from 'motion/react';
-import { FocusEvent, FormEventHandler } from 'react';
+import React, { FocusEvent, FormEventHandler } from 'react';
 
 type SkillFormProps = {
     identification_id?: string;
@@ -53,7 +53,10 @@ export default function Identification() {
 
     const mergedErrors = mergeInertiaFieldErrors(errors, 'identification_file');
 
-    const logoutUser = () => {
+    const logoutUser = (e: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
+        e.preventDefault();
+        e.stopPropagation();
+
         router.visit(window.route('logout'), {
             method: 'post',
             onBefore: () =>
@@ -64,7 +67,7 @@ export default function Identification() {
                 window.location.href = window.route('stylist.register');
             },
             onError() {
-                window.location.href = window.route('stylist.register');
+                window.location.href = window.route('logout');
             },
         });
     };

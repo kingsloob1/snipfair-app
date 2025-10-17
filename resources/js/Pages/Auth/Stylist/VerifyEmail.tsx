@@ -8,7 +8,7 @@ import AuthLayout from '@/Layouts/AuthLayout';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { X } from 'lucide-react';
 import { motion } from 'motion/react';
-import { FormEventHandler, useEffect, useState } from 'react';
+import React, { FormEventHandler, useEffect, useState } from 'react';
 
 interface PageProps {
     auth: {
@@ -77,7 +77,10 @@ export default function VerifyEmail({ status }: { status?: string }) {
         });
     };
 
-    const logoutUser = () => {
+    const logoutUser = (e: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
+        e.preventDefault();
+        e.stopPropagation();
+
         router.visit(window.route('logout'), {
             method: 'post',
             onBefore: () =>
@@ -88,7 +91,7 @@ export default function VerifyEmail({ status }: { status?: string }) {
                 window.location.href = window.route('stylist.register');
             },
             onError() {
-                window.location.href = window.route('stylist.register');
+                window.location.href = window.route('logout');
             },
         });
     };
