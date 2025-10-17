@@ -161,6 +161,8 @@ export default function Users({
                 return 'All Stylists';
             case 'stylists':
                 return 'Approved Stylists';
+            case 'rejected_stylists':
+                return 'Rejected Stylists';
             case 'approvals':
                 return 'Stylist Approvals';
             case 'deleted_users':
