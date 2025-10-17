@@ -17,6 +17,7 @@ use Carbon\Carbon;
 use Inertia\Inertia;
 use App\Mail\StylistAccountApprovedEmail;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 
 class DashboardController extends Controller
 {
@@ -587,8 +588,8 @@ class DashboardController extends Controller
                 'services_completed' => $appointment_counts . '+',
                 'work_experience' => ($stylist->stylist_profile->years_of_experience ?? 0) . '+ years',
                 'identification_id' => $stylist->stylist_profile->identification_id ?? null,
-                'identification_proof' => $stylist->stylist_profile->identification_proof ?? null,
-                'identification_image' => $stylist->stylist_profile->identification_file ? formatStoredFilePath($stylist->stylist_profile->identification_file) : null,
+                'identification_proof' => $stylist->stylist_profile->identification_proof ? Storage::url(formatStoredFilePath($stylist->stylist_profile->identification_file)) : null,
+                'identification_image' => $stylist->stylist_profile->identification_file ? Storage::url(formatStoredFilePath($stylist->stylist_profile->identification_file)) : null,
                 'works' => $stylist->stylist_profile?->works ?? [],
             ],
             'portfolios' => $portfolios,
