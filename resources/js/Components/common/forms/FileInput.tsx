@@ -1,5 +1,5 @@
 /* eslint-disable jsx-a11y/no-static-element-interactions */
-/* eslint-disable jsx-a11y/click-events-have-key-events */
+
 import { cn } from '@/lib/utils';
 import { FolderPlus } from 'lucide-react';
 import mime from 'mime/lite';
@@ -225,21 +225,19 @@ const FileInput: React.FC<PortfolioUploadProps> = ({
                     >
                         {value.map((file, index) => (
                             <div key={index} className="group relative">
-                                {(type === 'image' || isFileImage(file)) && (
-                                    <div className="aspect-square overflow-hidden rounded-lg bg-gray-100">
-                                        {type === 'image' ? (
-                                            <img
-                                                src={URL.createObjectURL(file)}
-                                                alt={file.name}
-                                                className="h-full w-full object-cover"
-                                            />
-                                        ) : (
-                                            <div className="flex h-full w-full items-center justify-center text-xs text-gray-600">
-                                                {file.name}
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
+                                <div className="aspect-square overflow-hidden rounded-lg bg-gray-100">
+                                    {type === 'image' || isFileImage(file) ? (
+                                        <img
+                                            src={URL.createObjectURL(file)}
+                                            alt={file.name}
+                                            className="h-full w-full object-scale-down"
+                                        />
+                                    ) : (
+                                        <div className="flex h-full w-full items-center justify-center text-xs text-gray-600">
+                                            {file.name}
+                                        </div>
+                                    )}
+                                </div>
                                 <button
                                     type="button"
                                     onClick={(e) => {

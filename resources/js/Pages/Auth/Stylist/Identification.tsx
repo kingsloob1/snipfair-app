@@ -110,7 +110,11 @@ export default function Identification() {
                     </div>
                     <div>
                         <FileInput
-                            value={data.identification_file}
+                            value={
+                                data.identification_proof
+                                    ? [data.identification_proof]
+                                    : undefined
+                            }
                             onChange={(files) =>
                                 setData('identification_proof', files[0])
                             }

@@ -18,7 +18,7 @@ class HomeController extends Controller
 {
     public function testView()
     {
-        return Inertia::render('Auth/Stylist/Complete');
+        return Inertia::render('Auth/Stylist/Identification');
     }
 
     public function home()
