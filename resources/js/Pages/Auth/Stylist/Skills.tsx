@@ -88,8 +88,8 @@ export default function Skills({ auth }: PageProps) {
                 confirm(
                     'Are you sure you want to restart stylist registration process?',
                 ),
-            onSuccess() {
-                console.log('Err from logout ====> ', err);
+            onSuccess(successEvt) {
+                console.log('Success from logout ====> ', successEvt);
                 window.location.href = window.route('stylist.register');
             },
             onError(err) {
