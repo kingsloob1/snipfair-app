@@ -585,7 +585,7 @@ class StylistController extends Controller
             }
 
             case 'location_service': {
-                $nextRequirementPageName = 'stylist.appointments.availabilityprofile';
+                $nextRequirementPageName = 'stylist.appointments.availability';
                 break;
             }
 
