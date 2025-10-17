@@ -265,10 +265,12 @@ class AppointmentController extends Controller
             'orderTime' => $appointment->created_at->format('M j, Y'),
             'bookingId' => $appointment->booking_id,
             'beautician' => [
+                'id' => $appointment->stylist->id,
                 'name' => $appointment->stylist->name,
                 'avatar' => $appointment->stylist->avatar ?? null,
             ],
             'customer' => [
+                'id' => $appointment->customer->id,
                 'name' => $appointment->customer->name,
                 'avatar' => $appointment->customer->avatar ?? null,
             ],

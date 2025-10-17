@@ -82,7 +82,7 @@ export default function Appointment({
     const routes = [
         {
             name: 'Appointments',
-            path: route('stylist.appointments'),
+            path: window.route('stylist.appointments'),
             active: true,
         },
         {
