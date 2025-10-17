@@ -189,7 +189,8 @@ class AppointmentController extends Controller
 
     public function getCalendar(Request $request)
     {
-        $appointments = Appointment::with(['portfolio.category', 'customer'])
+        $user = $request->user();
+        $appointments = $user->stylistAppointments()->with(['portfolio.category', 'customer'])
             ->get();
 
         $formatted = [];
