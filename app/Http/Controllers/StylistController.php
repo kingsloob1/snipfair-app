@@ -677,6 +677,7 @@ class StylistController extends Controller
                 }
 
                 default: {
+                    request()->session()->forget('info');
                     //
                 }
             }
