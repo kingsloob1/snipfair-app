@@ -617,9 +617,6 @@ class StylistController extends Controller
             }
         }
 
-
-        dd($collection, $nextRequirement, $nextRequirementPageName);
-
         return [
             'completness' => $profile_completeness,
             'next_requirement' => $nextRequirement,
@@ -723,8 +720,6 @@ class StylistController extends Controller
         if ($request->expectsJson()) {
             return $respData;
         }
-
-        dd($requirementsResp);
 
         if ($requirementsResp['next_requirement']) {
             $this->executeRequirementAction($requirementsResp, '', false);
