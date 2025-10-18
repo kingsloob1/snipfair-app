@@ -647,7 +647,12 @@ class CustomerApiController extends Controller
 
         $queryBuilder = $this->getPortfolioQueryBuilder($user)
             ->where('status', '=', true)
-            ->where('is_available', '=', true);
+            ->where('is_available', '=', true)
+            ->whereHas('user', function ($qb) use ($query) {
+                $qb->where('role', 'stylist')->whereHas('stylist_profile', function ($qb) {
+                    $qb->where('is_available', true)->where('status', 'approved');
+                });
+            });
 
         if ($categoryId) {
             $queryBuilder = $queryBuilder->where('category_id', '=', $categoryId);
@@ -783,7 +788,24 @@ class CustomerApiController extends Controller
         ]);
 
         $customer = $request->user();
-        $portfolio = Portfolio::findOrFail($request->portfolio_id);
+        $portfolio = Portfolio::with([
+            'user' => function ($qb) {
+                return $qb->withTrashed();
+            },
+            'user.stylist_profile'
+        ])->findOrFail($request->portfolio_id);
+
+        if (!($portfolio->user && $portfolio->user->role === 'stylist' && $portfolio->user->stylist_profile && !$portfolio->user->deleted_at)) {
+            return response()->json([
+                'message' => 'Portfolio stylist is currently not available'
+            ], 400);
+        }
+
+        if (!($portfolio->user->stylist_profile->is_available)) {
+            return response()->json([
+                'message' => 'Portfolio stylist is currently not available to take any booking'
+            ], 400);
+        }
 
         $deposit = Deposit::where('user_id', $customer->id)->where('portfolio_id', $request->portfolio_id)->where('status', 'pending')->whereNull('appointment_id')->latest()->first();
 
