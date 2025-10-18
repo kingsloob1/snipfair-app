@@ -810,11 +810,20 @@ class CustomerApiController extends Controller
         $deposit = Deposit::where('user_id', $customer->id)->where('portfolio_id', $request->portfolio_id)->where('status', 'pending')->whereNull('appointment_id')->latest()->first();
 
         $price = abs((float) $portfolio->price);
-        $amountTodebitFromWallet = $deposit ? ($price - ((float) $deposit->amount)) : $price;
+        $amountTodebitFromWallet = $price;
+        $depositAmount = (float) $deposit->amount;
+
+        if ($deposit) {
+            $amountTodebitFromWallet = $price - $depositAmount;
+            if ($amountTodebitFromWallet < 0) {
+                $amountTodebitFromWallet = 0;
+            }
+        }
+
         $customerWalletBalance = (float) $customer->balance;
 
         // Check if customer has insufficient balance
-        if ($amountTodebitFromWallet < $price) {
+        if ($price > ($customerWalletBalance + $amountTodebitFromWallet)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Insufficient balance. Please add funds to continue.',
@@ -856,23 +865,29 @@ class CustomerApiController extends Controller
                 $customer->update(['country' => $request->address]);
             }
 
-            // Deduct amount from customer balance
-            User::query()
-                ->where('id', '=', $customer->id)
-                ->where('balance', '>=', $amountTodebitFromWallet)
-                ->update(['balance' => DB::raw("balance - {$amountTodebitFromWallet}")]);
+            if ($amountTodebitFromWallet > 0) {
+                // Deduct amount from customer balance
+                User::query()
+                    ->where('id', '=', $customer->id)
+                    ->where('balance', '>=', $amountTodebitFromWallet)
+                    ->update(['balance' => DB::raw("balance - {$amountTodebitFromWallet}")]);
+            }
 
             if ($deposit) {
                 $deposit->update(['appointment_id' => $appointment->id]);
-                Transaction::create([
-                    'user_id' => $customer->id,
-                    'appointment_id' => $appointment->id,
-                    'amount' => $amountTodebitFromWallet,
-                    'type' => 'payment',
-                    'status' => 'approved',
-                    'description' => 'Partial appointment booking payment from wallet',
-                    'ref' => 'PAY-' . time(),
-                ]);
+
+                //Txn for debiting wallet
+                if ($amountTodebitFromWallet > 0) {
+                    Transaction::create([
+                        'user_id' => $customer->id,
+                        'appointment_id' => $appointment->id,
+                        'amount' => $amountTodebitFromWallet,
+                        'type' => 'payment',
+                        'status' => 'approved',
+                        'description' => 'Partial appointment booking payment from wallet',
+                        'ref' => 'PAY-' . time(),
+                    ]);
+                }
 
                 $pendingAppointmentTxn = Transaction::create([
                     'user_id' => $customer->id,
@@ -880,7 +895,7 @@ class CustomerApiController extends Controller
                     'amount' => $deposit->amount,
                     'type' => 'payment',
                     'status' => 'pending',
-                    'description' => 'Partial appointment booking payment',
+                    'description' => 'Appointment booking payment from deposit',
                     'ref' => 'PAY-' . time(),
                 ]);
 
