@@ -174,9 +174,9 @@ Route::group(['middleware' => ['auth', 'verified']], function () {
     // Dispute functionality
     Route::middleware('auth')->group(function () {
         Route::get('/disputes', [App\Http\Controllers\DisputeController::class, 'index'])->name('disputes.index');
-        Route::get('/disputes/{dispute}', [App\Http\Controllers\DisputeController::class, 'show'])->name('disputes.show');
-        Route::post('/disputes/{dispute}/messages', [App\Http\Controllers\DisputeController::class, 'storeMessage'])->name('disputes.messages.store');
-        Route::get('/disputes/messages/{message}/attachments/{index}', [App\Http\Controllers\DisputeController::class, 'downloadAttachment'])->name('disputes.messages.download');
+        Route::get('/disputes/{disputeId}', [App\Http\Controllers\DisputeController::class, 'show'])->name('disputes.show');
+        Route::post('/disputes/{disputeId}/messages', [App\Http\Controllers\DisputeController::class, 'storeMessage'])->name('disputes.messages.store');
+        Route::get('/disputes/messages/{disputeMessageId}/attachments/{disputeMessageAttachmentIndex}', [App\Http\Controllers\DisputeController::class, 'downloadAttachment'])->name('disputes.messages.download');
     });
 
     // Like functionality
@@ -262,7 +262,7 @@ Route::group(['middleware' => ['auth', 'verified']], function () {
 });
 
 
-Route::middleware('auth')->group(function () {
+Route::group(['middleware' => ['auth:sanctum']], function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');

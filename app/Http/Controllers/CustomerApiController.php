@@ -811,7 +811,7 @@ class CustomerApiController extends Controller
 
         $price = abs((float) $portfolio->price);
         $amountTodebitFromWallet = $price;
-        $depositAmount = (float) $deposit->amount;
+        $depositAmount = $deposit ? (float) $deposit->amount : 0;
 
         if ($deposit) {
             $amountTodebitFromWallet = $price - $depositAmount;

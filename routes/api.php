@@ -283,7 +283,7 @@ Route::middleware('api')->group(function () {
 
                 Route::post('/{disputeId}/messages', [DisputeController::class, 'storeMessage']);
 
-                Route::get('/messages/{message}/attachments/{index}', [DisputeController::class, 'downloadAttachment']);
+                Route::get('/messages/{disputeMessageId}/attachments/{disputeMessageAttachmentIndex}', [DisputeController::class, 'downloadAttachment']);
             });
         });
     });

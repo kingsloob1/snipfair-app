@@ -53,14 +53,12 @@ class DisputeController extends Controller
     /**
      * Display the specified dispute.
      */
-    public function show(Request $request, AppointmentDispute $dispute)
+    public function show(Request $request, $disputeId)
     {
-        $user = Auth::user();
-
-        // Check if user has permission to view this dispute
-        if ($dispute->customer_id != $user->id && $dispute->stylist_id != $user->id) {
-            abort(403, 'Unauthorized access to this dispute.');
-        }
+        $user = $request->user();
+        $dispute = AppointmentDispute::query()->where('id', '=', $disputeId)->where(function ($qb) use ($user) {
+            $qb->where('customer_id', '=', $user->id)->orWhere('stylist_id', '=', $user->id);
+        })->firstOrFail();
 
         if ($dispute->customer_id == $user->id) {
             // Customer sees only admin-customer conversation
@@ -100,14 +98,12 @@ class DisputeController extends Controller
     /**
      * Store a new message in the dispute.
      */
-    public function storeMessage(Request $request, AppointmentDispute $dispute)
+    public function storeMessage(Request $request, $disputeId)
     {
-        $user = Auth::user();
-
-        // Check if user has permission to message in this dispute
-        if ($dispute->customer_id != $user->id && $dispute->stylist_id != $user->id) {
-            abort(403, 'Unauthorized access to this dispute.');
-        }
+        $user = $request->user();
+        $dispute = AppointmentDispute::query()->where('id', '=', $disputeId)->where(function ($qb) use ($user) {
+            $qb->where('customer_id', '=', $user->id)->orWhere('stylist_id', '=', $user->id);
+        })->firstOrFail();
 
         // Check if dispute is still open for messaging
         if ($dispute->status === 'closed' || $dispute->status === 'resolved') {
@@ -176,26 +172,28 @@ class DisputeController extends Controller
     /**
      * Download an attachment from a dispute message.
      */
-    public function downloadAttachment(AppointmentDisputeMessage $message, $attachmentIndex)
+    public function downloadAttachment(Request $request, $disputeMessageId, $disputeMessageAttachmentIndex)
     {
-        $user = Auth::user();
+        $user = $request->user();
+        $disputeMessage = AppointmentDisputeMessage::query()
+            ->where('id', '=', $disputeMessageId)->whereHas('appointmentDispute', function ($qb) use ($user) {
+                $qb->where('customer_id', '=', $user->id)->orWhere('stylist_id', '=', $user->id);
+            })->firstOrFail();
 
-        // Check if user has permission to access this message's attachments
-        $dispute = $message->appointmentDispute;
-        if ($dispute->customer_id != $user->id && $dispute->stylist_id != $user->id) {
-            abort(403, 'Unauthorized access to this attachment.');
+        $attachments = $disputeMessage->attachments;
+        if (!$attachments || !isset($attachments[$disputeMessageAttachmentIndex])) {
+            return response()->json([
+                'message' => 'Attachment not found.'
+            ], 404);
         }
 
-        $attachments = $message->attachments;
-        if (!$attachments || !isset($attachments[$attachmentIndex])) {
-            abort(404, 'Attachment not found.');
-        }
-
-        $attachment = $attachments[$attachmentIndex];
-        $filePath = $attachment['path'];
+        $attachment = $attachments[$disputeMessageAttachmentIndex];
+        $filePath = formatStoredFilePath($attachment['path']);
 
         if (!Storage::disk('public')->exists($filePath)) {
-            abort(404, 'File not found.');
+            return response()->json([
+                'message' => 'File not found.'
+            ], 404);
         }
 
         return response()->download(
