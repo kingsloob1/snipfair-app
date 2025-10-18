@@ -935,7 +935,7 @@ class AppointmentController extends Controller
             }
 
             case 'complete': {
-                if ($appointment->status !== 'approve') {
+                if ($appointment->status !== 'confirmed') {
                     $validator->errors()->add('verdict', 'Ooops.. You can only complete a confirmed appointment');
                     throw new ValidationException($validator);
                 }
