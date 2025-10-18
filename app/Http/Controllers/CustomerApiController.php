@@ -823,7 +823,7 @@ class CustomerApiController extends Controller
         $customerWalletBalance = (float) $customer->balance;
 
         // Check if customer has insufficient balance
-        if ($price > ($customerWalletBalance + $amountTodebitFromWallet)) {
+        if ($price > ($customerWalletBalance + $depositAmount)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Insufficient balance. Please add funds to continue.',
