@@ -774,7 +774,7 @@ class AppointmentController extends Controller
                 'amount' => $appointment->amount * (getAdminConfig('commission_rate') / 100),
                 'type' => 'other',
                 'status' => 'completed',
-                'ref' => 'AdminCommission',
+                'ref' => 'AdminCommission' . time(),
                 'description' => 'Commission for cancellation',
             ]);
             sendNotification(
@@ -884,7 +884,7 @@ class AppointmentController extends Controller
                     'amount' => $platformComissionFromTotalAmountToStylist,
                     'type' => 'other',
                     'status' => 'completed',
-                    'ref' => 'AdminCommission',
+                    'ref' => 'AdminApprovalCommission-' . time(),
                     'description' => 'Commission for appointment approval',
                 ]);
 

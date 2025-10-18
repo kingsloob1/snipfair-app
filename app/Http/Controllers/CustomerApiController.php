@@ -1222,7 +1222,7 @@ class CustomerApiController extends Controller
                     'amount' => $platformComissionFromTotalAmountToStylist,
                     'type' => 'other',
                     'status' => 'completed',
-                    'ref' => 'AdminCommission',
+                    'ref' => "{$statusActionStr}AdminCommission-" . time(),
                     'description' => "Commission for {$statusActionStr}",
                 ]);
             }
