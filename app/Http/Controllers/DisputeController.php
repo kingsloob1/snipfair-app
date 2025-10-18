@@ -117,7 +117,7 @@ class DisputeController extends Controller
         $request->validate([
             'message' => 'required|string|max:1000',
             'attachments' => 'nullable|array|max:5',
-            'attachments.*' => 'file|mimes:jpg,jpeg,png,pdf,doc,docx|max:10240', // 10MB max per file
+            'attachments.*' => 'file|mimes:jpg,jpeg,png,gif,webp,pdf,doc,docx|max:10240', // 10MB max per file
         ]);
 
         $attachments = [];
