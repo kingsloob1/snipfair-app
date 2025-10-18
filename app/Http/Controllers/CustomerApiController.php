@@ -885,7 +885,7 @@ class CustomerApiController extends Controller
                         'type' => 'payment',
                         'status' => 'approved',
                         'description' => 'Partial appointment booking payment from wallet',
-                        'ref' => 'PAY-' . time(),
+                        'ref' => 'PAY-WALLET-DEBIT-' . time(),
                     ]);
                 }
 
@@ -896,7 +896,7 @@ class CustomerApiController extends Controller
                     'type' => 'payment',
                     'status' => 'pending',
                     'description' => 'Appointment booking payment from deposit',
-                    'ref' => 'PAY-' . time(),
+                    'ref' => 'PAY-DEPOSIT-DEBIT-' . time(),
                 ]);
 
                 defer(function () use ($appointment, $deposit, $pendingAppointmentTxn) {
