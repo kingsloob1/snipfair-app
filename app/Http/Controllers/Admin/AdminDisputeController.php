@@ -50,17 +50,17 @@ class AdminDisputeController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('comment', 'like', "%{$search}%")
-                  ->orWhere('ref_id', 'like', "%{$search}%")
-                  ->orWhereHas('customer', function ($q) use ($search) {
-                      $q->where('first_name', 'like', "%{$search}%")
-                        ->orWhere('last_name', 'like', "%{$search}%")
-                        ->orWhere('email', 'like', "%{$search}%");
-                  })
-                  ->orWhereHas('stylist', function ($q) use ($search) {
-                      $q->where('first_name', 'like', "%{$search}%")
-                        ->orWhere('last_name', 'like', "%{$search}%")
-                        ->orWhere('email', 'like', "%{$search}%");
-                  });
+                    ->orWhere('ref_id', 'like', "%{$search}%")
+                    ->orWhereHas('customer', function ($q) use ($search) {
+                        $q->where('first_name', 'like', "%{$search}%")
+                            ->orWhere('last_name', 'like', "%{$search}%")
+                            ->orWhere('email', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('stylist', function ($q) use ($search) {
+                        $q->where('first_name', 'like', "%{$search}%")
+                            ->orWhere('last_name', 'like', "%{$search}%")
+                            ->orWhere('email', 'like', "%{$search}%");
+                    });
             });
         }
 
@@ -230,7 +230,7 @@ class AdminDisputeController extends Controller
         $appointment = $dispute->appointment;
         $refundAmount = 0;
 
-        if($request->refundAmount > $appointment->amount){
+        if ($request->refundAmount > $appointment->amount) {
             return back()->with('error', 'Refund amount exceeds appointment amount.');
         }
 
@@ -344,7 +344,8 @@ class AdminDisputeController extends Controller
 
     private function processSplitRefund(Appointment $appointment, $amount, $to_stylist)
     {
-        if(!$amount || !$to_stylist) return;
+        if (!$amount || !$to_stylist)
+            return;
         $appointment->customer->increment('balance', $amount);
         $appointment->pouches()->update(['status' => 'refunded']);
         AppointmentPouch::create([
@@ -359,7 +360,7 @@ class AdminDisputeController extends Controller
             'amount' => $to_stylist * (getAdminConfig('commission_rate') / 100),
             'type' => 'other',
             'status' => 'completed',
-            'ref' => 'AdminCommission',
+            'ref' => 'AdminCommission-' . time(),
             'description' => 'Commission for dispute resolution from stylist',
         ]);
         Transaction::create([
@@ -392,7 +393,7 @@ class AdminDisputeController extends Controller
         $message = '';
 
 
-        if($dispute->from === 'customer') {
+        if ($dispute->from === 'customer') {
             $message1 = 'Your dispute has been successfully filed for appointment ' . $appointment->booking_id . '.';
             $message2 = 'A dispute has been filed by the customer for appointment ' . $appointment->booking_id . '.';
         } else {

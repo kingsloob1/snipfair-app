@@ -370,7 +370,7 @@ class AppointmentController extends Controller
                         'amount' => $appointment->amount * ($reschedulePenaltyPercentage / 100) * (getAdminConfig('commission_rate') / 100),
                         'type' => 'other',
                         'status' => 'completed',
-                        'ref' => 'AdminCommission',
+                        'ref' => 'AdminCommission-rescheduling-' . time(),
                         'description' => 'Commission for rescheduling',
                     ]);
                     $request->user()->update([
@@ -406,7 +406,7 @@ class AppointmentController extends Controller
                         'amount' => $appointment->amount * ($cancelPenaltyPercentage / 100) * (getAdminConfig('commission_rate') / 100),
                         'type' => 'other',
                         'status' => 'completed',
-                        'ref' => 'AdminCommission',
+                        'ref' => 'AdminCommission-free' . time(),
                         'description' => 'Commission for cancellation',
                     ]);
                     $request->user()->update([

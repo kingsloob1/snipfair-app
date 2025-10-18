@@ -885,7 +885,7 @@ class CustomerApiController extends Controller
                         'type' => 'payment',
                         'status' => 'approved',
                         'description' => 'Partial appointment booking payment from wallet',
-                        'ref' => 'PAY-WALLET-DEBIT-' . time(),
+                        'ref' => 'PAY-PARTIAL-WALLET-DEBIT-' . time(),
                     ]);
                 }
 
@@ -911,7 +911,7 @@ class CustomerApiController extends Controller
                     'type' => 'payment',
                     'status' => 'approved',
                     'description' => 'Appointment booking payment from wallet',
-                    'ref' => 'PAY-' . time(),
+                    'ref' => 'PAY-FULL-WALLET-DEBIT' . time(),
                 ]);
             }
 
