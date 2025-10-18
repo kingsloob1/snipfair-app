@@ -36,7 +36,7 @@ class DisputeController extends Controller
                 $query->where('customer_id', $user->id)
                     ->orWhere('stylist_id', $user->id);
             })
-            ->where('status', '!=', 'open') // Only show disputes that are in progress or resolved
+            //->where('status', '!=', 'open') // Only show disputes that are in progress or resolved
             ->orderBy('updated_at', 'desc');
 
         if ($request->expectsJson()) {
