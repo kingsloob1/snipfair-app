@@ -57,17 +57,29 @@ export default function FlashHandler({
             const shouldHide = authenticatedFromApp || isInAuthRoutes;
             waitFor(
                 () => {
-                    if (!window.Tawk_API) {
+                    if (
+                        !(
+                            window.Tawk_API &&
+                            'isChatHidden' in window.Tawk_API &&
+                            'hideWidget' in window.Tawk_API &&
+                            'showWidget' in window.Tawk_API
+                        )
+                    ) {
                         throw new Error('Tawk API is not yet available');
                     }
 
-                    if (shouldHide && !window.Tawk_API?.isChatHidden()) {
+                    if (shouldHide && !window.Tawk_API.isChatHidden()) {
                         window.Tawk_API.hideWidget();
-                    } else if (!shouldHide && window.Tawk_API?.isChatHidden()) {
+                    } else if (!shouldHide && window.Tawk_API.isChatHidden()) {
                         window.Tawk_API.showWidget();
                     }
                 },
-                { interval: 100, backoffFactor: 1, stopOnFailure: false },
+                {
+                    interval: 100,
+                    backoffFactor: 1,
+                    stopOnFailure: false,
+                    timeout: 50000,
+                },
             );
         }
     }, [url, authenticatedFromApp]);
