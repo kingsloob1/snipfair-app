@@ -553,7 +553,7 @@ class StylistController extends Controller
             }
         }
 
-        dd($isProfileComplete, $user->stylist_profile?->status, $autoPlaceForVerifcation);
+        dd($isProfileComplete, $user->stylist_profile?->status, $autoPlaceForVerifcation, $profile_completeness);
 
         return $profile_completeness;
     }
