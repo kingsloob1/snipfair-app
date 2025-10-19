@@ -74,6 +74,7 @@ class HandleInertiaRequests extends Middleware
                 'message' => fn() => $request->session()->get('message'),
                 'custom_response' => fn() => $request->session()->get('custom_response'),
             ],
+            'auth:from:app' => (bool) session('auth:from:app', false),
         ];
     }
 }

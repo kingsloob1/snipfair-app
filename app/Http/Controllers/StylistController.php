@@ -521,7 +521,7 @@ class StylistController extends Controller
         return back()->with('success', 'Work removed.');
     }
 
-    public function checkProfileCompleteness(User $user, bool $canUnVerify = true)
+    public function checkProfileCompleteness(User $user, bool $autoPlaceForVerifcation = true)
     {
         $user->refresh();
         if (!$user->role === 'stylist') {
@@ -545,25 +545,20 @@ class StylistController extends Controller
         $isProfileComplete = count($profile_completeness) === count(array_filter($profile_completeness));
 
         if ($isProfileComplete) {
-            if ($user->stylist_profile?->status === 'unverified') {
+            if ($user->stylist_profile?->status === 'unverified' || $autoPlaceForVerifcation) {
                 $user->stylist_profile->update([
                     'is_available' => false,
                     'status' => 'pending',
                 ]);
             }
-        } else if ($canUnVerify && $user->stylist_profile && in_array($user->stylist_profile?->status, ['approved', 'pending', 'rejected'])) {
-            $user->stylist_profile->update([
-                'is_available' => false,
-                'status' => 'unverified',
-            ]);
         }
 
         return $profile_completeness;
     }
 
-    public function runRequirementManager(User $user, bool $canUnVerify = true)
+    public function runRequirementManager(User $user, bool $autoPlaceForVerifcation = true)
     {
-        $profile_completeness = $this->checkProfileCompleteness($user, $canUnVerify);
+        $profile_completeness = $this->checkProfileCompleteness($user, $autoPlaceForVerifcation);
 
         $collection = collect($profile_completeness)->keys()->map(function (string $key) use ($profile_completeness) {
             return [
@@ -694,7 +689,7 @@ class StylistController extends Controller
     {
         $user = $request->user();
         $user = $user->load(['stylist_profile']);
-        $requirementsResp = $this->runRequirementManager($user);
+        $requirementsResp = $this->runRequirementManager($user, false);
         $profile_completeness = $requirementsResp['completness'];
 
         $profile_link = getSlug($user->id);
@@ -923,11 +918,11 @@ class StylistController extends Controller
             $user->save();
         }
 
+        $requirementsResp = $this->runRequirementManager($user);
         if ($request->expectsJson()) {
             return response()->noContent();
         }
 
-        $requirementsResp = $this->runRequirementManager($user);
         if ($requirementsResp['next_requirement']) {
             return $this->executeRequirementAction($requirementsResp, 'Avatar updated successfully. ', true);
         }
@@ -956,11 +951,11 @@ class StylistController extends Controller
             $stylist_profile->save();
         }
 
+        $requirementsResp = $this->runRequirementManager($user);
         if ($request->expectsJson()) {
             return response()->noContent();
         }
 
-        $requirementsResp = $this->runRequirementManager($user);
         if ($requirementsResp['next_requirement']) {
             return $this->executeRequirementAction($requirementsResp, 'Banner updated successfully. ', true);
         }

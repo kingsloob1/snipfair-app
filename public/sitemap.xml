@@ -2,37 +2,37 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>http://127.0.0.1:8000</loc>
-    <lastmod>2025-10-17T22:00:13.155395Z</lastmod>
+    <lastmod>2025-10-18T22:00:11.274607Z</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
     <loc>http://127.0.0.1:8000/about</loc>
-    <lastmod>2025-10-17T22:00:13.155776Z</lastmod>
+    <lastmod>2025-10-18T22:00:11.274988Z</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>http://127.0.0.1:8000/services</loc>
-    <lastmod>2025-10-17T22:00:13.155814Z</lastmod>
+    <lastmod>2025-10-18T22:00:11.275024Z</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
     <loc>http://127.0.0.1:8000/explore</loc>
-    <lastmod>2025-10-17T22:00:13.155841Z</lastmod>
+    <lastmod>2025-10-18T22:00:11.275052Z</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
     <loc>http://127.0.0.1:8000/faqs</loc>
-    <lastmod>2025-10-17T22:00:13.155871Z</lastmod>
+    <lastmod>2025-10-18T22:00:11.275077Z</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>http://127.0.0.1:8000/contact-us</loc>
-    <lastmod>2025-10-17T22:00:13.155895Z</lastmod>
+    <lastmod>2025-10-18T22:00:11.275102Z</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
@@ -50,7 +50,7 @@
   </url>
   <url>
     <loc>http://127.0.0.1:8000/customer/stylist/48</loc>
-    <lastmod>2025-10-14T14:52:31.000000Z</lastmod>
+    <lastmod>2025-10-18T18:40:20.000000Z</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>

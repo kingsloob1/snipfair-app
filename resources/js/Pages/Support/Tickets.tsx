@@ -150,7 +150,7 @@ const TicketCard = ({ ticket }: { ticket: Ticket }) => {
 
             <div className="flex justify-end">
                 <Link
-                    href={route('tickets.show', ticket.ticket_id)}
+                    href={window.route('tickets.show', ticket.ticket_id)}
                     className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
                 >
                     <MessageCircle className="h-4 w-4" />
@@ -190,7 +190,7 @@ const TicketContainer = ({ tickets }: TicketsProps) => {
                     </p>
                 </div>
                 <Link
-                    href={route('tickets.create')}
+                    href={window.route('tickets.create')}
                     className="inline-flex items-center gap-2 rounded-lg bg-sf-gradient-primary px-4 py-2 font-medium text-white transition-colors hover:bg-blue-700"
                 >
                     <Plus className="h-4 w-4" />
@@ -261,7 +261,7 @@ const TicketContainer = ({ tickets }: TicketsProps) => {
                                 : 'No tickets match your current filters.'}
                         </p>
                         <Link
-                            href={route('tickets.create')}
+                            href={window.route('tickets.create')}
                             className="inline-flex items-center gap-2 rounded-lg bg-sf-gradient-primary px-4 py-2 font-medium text-white transition-colors hover:bg-blue-700"
                         >
                             <Plus className="h-4 w-4" />
@@ -289,12 +289,12 @@ export default function Tickets({ auth, tickets }: PageProps<TicketsProps>) {
     const routes = [
         {
             name: 'Dashboard',
-            path: route('dashboard'),
+            path: window.route('dashboard'),
             active: false,
         },
         {
             name: 'Support',
-            path: route('tickets.index'),
+            path: window.route('tickets.index'),
             active: true,
         },
     ];

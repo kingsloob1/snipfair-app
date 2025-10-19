@@ -455,10 +455,14 @@ class DashboardController extends Controller
         ]);
 
         $user->stylistPaymentMethods()->create($validated);
-        $this->stylistController->checkProfileCompleteness($user);
+        $requirementsResp = $this->stylistController->runRequirementManager($user, true);
 
         if ($request->expectsJson()) {
             return response()->noContent();
+        }
+
+        if ($requirementsResp['next_requirement']) {
+            return $this->stylistController->executeRequirementAction($requirementsResp, 'Payout method was created successfully. ', true);
         }
 
         return redirect()->back()->with('success', 'Payout methods created successfully.');
@@ -561,7 +565,7 @@ class DashboardController extends Controller
             }
         }
         $paymentMethod->delete();
-        $this->stylistController->checkProfileCompleteness($user);
+        $this->stylistController->checkProfileCompleteness($user, false);
 
         if ($request->expectsJson()) {
             return response()->noContent();

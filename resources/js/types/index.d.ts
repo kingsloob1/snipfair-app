@@ -48,6 +48,7 @@ export type PagePropsWithNotifiers<
     auth: {
         user: User;
     };
+    'auth:from:app'?: boolean;
     recentChats: Item[];
     recentNotifications: Item[];
 };

@@ -603,7 +603,7 @@ class AppointmentController extends Controller
 
             //Ensure stylist can only be available when fully approved
             if ($isAvailable) {
-                $profileCompleteNess = $this->stylistController->checkProfileCompleteness($user, false);
+                $profileCompleteNess = $this->stylistController->checkProfileCompleteness($user, true);
 
                 if (!collect($profileCompleteNess)->every($profileCompleteNess, fn($val) => !!$val)) {
                     throw ValidationException::withMessages([

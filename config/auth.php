@@ -36,6 +36,10 @@ return [
     */
 
     'guards' => [
+        'query_token' => [
+            'driver' => 'auth_query_token',
+            'provider' => 'users',
+        ],
         'web' => [
             'driver' => 'session',
             'provider' => 'users',

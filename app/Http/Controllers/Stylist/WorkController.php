@@ -203,9 +203,13 @@ class WorkController extends Controller
             throw new BadRequestHttpException('An error occurred while saving your service');
         }
 
-        $this->stylistController->checkProfileCompleteness($user, false);
+        $requirementsResp = $this->stylistController->runRequirementManager($user, true);
 
         $work->load(['category'])->loadCount(['likes']);
+
+        if ($requirementsResp['next_requirement']) {
+            return $this->stylistController->executeRequirementAction($requirementsResp, 'Portfolio was created successfully. ', true);
+        }
 
         return $work;
     }

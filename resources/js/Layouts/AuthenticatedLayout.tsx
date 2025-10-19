@@ -23,8 +23,25 @@ export default function Authenticated({
     exploreRoute?: ExploreRoute;
     fullScreen?: boolean;
 }>) {
-    const { auth, recentChats, recentNotifications } =
-        usePage<PagePropsWithNotifiers>().props;
+    const {
+        auth,
+        recentChats,
+        recentNotifications,
+        'auth:from:app': authenticatedFromApp,
+    } = usePage<PagePropsWithNotifiers>().props;
+
+    if (authenticatedFromApp) {
+        return (
+            <div
+                className={cn(
+                    'bg-sf-white-neutral',
+                    fullScreen ? 'flex h-screen flex-col' : 'min-h-screen',
+                )}
+            >
+                {children}
+            </div>
+        );
+    }
 
     return (
         <div
