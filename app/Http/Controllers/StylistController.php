@@ -427,9 +427,8 @@ class StylistController extends Controller
         }
 
         $work->update($validated);
-
-
         $requirementsResp = $this->runRequirementManager($user);
+
         if ($requirementsResp['next_requirement']) {
             $this->executeRequirementAction($requirementsResp, 'Work / Portfolio was updated successfully. ', false);
         }
@@ -544,6 +543,7 @@ class StylistController extends Controller
 
         $isProfileComplete = count($profile_completeness) === count(array_filter($profile_completeness));
 
+
         if ($isProfileComplete) {
             if ($user->stylist_profile?->status === 'unverified' || $autoPlaceForVerifcation) {
                 $user->stylist_profile->update([
@@ -552,6 +552,8 @@ class StylistController extends Controller
                 ]);
             }
         }
+
+        dd($isProfileComplete, $user->stylist_profile?->status, $autoPlaceForVerifcation);
 
         return $profile_completeness;
     }

@@ -624,6 +624,8 @@ class CustomerApiController extends Controller
                                 `likes`.`type_id` = `portfolios`.`id`
                                 and
                                 `likes`.`user_id` = {$user->id}
+                                and
+                                `likes`.`status` = true
                         )"
                     ),
                 'favourite'

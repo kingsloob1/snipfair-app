@@ -4,6 +4,7 @@ import './bootstrap';
 import { createInertiaApp } from '@inertiajs/react';
 import { configureEcho } from '@laravel/echo-react';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
+import React from 'react';
 import { createRoot } from 'react-dom/client';
 import FlashHandler from './Components/FlashHandler';
 
@@ -19,7 +20,6 @@ createInertiaApp({
         resolvePageComponent(
             `./Pages/${name}.tsx`,
             import.meta.glob('./Pages/**/*.tsx'),
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ).then((module: any) => {
             const component = module.default;
             component.layout =

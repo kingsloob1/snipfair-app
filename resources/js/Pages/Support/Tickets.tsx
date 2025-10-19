@@ -220,7 +220,7 @@ const TicketContainer = ({ tickets }: TicketsProps) => {
                         <select
                             value={statusFilter}
                             onChange={(e) => setStatusFilter(e.target.value)}
-                            className="rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                            className="rounded-lg border border-gray-300 px-8 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
                         >
                             <option value="all">All Status</option>
                             <option value="open">Open</option>
@@ -235,7 +235,7 @@ const TicketContainer = ({ tickets }: TicketsProps) => {
                         <select
                             value={priorityFilter}
                             onChange={(e) => setPriorityFilter(e.target.value)}
-                            className="rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                            className="px-8s rounded-lg border border-gray-300 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
                         >
                             <option value="all">All Priority</option>
                             <option value="low">Low</option>

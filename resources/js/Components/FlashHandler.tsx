@@ -1,5 +1,7 @@
 import CookiePopup from '@/Pages/CookiePopup';
+import { PageProps } from '@/types';
 import { usePage } from '@inertiajs/react';
+import { waitFor } from 'poll-until-promise';
 import React, { useEffect } from 'react';
 import { toast } from 'sonner';
 import FullscreenOverlay from './FullscreenOverlay';
@@ -22,16 +24,20 @@ export default function FlashHandler({
 }: {
     children: React.ReactNode;
 }) {
-    const { url } = usePage();
-    const { flash } = usePage().props as {
-        flash?: {
-            success?: string;
-            error?: string;
-            info?: string;
-            warning?: string;
-            message?: string;
-        };
-    };
+    const {
+        url,
+        props: { flash, 'auth:from:app': authenticatedFromApp },
+    } = usePage<
+        PageProps & {
+            flash?: {
+                success?: string;
+                error?: string;
+                info?: string;
+                warning?: string;
+                message?: string;
+            };
+        }
+    >();
 
     useEffect(() => {
         if (typeof window.Tawk_API !== 'undefined') {
@@ -42,22 +48,29 @@ export default function FlashHandler({
             //     window.route().current('faqs') ||
             //     window.route().current('contact') ||
             //     window.route().current('support.*');
-            const isShowRoute =
+            const isInAuthRoutes =
                 window.route().current('admin.*') ||
                 window.route().current('login') ||
                 window.route().current('register') ||
                 window.route().current('stylist.register');
 
-            setTimeout(() => {
-                if (!window.Tawk_API) return;
-                if (!isShowRoute) {
-                    window.Tawk_API.showWidget();
-                } else {
-                    window.Tawk_API.hideWidget();
-                }
-            }, 1200);
+            const shouldHide = authenticatedFromApp || isInAuthRoutes;
+            waitFor(
+                () => {
+                    if (!window.Tawk_API) {
+                        throw new Error('Tawk API is not yet available');
+                    }
+
+                    if (shouldHide && !window.Tawk_API?.isChatHidden()) {
+                        window.Tawk_API.hideWidget();
+                    } else if (!shouldHide && window.Tawk_API?.isChatHidden()) {
+                        window.Tawk_API.showWidget();
+                    }
+                },
+                { interval: 100, backoffFactor: 1, stopOnFailure: false },
+            );
         }
-    }, [url]);
+    }, [url, authenticatedFromApp]);
 
     useEffect(() => {
         if (flash?.success) toast.success(flash.success);

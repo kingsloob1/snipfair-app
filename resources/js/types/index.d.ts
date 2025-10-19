@@ -40,6 +40,7 @@ export type PageProps<
     auth: {
         user: User;
     };
+    'auth:from:app'?: boolean;
 };
 
 export type PagePropsWithNotifiers<
