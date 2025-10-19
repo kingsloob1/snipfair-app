@@ -545,7 +545,7 @@ class StylistController extends Controller
 
 
         if ($isProfileComplete) {
-            if ($user->stylist_profile?->status === 'unverified' || $autoPlaceForVerifcation) {
+            if (($user->stylist_profile?->status === 'unverified') || $autoPlaceForVerifcation) {
                 $user->stylist_profile->update([
                     'is_available' => false,
                     'status' => 'pending',
