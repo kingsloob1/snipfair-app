@@ -9,6 +9,7 @@ use App\Events\AppointmentCreated;
 use App\Events\AppointmentStatusUpdated;
 use App\Events\PaymentVerificationRequested;
 use App\Helpers\NotificationHelper;
+use App\Http\Controllers\CustomerApiController;
 use App\Mail\AppointmentBookedStylistEmail;
 use App\Mail\DepositNotificationEmail;
 use App\Models\Appointment;
@@ -22,6 +23,13 @@ use Illuminate\Support\Facades\Mail;
 
 class AppointmentController extends Controller
 {
+    private $customerApiController;
+
+    public function __construct(CustomerApiController $customerApiController)
+    {
+        $this->customerApiController = $customerApiController;
+    }
+
     public function getBookingStatus(Request $request, $portfolioId)
     {
         $customer = $request->user();
@@ -100,142 +108,22 @@ class AppointmentController extends Controller
 
     public function createAppointment(Request $request)
     {
-        $request->validate([
-            'portfolio_id' => 'required|exists:portfolios,id',
-            'stylist_id' => 'required|exists:users,id',
-            'amount' => 'required|numeric|min:0|gt:0',
-            'selected_date' => 'required|string',
-            'selected_time' => 'required|string',
-            'extra' => 'nullable|string',
-            'address' => 'required|string',
-            'type' => 'required|string|in:processing,pending'
-        ]);
+        $appointmentResp = $this->customerApiController->bookAppointment($request);
 
-        $customer = $request->user();
-        $portfolio = Portfolio::findOrFail($request->portfolio_id);
-
-        // Check if customer has insufficient balance
-        if ($request->type === 'pending' && $customer->balance < $request->amount) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Insufficient balance. Please add funds to continue.',
-                'required_amount' => $request->amount - $customer->balance,
-            ], 400);
+        if (!($appointmentResp instanceof Appointment)) {
+            return $appointmentResp;
         }
-
-        // Create appointment codes
-        do {
-            $appointmentCode = 'SF-' . strtoupper(substr(md5(uniqid()), 0, 6));
-        } while (Appointment::where('appointment_code', $appointmentCode)->exists());
-
-        do {
-            $completionCode = 'CP-' . strtoupper(substr(md5(uniqid() . 'complete'), 0, 6));
-        } while (Appointment::where('completion_code', $completionCode)->exists());
-
-        // Create appointment with processing status
-        $appointment_time = Carbon::createFromFormat('g:i A', $request->selected_time)->format('H:i:s');
-        $appointment = Appointment::create([
-            'stylist_id' => $request->stylist_id,
-            'customer_id' => $customer->id,
-            'portfolio_id' => $request->portfolio_id,
-            'amount' => $request->amount,
-            'duration' => $portfolio->duration,
-            'appointment_code' => $appointmentCode,
-            'completion_code' => $completionCode,
-            'status' => $request->type,
-            'booking_id' => 'BK-' . time() . '-' . $customer->id,
-            'appointment_date' => $request->selected_date,
-            'appointment_time' => $appointment_time,
-            'extra' => $request->extra ?? null,
-            'service_notes' => $request->address ?? null,
-        ]);
-
-        // Deduct amount from customer balance
-        if ($request->type === 'pending') {
-            // $customer->update(['balance' => $customer->balance - $request->amount]);
-            if ($request->address) {
-                $customer->update(['country' => $request->address]);
-            }
-            $transaction = Transaction::create([
-                'user_id' => $customer->id,
-                'appointment_id' => $appointment->id,
-                'amount' => $request->amount,
-                'type' => 'payment',
-                'status' => 'approved',
-                'description' => 'Appointment booking payment from wallet',
-                'ref' => 'PAY-' . time(),
-            ]);
-        } elseif ($request->type === 'processing') {
-            $deposit = Deposit::where('user_id', $customer->id)->where('portfolio_id', $request->portfolio_id)->where('status', 'pending')->whereNull('appointment_id')->latest()->first();
-
-            if (!$deposit) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'No pending deposit found for this appointment.',
-                ], 400);
-            }
-            $deposit->update(['appointment_id' => $appointment->id]);
-            if ($customer->balance > 0) {
-                // $portfolio = Portfolio::find($request->portfolio_id);
-                // if($customer->balance + $request->amount == $portfolio->price){
-                // $customer->update(['balance' => 0]);
-                $transaction = Transaction::create([
-                    'user_id' => $customer->id,
-                    'appointment_id' => $appointment->id,
-                    'amount' => $request->amount,
-                    'type' => 'payment',
-                    'status' => 'pending',
-                    'description' => 'Partial appointment booking payment',
-                    'ref' => 'PAY-' . time(),
-                ]);
-                // }
-            } else {
-                $transaction = Transaction::create([
-                    'user_id' => $customer->id,
-                    'appointment_id' => $appointment->id,
-                    'amount' => $request->amount,
-                    'type' => 'payment',
-                    'status' => 'pending',
-                    'description' => 'Appointment booking payment',
-                    'ref' => 'PAY-' . time(),
-                ]);
-            }
-        }
-
-        // Load relationships for events
-        $appointment->load(['customer', 'stylist', 'portfolio']);
-
-        // Broadcast appointment created event
-        // broadcast(new AppointmentCreated($appointment));
-        sendNotification(
-            $appointment->stylist_id,
-            route('stylist.appointment', $appointment->id),
-            'New Appointment',
-            'You have a new appointment from ' . $appointment->customer->name,
-            'normal',
-        );
-
-        // Broadcast payment verification request to admin
-        if ($request->type === 'processing')
-            broadcast(new PaymentVerificationRequested($appointment, $request->amount, $transaction->ref));
-
-        Mail::to($appointment->stylist->email)->send(new AppointmentBookedStylistEmail(
-            appointment: $appointment,
-            stylist: $appointment->stylist,
-            customer: $appointment->customer,
-            portfolio: $appointment->portfolio
-        ));
 
         return response()->json([
             'success' => true,
             'message' => 'Appointment created successfully',
             'appointment' => [
-                'id' => $appointment->id,
-                'status' => $appointment->status,
-                'appointment_code' => $appointment->appointment_code,
-                'completion_code' => $appointment->completion_code,
-                'booking_id' => $appointment->booking_id,
-                'amount' => $appointment->amount,
+                'id' => $appointmentResp->id,
+                'status' => $appointmentResp->status,
+                'appointment_code' => $appointmentResp->appointment_code,
+                'completion_code' => $appointmentResp->completion_code,
+                'booking_id' => $appointmentResp->booking_id,
+                'amount' => $appointmentResp->amount,
             ],
         ]);
     }

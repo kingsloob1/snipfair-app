@@ -2,16 +2,20 @@
 
 namespace App\Jobs;
 
+use App\Events\AppointmentStatusUpdated;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\DepositConfirmationEmail;
 use App\Models\Deposit;
-use App\Models\Transaction;  // Your Transaction model
+use App\Models\User;
+use Exception;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 class ProcessPayfastDeposit implements ShouldQueue
 {
@@ -24,7 +28,8 @@ class ProcessPayfastDeposit implements ShouldQueue
         protected Deposit $deposit,
         protected array $pfData,
         protected ?string $transactionId
-    ){}
+    ) {
+    }
 
     /**
      * Execute the job.
@@ -35,69 +40,152 @@ class ProcessPayfastDeposit implements ShouldQueue
         $transactionId = $this->transactionId;
         $pfData = $this->pfData;
         $pfPaymentId = $pfData['pf_payment_id'] ?? null;
+        $lockKey = "payfast:payment:handler:{$pfPaymentId}";
 
-        // 🔒 Deduplication check
-        if ($pfPaymentId && $deposit->reference === $pfPaymentId) {
-            Log::warning("Duplicate Payfast webhook ignored for deposit {$deposit->id} [pf_payment_id={$pfPaymentId}]");
+        //Only process pending deposit
+        if ($deposit->status !== 'pending') {
+            Log::warning("Payfast deposit has already been processed for deposit {$deposit->id} [pf_payment_id={$pfPaymentId}]");
             return;
         }
 
-        $transaction = Transaction::find($transactionId);
+        $cleanUpWithStatus = function (string $status) use ($deposit, $lockKey) {
+            $deposit->update([
+                'status' => $status
+            ]);
+            Cache::lock($lockKey)->forceRelease();
+        };
 
-        // If it's a portfolio deposit, wait until appointment exists
-        if ($deposit->portfolio_id == (int) $transactionId && !$deposit->appointment) {
-            Log::info("Appointment not ready for deposit {$deposit->id}, retrying...");
-            self::dispatch($deposit, $pfData, $transactionId)->delay(now()->addSeconds(5));
-            return;
-        }
+        //Hold the lock for a day.. This ensures only one process can process this deposit
+        Cache::lock($lockKey, 60 * 60 * 24)->block(20, function () use ($deposit, $transactionId, $pfData, $pfPaymentId, $cleanUpWithStatus) {
+            $deposit->update([
+                'status' => 'processing'
+            ]);
 
-        if($appointment = $deposit->appointment) $transaction = null;
-        if ($deposit && (($transaction && $deposit->transaction_id == $transaction->id) || ($appointment && $deposit->appointment_id == $appointment->id))) {
-            $status = strtolower($pfData['payment_status'] ?? 'unknown');
+            //Appointment has not been created for deposit. Wait until appointment is available
+            if ($deposit->portfolio_id && !$deposit->appointment_id) {
+                Log::info("Appointment not ready for deposit {$deposit->id}, retrying...");
 
-            if ($status === 'complete') {
-                if ($transaction) {
-                    $transaction->update([
-                        'status' => 'completed',
-                    ]);
-                } else if ($appointment) {
-                    $appointmentTransaction = $appointment->transaction;
-                    if ($appointmentTransaction) {
-                        $user = $appointment->customer;
-                        if ($user->balance > 0 && str_contains(strtolower($appointmentTransaction->description), 'partial')) {
-                            $user->update(['balance' => 0]);
-                        }
-                        $appointment->update(['status' => 'pending']);
-                        $appointmentTransaction->update(['status' => 'completed']);
-                    }
-                }
-
-                $deposit->user->increment('balance', $deposit->amount);
-                $deposit->update([
-                    'status' => 'approved',
-                    'reference' => $pfPaymentId,
-                ]);
-
-                Mail::to($deposit->user->email)->send(new DepositConfirmationEmail(
-                    deposit: $deposit,
-                    customer: $deposit->user,
-                    newBalance: $deposit->user->balance
-                ));
-                sendNotification(
-                    $deposit->user->id,
-                    route('customer.wallet'),
-                    'Deposit Successful',
-                    'Your deposit of R' . $deposit->amount . ' has been successfully completed.',
-                    'normal',
-                );
-            } elseif ($status === 'cancelled') {
-                $deposit->update([
-                    'status' => 'declined',
-                    'reference' => $pfPaymentId, // ✅ Still store so we don’t reprocess
-                ]);
+                $cleanUpWithStatus('pending');
+                self::dispatch($deposit, $pfData, $transactionId)->delay(now()->addSeconds(10));
+                return;
             }
-        } else {
-            Log::error("Transaction {$transactionId} not found or not matching deposit {$deposit->id}");
-        }
+
+            $status = strtolower($pfData['payment_status'] ?? 'unknown');
+            $transaction = $deposit->transaction;
+            $appointment = $deposit->appointment;
+
+            if ($appointment) {
+                $appointmentDepositTxn = $appointment
+                    ->transactions()
+                    ->where('type', '=', 'payment')
+                    ->whereLike('ref', "PAY-DEPOSIT-DEBIT-%", false)
+                    ->first();
+
+                if ($appointmentDepositTxn) {
+                    $deposit->update([
+                        'transaction_id' => $appointmentDepositTxn->id
+                    ]);
+
+                    $transaction = $appointmentDepositTxn;
+                }
+            }
+
+            try {
+                DB::transaction(function () use ($appointment, $deposit, $transaction, $status, $pfPaymentId, $cleanUpWithStatus) {
+                    switch ($status) {
+                        case 'complete': {
+                            if ($transaction) {
+                                $transaction->update([
+                                    'status' => 'completed'
+                                ]);
+
+                                // fund transaction amountto wallet for topup
+                                if ($transaction->type === 'topup') {
+                                    $amountToFund = abs($transaction->amount);
+
+                                    // fund topup amount
+                                    User::query()
+                                        ->where('id', '=', $transaction->user_id)
+                                        ->update(['balance' => DB::raw("balance + {$amountToFund}")]);
+                                }
+                            }
+
+                            if ($appointment) {
+                                //Cancel appointment here
+                                $previousStatus = $appointment->status;
+                                $appointment->status = 'pending';
+                                $appointment->save();
+
+                                broadcast(new AppointmentStatusUpdated($appointment, $previousStatus));
+                            }
+
+                            Mail::to($deposit->user->email)->send(new DepositConfirmationEmail(
+                                deposit: $deposit,
+                                customer: $deposit->user,
+                                newBalance: $deposit->user->balance
+                            ));
+
+                            sendNotification(
+                                $deposit->user->id,
+                                route('customer.wallet'),
+                                'Deposit Successful',
+                                'Your deposit of R' . $deposit->amount . ' has been successfully completed.',
+                                'normal',
+                            );
+
+                            Log::info("Approved deposit for {$deposit->id} [pf_payment_id={$pfPaymentId}]");
+                            $cleanUpWithStatus('approved');
+                            break;
+                        }
+
+                        //If it is for an appointment, ensure you refund tha amount debited from wallet back and then cancel the appointment
+                        case 'cancelled': {
+                            if ($appointment) {
+                                //Reverse transaction for wallet debit
+                                $appointment
+                                    ->transactions()
+                                    ->where('type', '=', 'payment')
+                                    ->whereLike('ref', "PAY-PARTIAL-WALLET-DEBIT-%", false)
+                                    ->update([
+                                        'status' => 'reversed'
+                                    ]);
+
+                                $amountToRefundFundCustomer = abs(((float) $appointment->amount) - ((float) $deposit->amount));
+
+                                // refund amount deducted from wallet for appointment
+                                User::query()
+                                    ->where('id', '=', $appointment->customer_id)
+                                    ->update(['balance' => DB::raw("balance + {$amountToRefundFundCustomer}")]);
+
+                                //Cancel appointment here
+                                $previousStatus = $appointment->status;
+                                $appointment->status = 'canceled';
+                                $appointment->save();
+
+                                broadcast(new AppointmentStatusUpdated($appointment, $previousStatus));
+                            }
+
+                            if ($transaction) {
+                                $transaction->update([
+                                    'status' => 'failed'
+                                ]);
+                            }
+
+                            Log::info("Declined deposit for {$deposit->id} [pf_payment_id={$pfPaymentId}]");
+                            $cleanUpWithStatus('declined');
+                            break;
+                        }
+
+                        default: {
+                            Log::warning("No handler specified for status \"{$status}\" for deposit {$deposit->id} [pf_payment_id={$pfPaymentId}]");
+                            $cleanUpWithStatus('pending');
+                            return;
+                        }
+                    }
+                });
+            } catch (Exception $e) {
+                $cleanUpWithStatus('pending');
+            }
+        });
     }
 }

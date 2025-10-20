@@ -1,3 +1,5 @@
+import { get, isObject, isString } from 'lodash-es';
+import urlJoin from 'url-join';
 import { fullscreenOverlay } from './fullscreen-overlay';
 
 export const getInitials = (userName: string | null | undefined) => {
@@ -121,4 +123,43 @@ export const appointmentPercentage = (current: number, total: number) => {
 
 export const openFullscreenOverlay = (imageUrl: string) => {
     fullscreenOverlay.open(imageUrl);
+};
+
+export const getStoredFileFullUrl = (
+    filePath: string | null | undefined,
+    baseUrlOrInertiaPageProps: Record<string, unknown> | string,
+) => {
+    if (!isString(filePath)) {
+        return undefined;
+    }
+
+    const appBaseURL =
+        (isString(baseUrlOrInertiaPageProps)
+            ? baseUrlOrInertiaPageProps
+            : isObject(baseUrlOrInertiaPageProps)
+              ? (get(baseUrlOrInertiaPageProps, 'appBaseURL', '') as string)
+              : '') || (get(window, 'location.origin', '') as string);
+
+    if (!appBaseURL) {
+        return filePath;
+    }
+
+    const storageBaseURL = urlJoin(appBaseURL, '/storage');
+
+    if (filePath.startsWith(appBaseURL)) {
+        return filePath;
+    }
+
+    if (filePath.startsWith('/storage/')) {
+        return urlJoin(appBaseURL, filePath);
+    }
+
+    if (filePath.startsWith('storage/')) {
+        return urlJoin(appBaseURL, `/${filePath}`);
+    }
+
+    return urlJoin(
+        storageBaseURL,
+        filePath.startsWith('/') ? filePath : `/${filePath}`,
+    );
 };

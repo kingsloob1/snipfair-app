@@ -467,15 +467,18 @@ class StylistController extends Controller
             'media.*' => 'file|mimes:jpg,jpeg,png|max:5120',
         ]);
 
-        $existing = $work->media_urls ?? [];
+        $existingFilePaths = array_map(function ($filePath) {
+            return formatStoredFilePath($filePath);
+        }, $work->media_urls ?? []);
         $newFiles = [];
 
         foreach ($request->file('media') as $file) {
-            $newFiles[] = $file->store('works/media', 'public');
+            $newFiles[] = formatStoredFilePath($file->store('works/media', 'public'));
         }
 
-        $combined = array_slice([...$existing, ...$newFiles], 0, 10);
-        $work->media_urls = $combined;
+        $combinedFilePaths = array_slice([...$existingFilePaths, ...$newFiles], 0, 10);
+
+        $work->media_urls = $combinedFilePaths;
         $work->save();
 
         return redirect()->route('stylist.work')->with('success', 'Work updated successfully!');
@@ -495,11 +498,15 @@ class StylistController extends Controller
             'path' => 'required|string',
         ]);
 
-        $media = $work->media_urls ?? [];
-        $media = array_filter($media, fn($url) => $url !== $request->path);
+        $filePathToDelete = formatStoredFilePath($request->path);
+        $mediaFilePaths = array_map(function ($filePath) {
+            return formatStoredFilePath($filePath);
+        }, $work->media_urls ?? []);
 
-        Storage::disk('public')->delete($request->path);
-        $work->media_urls = array_values($media);
+        $mediaFilePaths = array_values(array_filter($mediaFilePaths, fn($savedPath) => !!$savedPath && ($savedPath !== $filePathToDelete)));
+
+        Storage::disk('public')->delete($filePathToDelete);
+        $work->media_urls = array_values($mediaFilePaths);
         $work->save();
 
         return back()->with('success', 'Media removed.');
@@ -513,6 +520,14 @@ class StylistController extends Controller
 
         if (!$user || !$stylist || !$work || $work->user_id != $user->id) {
             abort(403, 'Access Denied');
+        }
+
+        $mediaFilePaths = array_filter(array_map(function ($filePath) {
+            return formatStoredFilePath($filePath);
+        }, $work->media_urls ?? []));
+
+        foreach ($mediaFilePaths as $key => $filePath) {
+            Storage::disk('public')->delete($filePath);
         }
 
         $work->delete();

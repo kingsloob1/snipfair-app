@@ -8,11 +8,11 @@ import SelectInput from '@/Components/SelectInput';
 import TextareaInput from '@/Components/TextareaInput';
 import TextInput from '@/Components/TextInput';
 import { StylistAuthLayout } from '@/Layouts/StylistAuthLayout';
-import { mergeInertiaFieldErrors } from '@/lib/helper';
+import { getStoredFileFullUrl, mergeInertiaFieldErrors } from '@/lib/helper';
 import ToggleSwitch from '@/Pages/Admin/Settings/_Includes/ToggleSwitch';
-import { router, useForm } from '@inertiajs/react';
+import { router, useForm, usePage } from '@inertiajs/react';
 import { X } from 'lucide-react';
-import { FormEventHandler, useState } from 'react';
+import React, { FormEventHandler, useState } from 'react';
 
 type WorkFormProps = {
     title: string;
@@ -45,6 +45,7 @@ export default function Work({
     work: WorkProps;
     category_names: string[];
 }) {
+    const pageData = usePage();
     const existingMedia = work.media_urls;
     const [deleting, setDeleting] = useState<string | null>(null);
     const [deletingWork, setDeletingWork] = useState<boolean>(false);
@@ -62,12 +63,12 @@ export default function Work({
     const routes = [
         {
             name: 'Work',
-            path: route('stylist.work'),
+            path: window.route('stylist.work'),
             active: true,
         },
         {
             name: 'Update Work',
-            path: route('stylist.work.edit', work.id),
+            path: window.route('stylist.work.edit', work.id),
             active: false,
         },
     ];
@@ -77,9 +78,9 @@ export default function Work({
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
 
-        put(route('stylist.work.update', work.id), {
+        put(window.route('stylist.work.update', work.id), {
             onFinish: () => {
-                route('stylist.work');
+                window.route('stylist.work');
             },
         });
     };
@@ -88,7 +89,7 @@ export default function Work({
         e.preventDefault();
         if (data.media.length === 0) return;
 
-        post(route('stylist.work.media.upload', work.id), {
+        post(window.route('stylist.work.media.upload', work.id), {
             onSuccess: () => {
                 reset('media');
                 router.reload({ only: ['work'] });
@@ -103,7 +104,7 @@ export default function Work({
     const handleDelete = () => {
         if (!deleting) return;
 
-        router.delete(route('stylist.work.media.delete', work.id), {
+        router.delete(window.route('stylist.work.media.delete', work.id), {
             data: { path: deleting },
             onSuccess: () => {
                 setDeleting(null);
@@ -115,10 +116,10 @@ export default function Work({
     const deleteWork = () => {
         if (!deletingWork) return;
 
-        router.delete(route('stylist.work.delete', work.id), {
+        router.delete(window.route('stylist.work.delete', work.id), {
             data: {},
             onSuccess: () => {
-                router.visit(route('stylist.work'));
+                router.visit(window.route('stylist.work'));
             },
         });
     };
@@ -130,7 +131,7 @@ export default function Work({
         if (isProcessing) return;
         setIsProcessing(true);
         router.put(
-            route('stylist.work.toggle', id),
+            window.route('stylist.work.toggle', id),
             {},
             {
                 onSuccess: () => {
@@ -348,15 +349,15 @@ export default function Work({
                         </CustomButton>
                     </div>
                 </Modal>
-                {existingMedia.length > 0 && (
-                    <form
-                        className="p-4 shadow-sm md:p-6"
-                        onSubmit={handleUpload}
-                    >
+                <form className="p-4 shadow-sm md:p-6" onSubmit={handleUpload}>
+                    {existingMedia.length > 0 && (
                         <div className="group relative w-full rounded-lg">
                             <img
                                 // src={existingMedia[0]}
-                                src={`/storage/${existingMedia[0]}`}
+                                src={getStoredFileFullUrl(
+                                    existingMedia[0],
+                                    pageData.props,
+                                )}
                                 className="w-full rounded-lg object-cover"
                                 alt={`media-1`}
                             />
@@ -368,50 +369,53 @@ export default function Work({
                                 <X size={14} />
                             </button>
                         </div>
-                        <div className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-2">
-                            {existingMedia.slice(1).map((url, idx) => (
-                                <div
-                                    key={idx}
-                                    className="group relative w-full rounded-lg"
+                    )}
+                    <div className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-2">
+                        {existingMedia.slice(1).map((url, idx) => (
+                            <div
+                                key={idx}
+                                className="group relative w-full rounded-lg"
+                            >
+                                <img
+                                    // src={url}
+                                    src={getStoredFileFullUrl(
+                                        url,
+                                        pageData.props,
+                                    )}
+                                    className="h-full w-full rounded-lg object-cover"
+                                    alt={`media-${idx}`}
+                                />
+                                <button
+                                    onClick={() => confirmDelete(url)}
+                                    type="button"
+                                    className="absolute right-1 top-1 hidden rounded-full border border-sf-white bg-red-500 p-1.5 text-white group-hover:block"
                                 >
-                                    <img
-                                        // src={url}
-                                        src={`/storage/${url}`}
-                                        className="h-full w-full rounded-lg object-cover"
-                                        alt={`media-${idx}`}
-                                    />
-                                    <button
-                                        onClick={() => confirmDelete(url)}
-                                        type="button"
-                                        className="absolute right-1 top-1 hidden rounded-full border border-sf-white bg-red-500 p-1.5 text-white group-hover:block"
-                                    >
-                                        <X size={14} />
-                                    </button>
-                                </div>
-                            ))}
-                            <FileInput
-                                value={data.media}
-                                onChange={(files) => setData('media', files)}
-                                type="image"
-                                maxFiles={10 - work.media_urls.length}
-                                disabled={processing}
-                                error={mergedErrors[0] ?? ''}
-                                isRequired={true}
-                                label="Add more media"
-                                extra="(Up to 10 files)"
-                            />
-                        </div>
-                        <CustomButton
-                            variant="secondary"
-                            type="submit"
-                            disabled={processing || !data.media.length}
-                            fullWidth={false}
-                            className="mx-auto mb-6 mt-4"
-                        >
-                            Update Images
-                        </CustomButton>
-                    </form>
-                )}
+                                    <X size={14} />
+                                </button>
+                            </div>
+                        ))}
+                        <FileInput
+                            value={data.media}
+                            onChange={(files) => setData('media', files)}
+                            type="image"
+                            maxFiles={10 - work.media_urls.length}
+                            disabled={processing}
+                            error={mergedErrors[0] ?? ''}
+                            isRequired={true}
+                            label="Add more media"
+                            extra="(Up to 10 files)"
+                        />
+                    </div>
+                    <CustomButton
+                        variant="secondary"
+                        type="submit"
+                        disabled={processing || !data.media.length}
+                        fullWidth={false}
+                        className="mx-auto mb-6 mt-4"
+                    >
+                        Update Images
+                    </CustomButton>
+                </form>
             </section>
         </StylistAuthLayout>
     );
