@@ -16,12 +16,15 @@ use App\Models\User;
 use Carbon\Carbon;
 use Inertia\Inertia;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
 
-class CustomerController extends Controller {
-    public function profile(Request $request){
+class CustomerController extends Controller
+{
+    public function profile(Request $request)
+    {
         $customer = $request->user();
         $totalSpendings = $request->user()->transactions()
             ->where('type', 'payment')
@@ -50,7 +53,8 @@ class CustomerController extends Controller {
         ]);
     }
 
-    public function profileUpdate(Request $request){
+    public function profileUpdate(Request $request)
+    {
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email,' . $request->user()->id],
@@ -75,7 +79,8 @@ class CustomerController extends Controller {
         return redirect()->back()->with('success', 'Profile updated successfully.');
     }
 
-    public function avatarUpdate(Request $request){
+    public function avatarUpdate(Request $request)
+    {
         $request->validate([
             'avatar' => ['required', 'image', 'max:2048'],
         ]);
@@ -94,10 +99,11 @@ class CustomerController extends Controller {
         return redirect()->back()->with('success', 'Avatar updated successfully.');
     }
 
-    public function settings(Request $request){
+    public function settings(Request $request)
+    {
         $customer = $request->user();
         $customer_profile = $customer->customer_profile;
-        if(!$customer_profile){
+        if (!$customer_profile) {
             $customer_profile = $customer->customer_profile()->firstOrCreate(
                 [],
                 [
@@ -150,7 +156,7 @@ class CustomerController extends Controller {
             'preferences' => $customer_settings,
             'notifications' => $customer_notifications,
             'payment_history' => $payment_history->map(function ($transaction) {
-                $stylist =  $transaction->appointment?->stylist;
+                $stylist = $transaction->appointment?->stylist;
                 return [
                     'id' => $transaction->id,
                     'amount' => $transaction->amount,
@@ -181,14 +187,15 @@ class CustomerController extends Controller {
         $words = explode(' ', $user->name);
         $initials = strtoupper(
             count($words) >= 2
-                ? substr($words[0], 0, 1) . substr($words[1], 0, 1)
-                : substr($user->name, 0, 2)
+            ? substr($words[0], 0, 1) . substr($words[1], 0, 1)
+            : substr($user->name, 0, 2)
         );
 
         return $initials;
     }
 
-    public function explore(Request $request){
+    public function explore(Request $request)
+    {
         $customer = $request->user();
         $stylists = User::where('role', 'stylist')->whereHas('stylist_profile', function ($query) {
             $query->where('is_available', true)->where('status', 'approved');
@@ -222,7 +229,7 @@ class CustomerController extends Controller {
                 $distance = 'N/A';
             } else {
                 $distance = $locationService->distanceTo($targetLocationService);
-                $distance = $distance !== null ? round($distance, 2). ' km' : 'N/A';
+                $distance = $distance !== null ? round($distance, 2) . ' km' : 'N/A';
             }
 
             // Get dynamic availability data
@@ -249,13 +256,13 @@ class CustomerController extends Controller {
                 'profile_image' => $this->getAvatar($stylist),
                 'banner_image' => $stylist->stylist_profile->banner ? asset('storage/' . $stylist->stylist_profile->banner) : null,
                 'sample_images' => $stylist->portfolios()->whereNotNull('media_urls')->pluck('media_urls')->take(3),
-                'price_range' => ($minPortfolio !== null && $maxPortfolio !== null) ? 'R'."{$minPortfolio}-R{$maxPortfolio}" : null,
+                'price_range' => ($minPortfolio !== null && $maxPortfolio !== null) ? 'R' . "{$minPortfolio}-R{$maxPortfolio}" : null,
                 'price' => $minPortfolio,
                 'location' => $stylist->country,
                 'categories' => $categories,
                 'years_of_experience' => $stylist->stylist_profile->years_of_experience ?? 0,
                 'likes_count' => $total_likes,
-                'section' => $stylist->is_featured ?  'top_rated' : 'online',
+                'section' => $stylist->is_featured ? 'top_rated' : 'online',
             ];
         });
 
@@ -272,9 +279,13 @@ class CustomerController extends Controller {
                 $portfolio_total_reviews = $portfolio->appointments()->whereHas('review')->count();
                 $portfolio->is_liked = in_array($portfolio->id, $likedPortfolioIds);
                 $portfolio->increment('visits_count');
+                $portfolioBannerImage = Arr::get($portfolio->media_urls ?? [], '0', '');
+
+                $portfolioBannerImage = $portfolioBannerImage ? asset('storage/' . formatStoredFilePath($portfolioBannerImage)) : null;
+
                 return [
                     'id' => $portfolio->id,
-                    'banner_image' => $portfolio->media_urls[0] ? asset('storage/' . $portfolio->media_urls[0]) : null,
+                    'banner_image' => $portfolioBannerImage,
                     'category' => $portfolio->category->name,
                     'name' => $portfolio->title,
                     'description' => $portfolio->description,
@@ -327,10 +338,12 @@ class CustomerController extends Controller {
         ]);
     }
 
-    public function getStylists(Request $request){
+    public function getStylists(Request $request)
+    {
         $customer = $request->user();
-        if($customer->role !== 'customer') return redirect()->route('link.show', $customer->id);
-        
+        if ($customer->role !== 'customer')
+            return redirect()->route('link.show', $customer->id);
+
         $stylists = User::where('role', 'stylist')->whereHas('stylist_profile', function ($query) {
             $query->where('is_available', true)->where('status', 'approved');
         })->get();
@@ -364,7 +377,7 @@ class CustomerController extends Controller {
                 $distance = 'N/A';
             } else {
                 $distance = $locationService->distanceTo($targetLocationService);
-                $distance = $distance !== null ? round($distance, 2). ' km' : 'N/A';
+                $distance = $distance !== null ? round($distance, 2) . ' km' : 'N/A';
             }
 
             // Get dynamic availability data
@@ -376,7 +389,7 @@ class CustomerController extends Controller {
                 'stylist_profile_id' => $stylist->stylist_profile->id ?? null,
                 'availability_status' => $stylist->stylist_profile->is_available ?? false,
                 'availability' => $availabilityData['availability'],
-                'description' => $stylist->bio. ' | ' . $categories_names,
+                'description' => $stylist->bio . ' | ' . $categories_names,
                 'category' => $categories[0]['category'] ?? null,
                 'distance' => $distance,
                 'appointment_counts' => $stylist->stylistAppointments()->count(),
@@ -397,7 +410,7 @@ class CustomerController extends Controller {
                 'categories' => $categories,
                 'years_of_experience' => $stylist->stylist_profile->years_of_experience ?? 0,
                 'likes_count' => $total_likes,
-                'section' => $stylist->is_featured ?  'top_rated' : 'online',
+                'section' => $stylist->is_featured ? 'top_rated' : 'online',
             ];
         });
 
@@ -439,7 +452,8 @@ class CustomerController extends Controller {
         ]);
     }
 
-    public function getStylist(Request $request, $id){
+    public function getStylist(Request $request, $id)
+    {
         $stylist = User::where('role', 'stylist')->where('id', $id)->whereHas('stylist_profile', function ($query) {
             $query->where('is_available', true)->where('status', 'approved');
         })->firstOrFail();
@@ -485,19 +499,19 @@ class CustomerController extends Controller {
         $actual_reviews = Review::whereHas('appointment', function ($query) use ($stylist) {
             $query->where('stylist_id', $stylist->id);
         })
-        ->with(['appointment.customer'])
-        ->latest()
-        ->take(5)
-        ->get()
-        ->map(function ($review) {
-            return [
-                'name' => $review->appointment->customer->name ?? 'Anonymous',
-                'title' => 'Customer',
-                'message' => $review->comment ?? 'Great service!',
-                'rating' => $review->rating ?? 5,
-                'ratingDate' => $review->created_at->diffForHumans(),
-            ];
-        });
+            ->with(['appointment.customer'])
+            ->latest()
+            ->take(5)
+            ->get()
+            ->map(function ($review) {
+                return [
+                    'name' => $review->appointment->customer->name ?? 'Anonymous',
+                    'title' => 'Customer',
+                    'message' => $review->comment ?? 'Great service!',
+                    'rating' => $review->rating ?? 5,
+                    'ratingDate' => $review->created_at->diffForHumans(),
+                ];
+            });
 
         // Get stylist schedule
         $workingHours = $stylist->stylistSchedules()->with('slots')->get()
@@ -545,7 +559,7 @@ class CustomerController extends Controller {
             $distance = 'N/A';
         } else {
             $distance = $locationService->distanceTo($targetLocationService);
-            $distance = $distance !== null ? round($distance, 2). ' km' : 'N/A';
+            $distance = $distance !== null ? round($distance, 2) . ' km' : 'N/A';
         }
         $availabilityData = calculateStylistAvailability($stylist);
         $stylist->stylist_profile->increment('visits_count');
@@ -576,7 +590,7 @@ class CustomerController extends Controller {
                 'categories' => $categories,
                 'years_of_experience' => $stylist->stylist_profile->years_of_experience ?? 0,
                 'likes_count' => $total_likes,
-                'section' => $stylist->is_featured ?  'top_rated' : 'online',
+                'section' => $stylist->is_featured ? 'top_rated' : 'online',
                 'appointment_counts' => $appointment_counts,
                 'services_completed' => $appointment_counts . '+',
                 'work_experience' => ($stylist->stylist_profile->years_of_experience ?? 0) . '+ years',
@@ -592,7 +606,7 @@ class CustomerController extends Controller {
     {
         $customer = User::where('role', 'customer')->where('id', $id)->firstOrFail();
         $stylist = $request->user();
-        
+
         $appointment_counts = $customer->customerAppointments()->count();
         $completed_appointments = $customer->customerAppointments()->where('status', 'completed')->count();
         $total_spending = $customer->customerAppointments()->where('status', '!=', 'processing')->sum('amount');
@@ -617,7 +631,7 @@ class CustomerController extends Controller {
             $distance = 'N/A';
         } else {
             $distance = $locationService->distanceTo($targetLocationService);
-            $distance = $distance !== null ? round($distance, 2). ' km' : 'N/A';
+            $distance = $distance !== null ? round($distance, 2) . ' km' : 'N/A';
         }
         $appointments = Appointment::where('stylist_id', $stylist->id)->where('customer_id', $customer->id)->with(['stylist', 'portfolio.category'])->latest()->get();
 
@@ -642,10 +656,11 @@ class CustomerController extends Controller {
             'appointments' => $appointments,
         ]);
 
-        
+
     }
 
-    public function getFavorites(Request $request){
+    public function getFavorites(Request $request)
+    {
         $customer = $request->user();
         $stylists = User::where('role', 'stylist')
             ->whereHas('stylist_profile', function ($query) use ($customer) {
@@ -703,7 +718,7 @@ class CustomerController extends Controller {
                 'categories' => $categories,
                 'years_of_experience' => $stylist->stylist_profile->years_of_experience ?? 0,
                 'likes_count' => $total_likes,
-                'section' => $stylist->is_featured ?  'top_rated' : 'online',
+                'section' => $stylist->is_featured ? 'top_rated' : 'online',
             ];
         });
 
@@ -747,7 +762,8 @@ class CustomerController extends Controller {
     public function bookAppointment(Request $request, $portfolioId)
     {
         $customer = $request->user();
-        if($portfolioId == 0) return to_route('customer.stylists');
+        if ($portfolioId == 0)
+            return to_route('customer.stylists');
         $portfolio = Portfolio::whereHas('category')->with('category')->find($portfolioId);
 
         // Check if the portfolio is available
@@ -803,7 +819,7 @@ class CustomerController extends Controller {
             $distance = null;
         } else {
             $distance = $locationService->distanceTo($targetLocationService);
-            $distance = $distance !== null ? round($distance, 2). 'km away' : null;
+            $distance = $distance !== null ? round($distance, 2) . 'km away' : null;
         }
         $portfolio->increment('visits_count');
         return Inertia::render('Customer/Book', [
@@ -867,7 +883,7 @@ class CustomerController extends Controller {
             $distance = null;
         } else {
             $distance = $locationService->distanceTo($targetLocationService);
-            $distance = $distance !== null ? round($distance, 2). 'km away' : null;
+            $distance = $distance !== null ? round($distance, 2) . 'km away' : null;
         }
         return Inertia::render('Customer/Appointment', [
             'portfolio' => [
@@ -1098,7 +1114,8 @@ class CustomerController extends Controller {
         ]);
     }
 
-    public function submitReview(Request $request, $appointmentId){
+    public function submitReview(Request $request, $appointmentId)
+    {
         $request->validate([
             'rating' => 'required|integer|min:1|max:5',
             'review' => 'nullable|string|max:1000',
@@ -1107,7 +1124,7 @@ class CustomerController extends Controller {
 
         $appointment = Appointment::findOrFail($appointmentId);
         $customer = $request->user();
-        if($appointment->customer_id == $customer->id) {
+        if ($appointment->customer_id == $customer->id) {
             Review::create([
                 'user_id' => $customer->id,
                 'appointment_id' => $appointment->id,
@@ -1173,7 +1190,9 @@ class CustomerController extends Controller {
             );
         }
 
-        if($dispute) return redirect()->route('customer.explore')->with('message', 'Appointment disputed successfully! You will receive a response shortly from the Administrators.');
-        else return back()->with('message', 'Something went wrong');
+        if ($dispute)
+            return redirect()->route('customer.explore')->with('message', 'Appointment disputed successfully! You will receive a response shortly from the Administrators.');
+        else
+            return back()->with('message', 'Something went wrong');
     }
 }

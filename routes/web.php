@@ -172,7 +172,7 @@ Route::group(['middleware' => ['auth', 'verified']], function () {
     });
 
     // Dispute functionality
-    Route::middleware('auth')->group(function () {
+    Route::middleware('auth:query_token')->group(function () {
         Route::get('/disputes', [App\Http\Controllers\DisputeController::class, 'index'])->name('disputes.index');
         Route::get('/disputes/{disputeId}', [App\Http\Controllers\DisputeController::class, 'show'])->name('disputes.show');
         Route::post('/disputes/{disputeId}/messages', [App\Http\Controllers\DisputeController::class, 'storeMessage'])->name('disputes.messages.store');
