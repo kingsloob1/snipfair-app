@@ -26,7 +26,10 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Validation\Rule;
 use Str;
+use Svix\Exception\WebhookVerificationException;
+use Svix\Webhook;
 
 class PaymentController extends Controller
 {
@@ -34,32 +37,32 @@ class PaymentController extends Controller
     {
         return [
             // Major/Commercial Banks
-            ["name" => 'Absa Bank', "branchCode" => '632005', 'is_supported_by_peach_payments' => true],
-            ["name" => 'Access Bank', "branchCode" => '410506', 'is_supported_by_peach_payments' => true],
-            ["name" => 'African Bank', "branchCode" => '430000', 'is_supported_by_peach_payments' => true],
-            ["name" => 'African Bank Business', "branchCode" => '430000', 'is_supported_by_peach_payments' => true],
-            ["name" => 'Albaraka Bank', "branchCode" => '800000', 'is_supported_by_peach_payments' => true],
-            ["name" => 'Bidvest Bank', "branchCode" => '462005', 'is_supported_by_peach_payments' => true],
-            ["name" => 'Capitec Bank', "branchCode" => '470010', 'is_supported_by_peach_payments' => true],
-            ["name" => 'Capitec Business', "branchCode" => '450105', 'is_supported_by_peach_payments' => true],
-            ["name" => 'Discovery Bank', "branchCode" => '679000', 'is_supported_by_peach_payments' => true],
-            ["name" => 'FirstRand Bank (FNB)', "branchCode" => '250655', 'is_supported_by_peach_payments' => true],
-            ["name" => 'First National Bank (FNB)', "branchCode" => '250655', 'is_supported_by_peach_payments' => true],
-            ["name" => 'Rand Merchant Bank (RMB)', "branchCode" => '250655', 'is_supported_by_peach_payments' => true],
-            ["name" => 'Investec Bank', "branchCode" => '580105', 'is_supported_by_peach_payments' => true],
-            ["name" => 'Nedbank', "branchCode" => '198765', 'is_supported_by_peach_payments' => true],
-            ["name" => 'Old Mutual Bank', "branchCode" => '462105', 'is_supported_by_peach_payments' => true],
-            ["name" => 'Sasfin Bank', "branchCode" => '683000', 'is_supported_by_peach_payments' => true],
-            ["name" => 'Standard Bank', "branchCode" => '051001', 'is_supported_by_peach_payments' => true],
-            ["name" => 'TymeBank', "branchCode" => '678910', 'is_supported_by_peach_payments' => true],
-            ["name" => 'Ubank', "branchCode" => '431010', 'is_supported_by_peach_payments' => true],
-            ["name" => 'Grindrod Bank', "branchCode" => '584000', 'is_supported_by_peach_payments' => false],
+            ["name" => 'Absa Bank', "branchCode" => '632005', 'is_supported_by_peach_payments' => true, 'peach_payments_bank_name' => 'ABSA'],
+            ["name" => 'Access Bank', "branchCode" => '410506', 'is_supported_by_peach_payments' => true, 'peach_payments_bank_name' => 'ACCESS BANK'],
+            ["name" => 'African Bank', "branchCode" => '430000', 'is_supported_by_peach_payments' => true, 'peach_payments_bank_name' => 'AFRICAN BANK'],
+            ["name" => 'African Bank Business', "branchCode" => '430000', 'is_supported_by_peach_payments' => true, 'peach_payments_bank_name' => 'AFRICAN BANK BUSINESS'],
+            ["name" => 'Albaraka Bank', "branchCode" => '800000', 'is_supported_by_peach_payments' => true, 'peach_payments_bank_name' => 'ALBARAKA BANK'],
+            ["name" => 'Bidvest Bank', "branchCode" => '462005', 'is_supported_by_peach_payments' => true, 'peach_payments_bank_name' => 'BIDVEST BANK'],
+            ["name" => 'Capitec Bank', "branchCode" => '470010', 'is_supported_by_peach_payments' => true, 'peach_payments_bank_name' => 'CAPITEC BANK'],
+            ["name" => 'Capitec Business', "branchCode" => '450105', 'is_supported_by_peach_payments' => true, 'peach_payments_bank_name' => 'CAPITEC BUSINESS BANK'],
+            ["name" => 'Discovery Bank', "branchCode" => '679000', 'is_supported_by_peach_payments' => true, 'peach_payments_bank_name' => 'DISCOVERY BANK'],
+            ["name" => 'FirstRand Bank (FNB)', "branchCode" => '250655', 'is_supported_by_peach_payments' => true, 'peach_payments_bank_name' => 'FNB'],
+            ["name" => 'First National Bank (FNB)', "branchCode" => '250655', 'is_supported_by_peach_payments' => true, 'peach_payments_bank_name' => 'FNB'],
+            ["name" => 'Rand Merchant Bank (RMB)', "branchCode" => '250655', 'is_supported_by_peach_payments' => true, 'peach_payments_bank_name' => 'FNB'],
+            ["name" => 'Investec Bank', "branchCode" => '580105', 'is_supported_by_peach_payments' => true, 'peach_payments_bank_name' => 'INVESTEC BANK LIMITED'],
+            ["name" => 'Nedbank', "branchCode" => '198765', 'is_supported_by_peach_payments' => true, 'peach_payments_bank_name' => 'NEDBANK'],
+            ["name" => 'Old Mutual Bank', "branchCode" => '462105', 'is_supported_by_peach_payments' => true, 'peach_payments_bank_name' => 'OLD MUTUAL BANK'],
+            ["name" => 'Sasfin Bank', "branchCode" => '683000', 'is_supported_by_peach_payments' => true, 'peach_payments_bank_name' => 'SASFIN BANK'],
+            ["name" => 'Standard Bank', "branchCode" => '051001', 'is_supported_by_peach_payments' => true, 'peach_payments_bank_name' => 'STANDARD CHARTERED BANK SA'],
+            ["name" => 'TymeBank', "branchCode" => '678910', 'is_supported_by_peach_payments' => true, 'peach_payments_bank_name' => 'TYMEBANK'],
+            ["name" => 'Ubank', "branchCode" => '431010', 'is_supported_by_peach_payments' => true, 'peach_payments_bank_name' => 'UBANK LTD'],
+            ["name" => 'Grindrod Bank', "branchCode" => '584000', 'is_supported_by_peach_payments' => false,],
 
             // Foreign Banks/Local Branches
             ["name" => 'Access Bank South Africa', "branchCode" => '410105', 'is_supported_by_peach_payments' => false],
             ["name" => 'Bank of China', "branchCode" => '431000', 'is_supported_by_peach_payments' => false],
             ["name" => 'Citibank', "branchCode" => '350000', 'is_supported_by_peach_payments' => false],
-            ["name" => 'HBZ Bank (Habib Bank AG Zurich)', "branchCode" => '570105', 'is_supported_by_peach_payments' => true],
+            ["name" => 'HBZ Bank (Habib Bank AG Zurich)', "branchCode" => '570105', 'is_supported_by_peach_payments' => true, 'peach_payments_bank_name' => 'HBZ BANK LIMITED'],
             ["name" => 'ICBC', "branchCode" => '495000', 'is_supported_by_peach_payments' => false],
             ["name" => 'Société Générale', "branchCode" => '306009', 'is_supported_by_peach_payments' => false],
             [
@@ -90,11 +93,11 @@ class PaymentController extends Controller
             ],
 
             // Mutual Banks
-            ["name" => 'Bank Zero Mutual Bank', "branchCode" => '888000', 'is_supported_by_peach_payments' => true],
-            ["name" => 'Finbond Mutual Bank', "branchCode" => '589000', 'is_supported_by_peach_payments' => true],
-            ["name" => 'Finbond EPE', "branchCode" => '589000', 'is_supported_by_peach_payments' => true],
+            ["name" => 'Bank Zero Mutual Bank', "branchCode" => '888000', 'is_supported_by_peach_payments' => true, 'peach_payments_bank_name' => 'BANK ZERO MUTUAL BANK'],
+            ["name" => 'Finbond Mutual Bank', "branchCode" => '589000', 'is_supported_by_peach_payments' => true, 'peach_payments_bank_name' => 'FINBOND MUTUAL BANK'],
+            ["name" => 'Finbond EPE', "branchCode" => '589000', 'is_supported_by_peach_payments' => true, 'peach_payments_bank_name' => 'FINBOND EPE'],
             ["name" => 'GBS Mutual Bank', "branchCode" => null, 'is_supported_by_peach_payments' => false],
-            ["name" => 'YWBN Mutual Bank', "branchCode" => null, 'is_supported_by_peach_payments' => false],
+            ["name" => 'YWBN Mutual Bank', "branchCode" => null, 'is_supported_by_peach_payments' => false, 'peach_payments_bank_name' => 'YWBN MUTUAL BANK'],
 
             // Co-operative Banks
             ["name" => 'Ditsobotla Primary Co-operative Bank', "branchCode" => null, 'is_supported_by_peach_payments' => false],
@@ -647,7 +650,7 @@ class PaymentController extends Controller
             $responseJson = $this->getPeachPaymentPayoutHttpClient()->get("balance")->throw()->json();
 
             $availableBalance = (float) Arr::get($responseJson, 'availableBalance', 0);
-            $currency = (float) Arr::get($responseJson, 'currency', 'ZAR');
+            $currency = Arr::get($responseJson, 'currency', 'ZAR');
             $lastTransactionDate = Carbon::parse(Arr::get($responseJson, 'lastTransactionDate', Carbon::now()));
 
             return [
@@ -674,12 +677,12 @@ class PaymentController extends Controller
         ]);
 
         $peachPaymentBalanceResp = $this->getPeachPaymentBalanceResp();
-        $balance = $peachPaymentBalanceResp['balance'];
+        $peachPaymentWalletBalance = $peachPaymentBalanceResp['balance'];
         $foundBank = Arr::first($this->getBanks(), function ($bank) use ($paymentMethod) {
             return ($bank['branchCode'] === $paymentMethod->routing_number) && !!$bank['is_supported_by_peach_payments'];
         });
 
-        if (($amount > $balance) || !$foundBank) {
+        if (!(($peachPaymentWalletBalance > $amount) && $foundBank && $foundBank['peach_payments_bank_name'] && $foundBank['branchCode'])) {
             $transaction->update([
                 'ref' => $refWithoutPeachPayoutId,
             ]);
@@ -692,12 +695,12 @@ class PaymentController extends Controller
                 'payouts' => [
                     [
                         'payoutId' => $uuidV4,
-                        'currency' => $peachPaymentBalanceResp['currency'],
+                        'currency' => 'ZAR',
                         'amount' => round($amount * 1000),
                         'accountNumber' => $paymentMethod->account_number,
                         'branchCode' => $foundBank['branchCode'],
-                        'reference' => $transaction->ref,
-                        'bankName' => $foundBank['name'],
+                        'reference' => "SNIPFAIRWDR{$withdrawal->id}",
+                        'bankName' => $foundBank['peach_payments_bank_name'],
                         'accountHolder' => $paymentMethod->account_name,
                         'payoutMethod' => 'realtime-eft'
                     ]
@@ -726,7 +729,9 @@ class PaymentController extends Controller
                     $transaction = $transactionResp;
                 }
             }
-        } catch (HttpClientException $e) {
+        } catch (Exception $e) {
+            Log::error($e);
+            Log::error('An error occured while processing peach payment withdrawals');
             $transaction->update([
                 'ref' => $refWithoutPeachPayoutId,
             ]);
@@ -766,7 +771,7 @@ class PaymentController extends Controller
         try {
             $responseJson = $peachPaymentRespData ?? $this->getPeachPaymentPayoutHttpClient()->get("payouts/{$peachPaymentPayoutId}/status")->throw()->json();
 
-            $payoutData = Arr::get($responseJson, 'payouts[0]');
+            $payoutData = Arr::get($responseJson, 'payouts.0');
             Log::info($responseJson);
 
             if (!$payoutData) {
@@ -916,6 +921,184 @@ class PaymentController extends Controller
         });
 
         return response()->noContent();
+    }
+
+    public function handlePeachPaymentPayoutWebhook(Request $request)
+    {
+        // Validate from peach payments
+        $clientIpAddress = $request->ip();
+        if (!in_array($clientIpAddress, $this->getPeachPaymentAllowedIps())) {
+            Log::error('Invalid peach payment payout webhook');
+            Log::info("Ip address is ====> {$clientIpAddress}");
+            return response('Invalid signature', 400);
+        }
+
+        //$this->verifyPeachPaymentPayoutWebhook($request);
+
+        Log::info('Peach Payment Payout Webhook received: ' . json_encode($request->all()));
+
+        $request->validate([
+            'merchantId' => ['required', 'string'],
+            'status' => ['required', 'string', Rule::in(['pending', 'processing', 'failed', 'successful', 'reversed'])],
+            'lastUpdated' => ['required', 'date'],
+            'payoutId' => ['required', 'uuid:4'],
+            'resultCode' => ['sometimes', 'string'],
+        ]);
+
+        $transaction = Transaction::query()
+            ->where('type', '=', 'withdraw')
+            ->where('processor', '=', 'peachpayments')
+            ->where('processor_id', '=', $request->payoutId)
+            ->first();
+
+        if (!$transaction) {
+            Log::error("Withdrawal transaction not found for payoutId " . ($request->payoutId));
+            return response('OK', 200); // acknowledge but skip
+        }
+
+        if (preg_match('/WDR-(\d+)-/', $transaction->ref, $matches)) {
+            $withdrawalId = $matches[1];
+            $withdrawal = Withdrawal::query()
+                ->with(['payment_method', 'user'])
+                ->where('status', '=', 'processing')
+                ->where('processor', '=', 'peachpayments')
+                ->whereNotNull('processor_id')
+                ->where('id', '=', $withdrawalId)
+                ->first();
+
+            if ($withdrawal) {
+                $this->processPeachPaymentPayout($withdrawal, $transaction);
+            }
+        }
+
+        return response('OK', 200);
+    }
+
+    private function verifyPeachPaymentPayoutWebhook(Request $request)
+    {
+        $payload = $request->getContent();
+        $headers = collect($request->headers->all())->transform(function ($item) {
+            return $item[0];
+        });
+
+        try {
+            $wh = new Webhook("whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw");
+            $wh->verify($payload, $headers);
+            return true;
+        } catch (WebhookVerificationException $e) {
+            return false;
+        }
+    }
+
+    private function getPeachPaymentAllowedIps()
+    {
+        // In test mode
+        $testMode = config('peachpayment.test_mode');
+        if ($testMode) {
+            return [
+                "185.147.174.166",
+                "185.147.174.132",
+                "185.147.172.166",
+                "185.147.172.132",
+                "185.147.172.64/26",
+                "107.162.135.21",
+                "54.155.67.122",
+                "18.202.83.149",
+                "52.18.99.104",
+                "34.249.176.69",
+                "34.240.186.230",
+                "52.31.92.63",
+                "13.244.58.11",
+                "13.244.145.127",
+                "13.245.178.88",
+                "13.245.189.82",
+                "13.245.191.238",
+                "13.246.124.64",
+                "13.246.161.159",
+                "13.246.166.156",
+                "13.246.182.159",
+                "13.246.209.51",
+                "13.246.211.141",
+                "13.246.215.238",
+                "13.247.22.26",
+                "13.247.28.220",
+                "13.247.39.45",
+                "13.247.102.84",
+                "18.200.49.241",
+                "18.202.82.161",
+                "34.241.61.38",
+                "34.243.190.192",
+                "34.251.163.163",
+                "52.17.112.111",
+                "52.48.173.106",
+                "52.49.77.175",
+                "52.51.240.85",
+                "54.72.91.107",
+                "54.73.123.156",
+                "54.76.112.125",
+                "54.76.143.97",
+                "52.210.65.210",
+                "52.211.203.29",
+                "52.214.96.65",
+                "63.32.51.254",
+                "79.125.66.112",
+                "108.128.216.153",
+                "18.202.14.128",
+                "34.247.146.84",
+                "52.19.47.86"
+            ];
+        }
+
+        return [
+            "54.217.71.82",
+            "185.147.172.128",
+            "185.147.174.128",
+            "18.202.83.149",
+            "18.200.34.16",
+            "34.251.199.9",
+            "52.214.127.216",
+            "34.249.103.193",
+            "52.209.186.130",
+            "52.212.210.254",
+            "13.244.50.188",
+            "13.244.230.122",
+            "13.244.251.120",
+            "13.245.98.50",
+            "13.245.120.20",
+            "13.245.217.30",
+            "13.246.79.86",
+            "13.246.150.184",
+            "13.246.160.250",
+            "13.246.163.222",
+            "13.246.168.17",
+            "13.246.246.124",
+            "13.247.25.243",
+            "13.247.51.135",
+            "13.247.124.50",
+            "13.247.141.75",
+            "3.251.34.141",
+            "34.240.144.125",
+            "34.248.111.246",
+            "34.249.109.210",
+            "34.250.77.175",
+            "34.255.55.159",
+            "46.137.175.38",
+            "52.16.197.2",
+            "52.18.18.9",
+            "52.210.220.102",
+            "52.211.146.143",
+            "54.78.96.194",
+            "54.78.242.96",
+            "54.155.192.215",
+            "54.170.93.5",
+            "54.228.176.63",
+            "54.246.240.146",
+            "63.34.32.153",
+            "108.128.146.246",
+            "54.77.194.29",
+            "52.210.217.138",
+            "54.194.136.184",
+        ];
     }
 
     public function handlePayfastWebhook(Request $request)

@@ -299,6 +299,8 @@ Route::middleware('api')->group(function () {
         Route::get('/success/payfast', [PaymentController::class, 'handleSuccessfulPayfastTxn']);
 
         Route::post('/webhook/payfast', [PaymentController::class, 'handlePayfastWebhook']);
+
+        Route::post('/webhook/peachpayment', [PaymentController::class, 'handlePeachPaymentPayoutWebhook']);
     });
 });
 // Mobile App API Routes End
