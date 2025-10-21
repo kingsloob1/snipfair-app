@@ -76,6 +76,12 @@ Route::middleware('api')->group(function () {
             // Update user data
             Route::patch('', [ApiAuthController::class, 'updateUser']);
 
+            // Get user notifications
+            Route::get('/notifications', [ApiAuthController::class, 'getUserNotifications']);
+
+            // Delete user data
+            Route::delete('', [ApiAuthController::class, 'deleteUser']);
+
             Route::group(['prefix' => '/location'], function () {
                 //update location consent status
                 Route::post('/consent', [LocationServiceController::class, 'recordLocationConsent']);

@@ -3,12 +3,15 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\Notification;
 use App\Models\StylistSchedule;
 use App\Models\StylistSetting;
 use App\Models\User;
 use App\Rules\PhoneNumber;
+use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password as FacadesPassword;
 use Illuminate\Support\Str;
@@ -277,6 +280,75 @@ class ApiAuthController extends Controller
             $user->addFirebaseToken($validated['firebase_device_token']);
         }
 
+        return response()->noContent();
+    }
+
+    public function getUserNotifications(Request $request)
+    {
+        $perPage = formatPerPage($request);
+        $user = $request->user();
+        return $user->notifications()
+            ->orderBy('created_at', 'desc')
+            ->cursorPaginate($perPage, ['*'], 'page')
+            ->through(function (Notification $notification) {
+                $type = 'notification';
+                $id = null;
+
+                switch (true) {
+                    case Str::endsWith($notification->type, 'customer/wallet'):
+                    case Str::endsWith($notification->type, 'stylist/earnings'): {
+                        $type = 'wallet';
+                        break;
+                    }
+
+                    case preg_match('/\b(stylist|customer)\b\/appointment\/(\d{1,})/', $notification->type, $matches): {
+                        $type = 'appointment';
+                        $id = Arr::get($matches, '2', null);
+                        break;
+                    }
+
+                    case preg_match('/\b(disputes)\b\/(\d{1,})/', $notification->type, $matches): {
+                        $type = 'dispute';
+                        $id = Arr::get($matches, '2', null);
+                        break;
+                    }
+
+                    default: {
+                        $type = 'notification';
+                    }
+                }
+
+                if ($id) {
+                    $id = (int) $id;
+                }
+
+                return [
+                    'id' => (int) $notification->id,
+                    'type' => $type,
+                    'type_identifier' => $id,
+                    'title' => $notification->title,
+                    'description' => $notification->description,
+                    'created_at' => $notification->created_at,
+                    'priority' => strtolower($notification->priority),
+                    'is_read' => (bool) $notification->is_seen,
+                ];
+            });
+    }
+
+    public function deleteUser(Request $request)
+    {
+        $user = $request->user();
+
+        try {
+            Auth::logout();
+        } catch (Exception $e) {
+            //
+        }
+
+        $user->tokens()->delete();
+        $user->delete();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
         return response()->noContent();
     }
 }
