@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Stylist;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\StylistController;
 use App\Mail\WithdrawalNotificationEmail;
 use App\Models\Appointment;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
@@ -15,10 +17,12 @@ use Illuminate\Validation\Rule;
 class DashboardController extends Controller
 {
     private $stylistController;
+    private $paymentController;
 
-    public function __construct(StylistController $stylistController)
+    public function __construct(StylistController $stylistController, PaymentController $paymentController)
     {
         $this->stylistController = $stylistController;
+        $this->paymentController = $paymentController;
     }
 
     public function index(Request $request)
@@ -404,42 +408,11 @@ class DashboardController extends Controller
 
     public function withdrawalRequest(Request $request)
     {
-        $user = $request->user();
-        $validated = $request->validate([
-            'amount' => ['required', 'gt:0'],
-            'method' => ['required'],
-        ]);
-        $paymentMethod = $user->stylistPaymentMethods()->where('id', $request->input('method'))->first();
-
-        if (!$paymentMethod) {
-            abort(403, 'Unauthorized action.');
+        $resp = $this->paymentController->withdrawFromWallet($request);
+        if ($resp instanceof JsonResponse) {
+            $body = $resp->getData(true);
+            return back()->withErrors($body);
         }
-        if ($validated['amount'] > $user->balance) {
-            return back()->withErrors(['amount' => 'Insufficient balance.']);
-        }
-
-        $withdrawal = $user->withdrawals()->create([
-            'amount' => $validated['amount'],
-            'stylist_payment_method_id' => $paymentMethod->id,
-        ]);
-
-        $withdrawal->load('payment_method');
-        Mail::to('admin@snipfair.com')->send(new WithdrawalNotificationEmail(
-            withdrawal: $withdrawal,
-            user: $user,
-            recipientType: 'admin'
-        ));
-
-        // Notify stylist
-        Mail::to($user->email)->send(new WithdrawalNotificationEmail(
-            withdrawal: $withdrawal,
-            user: $user,
-            recipientType: 'stylist'
-        ));
-
-        $new_balance = $user->balance - $validated['amount'];
-        $user->balance = $new_balance;
-        $user->save();
 
         return redirect()->back()->with('success', 'Payout requested successfully.');
     }

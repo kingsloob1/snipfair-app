@@ -39,6 +39,12 @@ Schedule::command('seo:generate-sitemap')
 
 Schedule::command('sanctum:prune-expired --hours=24')->daily();
 
+// Process pending peach payment withdrawals
+Schedule::command('payment:process-pending-peachpayment-withdrawals')
+    ->everyTenMinutes()
+    ->withoutOverlapping()
+    ->runInBackground();
+
 $testSchedulerLogPath = __DIR__ . '/../storage/logs/test-scheduler.log';
 Artisan::command('test:scheduler', function () use ($testSchedulerLogPath) {
     shell_exec('touch ' . $testSchedulerLogPath);

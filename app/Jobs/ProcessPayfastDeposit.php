@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Events\AppointmentStatusUpdated;
+use App\Http\Controllers\Admin\TransactionController;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Mail;
@@ -34,7 +35,7 @@ class ProcessPayfastDeposit implements ShouldQueue
     /**
      * Execute the job.
      */
-    public function handle()
+    public function handle(TransactionController $transactionController)
     {
         $deposit = $this->deposit->fresh();
         $transactionId = $this->transactionId;
@@ -56,7 +57,7 @@ class ProcessPayfastDeposit implements ShouldQueue
         };
 
         //Hold the lock for a day.. This ensures only one process can process this deposit
-        Cache::lock($lockKey, 60 * 60 * 24)->block(20, function () use ($deposit, $transactionId, $pfData, $pfPaymentId, $cleanUpWithStatus) {
+        Cache::lock($lockKey, 60 * 60 * 24)->block(20, function () use ($deposit, $transactionId, $pfData, $pfPaymentId, $cleanUpWithStatus, $transactionController) {
             $deposit->update([
                 'status' => 'processing'
             ]);
@@ -91,47 +92,10 @@ class ProcessPayfastDeposit implements ShouldQueue
             }
 
             try {
-                DB::transaction(function () use ($appointment, $deposit, $transaction, $status, $pfPaymentId, $cleanUpWithStatus) {
+                DB::transaction(function () use ($appointment, $deposit, $transaction, $status, $pfPaymentId, $cleanUpWithStatus, $transactionController) {
                     switch ($status) {
                         case 'complete': {
-                            if ($transaction) {
-                                $transaction->update([
-                                    'status' => 'completed'
-                                ]);
-
-                                // fund transaction amountto wallet for topup
-                                if ($transaction->type === 'topup') {
-                                    $amountToFund = abs($transaction->amount);
-
-                                    // fund topup amount
-                                    User::query()
-                                        ->where('id', '=', $transaction->user_id)
-                                        ->update(['balance' => DB::raw("balance + {$amountToFund}")]);
-                                }
-                            }
-
-                            if ($appointment) {
-                                //Cancel appointment here
-                                $previousStatus = $appointment->status;
-                                $appointment->status = 'pending';
-                                $appointment->save();
-
-                                broadcast(new AppointmentStatusUpdated($appointment, $previousStatus));
-                            }
-
-                            Mail::to($deposit->user->email)->send(new DepositConfirmationEmail(
-                                deposit: $deposit,
-                                customer: $deposit->user,
-                                newBalance: $deposit->user->balance
-                            ));
-
-                            sendNotification(
-                                $deposit->user->id,
-                                route('customer.wallet'),
-                                'Deposit Successful',
-                                'Your deposit of R' . $deposit->amount . ' has been successfully completed.',
-                                'normal',
-                            );
+                            $transactionController->approveDepositNative($deposit, $transaction);
 
                             Log::info("Approved deposit for {$deposit->id} [pf_payment_id={$pfPaymentId}]");
                             $cleanUpWithStatus('approved');
@@ -140,36 +104,7 @@ class ProcessPayfastDeposit implements ShouldQueue
 
                         //If it is for an appointment, ensure you refund tha amount debited from wallet back and then cancel the appointment
                         case 'cancelled': {
-                            if ($appointment) {
-                                //Reverse transaction for wallet debit
-                                $appointment
-                                    ->transactions()
-                                    ->where('type', '=', 'payment')
-                                    ->whereLike('ref', "PAY-PARTIAL-WALLET-DEBIT-%", false)
-                                    ->update([
-                                        'status' => 'reversed'
-                                    ]);
-
-                                $amountToRefundFundCustomer = abs(((float) $appointment->amount) - ((float) $deposit->amount));
-
-                                // refund amount deducted from wallet for appointment
-                                User::query()
-                                    ->where('id', '=', $appointment->customer_id)
-                                    ->update(['balance' => DB::raw("balance + {$amountToRefundFundCustomer}")]);
-
-                                //Cancel appointment here
-                                $previousStatus = $appointment->status;
-                                $appointment->status = 'canceled';
-                                $appointment->save();
-
-                                broadcast(new AppointmentStatusUpdated($appointment, $previousStatus));
-                            }
-
-                            if ($transaction) {
-                                $transaction->update([
-                                    'status' => 'failed'
-                                ]);
-                            }
+                            $transactionController->rejectDepositNative($deposit, $transaction);
 
                             Log::info("Declined deposit for {$deposit->id} [pf_payment_id={$pfPaymentId}]");
                             $cleanUpWithStatus('declined');

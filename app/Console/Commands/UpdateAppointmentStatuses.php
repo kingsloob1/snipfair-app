@@ -30,7 +30,7 @@ class UpdateAppointmentStatuses extends Command
         $this->updateProcessingToPending();
         $this->updatePendingToApproved();
         $this->updateApprovedToConfirmed();
-        
+
         $this->info('Appointment statuses updated successfully.');
     }
 

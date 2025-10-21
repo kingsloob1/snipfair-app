@@ -251,6 +251,8 @@ Route::middleware('api')->group(function () {
                 Route::get('', [PaymentController::class, 'getUserWallet']);
 
                 Route::get('/transactions', [PaymentController::class, 'getUserTransactions']);
+
+                Route::post('/withdraw', [PaymentController::class, 'withdrawFromWallet']);
             });
 
             //Authenticated conversation routes
@@ -296,7 +298,7 @@ Route::middleware('api')->group(function () {
 
         Route::get('/success/payfast', [PaymentController::class, 'handleSuccessfulPayfastTxn']);
 
-        Route::post('/webhook/payfast', [PaymentController::class, 'webhook']);
+        Route::post('/webhook/payfast', [PaymentController::class, 'handlePayfastWebhook']);
     });
 });
 // Mobile App API Routes End
@@ -345,4 +347,4 @@ Route::middleware(['web', 'auth:web'])->prefix('admin-payment-methods')->group(f
     Route::get('/default', 'App\Http\Controllers\Customer\AppointmentController@getDefaultAdminPaymentMethod');
 });
 
-Route::post('/payment/webhook', [PaymentController::class, 'webhook'])->name('payment.webhook');
+Route::post('/payment/webhook', [PaymentController::class, 'handlePayfastWebhook'])->name('payment.webhook');

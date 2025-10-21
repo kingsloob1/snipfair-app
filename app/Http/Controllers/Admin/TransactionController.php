@@ -2,17 +2,21 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Events\AppointmentStatusUpdated;
 use App\Http\Controllers\Controller;
 use App\Mail\DepositConfirmationEmail;
 use App\Mail\WithdrawalConfirmationEmail;
+use App\Mail\WithdrawalRejectedEmail;
 use App\Models\Appointment;
 use App\Models\Deposit;
 use App\Models\Transaction;
 use App\Models\Subscription;
+use App\Models\User;
 use App\Models\Withdrawal;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 
 class TransactionController extends Controller
@@ -131,7 +135,7 @@ class TransactionController extends Controller
         $failedWithdrawals = Withdrawal::where('status', 'declined')->sum('amount');
         $failedTotal = $failedDeposits + $failedWithdrawals;
         $failedCount = Deposit::where('status', 'declined')->count() +
-                      Withdrawal::where('status', 'declined')->count();
+            Withdrawal::where('status', 'declined')->count();
 
         return [
             'totalRevenue' => [
@@ -268,27 +272,36 @@ class TransactionController extends Controller
     {
         $withdrawal = Withdrawal::findOrFail($id);
         $stylist = $withdrawal->user;
-        Transaction::create([
-            'user_id' => $stylist->id,
-            'amount' => $withdrawal->amount,
-            'type' => 'withdraw',
-            'status' => 'completed',
-            'ref' => 'WDR-' . time(),
-            'description' => 'Withdrawal request approved',
-        ]);
-        Mail::to($stylist->email)->send(new WithdrawalConfirmationEmail(
-            withdrawal: $withdrawal,
-            stylist: $stylist,
-            newBalance: $stylist->balance // optional
-        ));
-        sendNotification(
-            $stylist->id,
-            route('stylist.earnings'),
-            'Withdrawal Approved Successfully',
-            'Your withdrawal of R' . $withdrawal->amount . ' has been approved successfully, and you would receive it in your account shortly.',
-            'normal',
-        );
+
+        $transaction = Transaction::query()->whereLike('ref', "WDR-{$withdrawal->id}%")->where('type', '=', 'withdraw')->where('amount', '=', $withdrawal->amount)->first();
+
+        if (!$transaction) {
+            $transaction = Transaction::create([
+                'user_id' => $stylist->id,
+                'amount' => $withdrawal->amount,
+                'type' => 'withdraw',
+                'status' => 'completed',
+                'ref' => 'WDR-' . $withdrawal->id,
+                'description' => 'Withdrawal request approved',
+            ]);
+        }
+
         $withdrawal->update(['status' => 'approved']);
+        $transaction->update(['status' => 'completed']);
+
+        defer(function () use ($stylist, $withdrawal) {
+            Mail::to($stylist->email)->send(new WithdrawalConfirmationEmail(
+                withdrawal: $withdrawal,
+                stylist: $stylist,
+            ));
+            sendNotification(
+                $stylist->id,
+                route('stylist.earnings'),
+                'Withdrawal Approved Successfully',
+                'Your withdrawal of R' . $withdrawal->amount . ' has been approved successfully, and you would receive it in your account shortly.',
+                'normal',
+            );
+        });
 
         return back()->with('message', 'Withdrawal request approved successfully.');
     }
@@ -296,63 +309,178 @@ class TransactionController extends Controller
     public function rejectWithdrawal($id)
     {
         $withdrawal = Withdrawal::findOrFail($id);
-        $withdrawal->update(['status' => 'declined']);
         $stylist = $withdrawal->user;
+
+        $transaction = Transaction::query()->whereLike('ref', "WDR-{$withdrawal->id}%")->where('type', '=', 'withdraw')->where('amount', '=', $withdrawal->amount)->first();
+
+        if (!$transaction) {
+            $transaction = Transaction::create([
+                'user_id' => $stylist->id,
+                'amount' => $withdrawal->amount,
+                'type' => 'withdraw',
+                'status' => 'failed',
+                'ref' => 'WDR-' . $withdrawal->id,
+                'description' => 'Withdrawal request rejected and refunded',
+            ]);
+        }
 
         // Refund the stylist's balance
         $stylist->increment('balance', $withdrawal->amount);
+        $withdrawal->update(['status' => 'declined']);
+        $transaction->update(['status' => 'failed']);
 
-        // Create a refund transaction
-        Transaction::create([
-            'user_id' => $stylist->id,
-            'amount' => $withdrawal->amount,
-            'type' => 'refund',
-            'status' => 'completed',
-            'ref' => 'REF-' . time(),
-            'description' => 'Withdrawal request rejected and refunded',
-        ]);
+        defer(function () use ($stylist, $withdrawal) {
+            Mail::to($stylist->email)->send(new WithdrawalRejectedEmail(
+                withdrawal: $withdrawal,
+                stylist: $stylist,
+                newBalance: $stylist->balance // optionals
+            ));
+            sendNotification(
+                $stylist->id,
+                route('stylist.earnings'),
+                'Withdrawal Rejected',
+                'Your withdrawal of R' . $withdrawal->amount . ' has been rejected, and the amount has been refunded to your wallet.',
+                'normal',
+            );
+        });
 
         return back()->with('message', 'Withdrawal request rejected successfully.');
     }
 
     public function approveDeposit($id)
     {
-        $deposit = Deposit::whereHas('user')->with('user')->findOrFail($id);
+        $deposit = Deposit::whereHas('user')->with(['user', 'transaction', 'appointment'])->findOrFail($id);
 
-        if(!$deposit->user) {
+        if (!$deposit->user) {
             return back()->with('error', 'Deposit request not found.');
         }
 
-        if ($deposit->transaction) {
-            $transaction = $deposit->transaction;
-            $transaction->update(['status' => 'completed']);
-        } elseif ($deposit->appointment) {
-            $appointment = $deposit->appointment;
-            $appointment->update(['status' => 'pending']);
-            if ($appointment->transaction) {
-                $appointment->transaction->update(['status' => 'completed']);
-            } else {
-                return back()->with('error', 'Appointment has no related transaction.');
-            }
-        } else {
-            return back()->with('error', 'Deposit action not completed, no transaction or appointment found.');
-        }
-        $deposit->user->increment('balance', $deposit->amount);
-        Mail::to($deposit->user->email)->send(new DepositConfirmationEmail(
-            deposit: $deposit,
-            customer: $deposit->user,
-            newBalance: $deposit->user->balance
-        ));
-        $deposit->update(['status' => 'approved']);
+        $this->approveDepositNative($deposit, $deposit->transaction);
 
         return back()->with('message', 'Deposit request approved successfully.');
     }
 
     public function rejectDeposit($id)
     {
-        $deposit = Deposit::findOrFail($id);
-        $deposit->update(['status' => 'declined']);
+        $deposit = Deposit::whereHas('user')->with(['user', 'transaction', 'appointment'])->findOrFail($id);
+
+        $this->rejectDepositNative($deposit, $deposit->transaction);
 
         return back()->with('message', 'Deposit request rejected successfully.');
+    }
+
+    public function approveDepositNative(Deposit $deposit, $transaction = null)
+    {
+        $appointment = $deposit->appointment;
+        if ($appointment && !$deposit->$transaction) {
+            $appointmentDepositTxn = $appointment
+                ->transactions()
+                ->where('type', '=', 'payment')
+                ->whereLike('ref', "PAY-DEPOSIT-DEBIT-%", false)
+                ->first();
+
+            if ($appointmentDepositTxn) {
+                $deposit->update([
+                    'transaction_id' => $appointmentDepositTxn->id
+                ]);
+
+                $transaction = $appointmentDepositTxn;
+            }
+        }
+
+        if ($transaction) {
+            $transaction->update([
+                'status' => 'completed'
+            ]);
+
+            // fund transaction amountto wallet for topup
+            if ($transaction->type === 'topup') {
+                $amountToFund = abs($transaction->amount);
+
+                // fund topup amount
+                User::query()
+                    ->where('id', '=', $transaction->user_id)
+                    ->update(['balance' => DB::raw("balance + {$amountToFund}")]);
+            }
+        }
+
+        if ($appointment) {
+            //Cancel appointment here
+            $previousStatus = $appointment->status;
+            $appointment->status = 'pending';
+            $appointment->save();
+
+            broadcast(new AppointmentStatusUpdated($appointment, $previousStatus));
+        }
+
+        Mail::to($deposit->user->email)->send(new DepositConfirmationEmail(
+            deposit: $deposit,
+            customer: $deposit->user,
+            newBalance: $deposit->user->balance
+        ));
+
+        sendNotification(
+            $deposit->user->id,
+            route('customer.wallet'),
+            'Deposit Successful',
+            'Your deposit of R' . $deposit->amount . ' has been successfully completed.',
+            'normal',
+        );
+
+        return $transaction;
+    }
+
+    public function rejectDepositNative(Deposit $deposit, $transaction = null)
+    {
+
+        $appointment = $deposit->appointment;
+        if ($appointment && !$deposit->$transaction) {
+            $appointmentDepositTxn = $appointment
+                ->transactions()
+                ->where('type', '=', 'payment')
+                ->whereLike('ref', "PAY-DEPOSIT-DEBIT-%", false)
+                ->first();
+
+            if ($appointmentDepositTxn) {
+                $deposit->update([
+                    'transaction_id' => $appointmentDepositTxn->id
+                ]);
+
+                $transaction = $appointmentDepositTxn;
+            }
+        }
+
+        if ($appointment) {
+            //Reverse transaction for wallet debit
+            $appointment
+                ->transactions()
+                ->where('type', '=', 'payment')
+                ->whereLike('ref', "PAY-PARTIAL-WALLET-DEBIT-%", false)
+                ->update([
+                    'status' => 'reversed'
+                ]);
+
+            $amountToRefundFundCustomer = abs(((float) $appointment->amount) - ((float) $deposit->amount));
+
+            // refund amount deducted from wallet for appointment
+            User::query()
+                ->where('id', '=', $appointment->customer_id)
+                ->update(['balance' => DB::raw("balance + {$amountToRefundFundCustomer}")]);
+
+            //Cancel appointment here
+            $previousStatus = $appointment->status;
+            $appointment->status = 'canceled';
+            $appointment->save();
+
+            broadcast(new AppointmentStatusUpdated($appointment, $previousStatus));
+        }
+
+        if ($transaction) {
+            $transaction->update([
+                'status' => 'failed'
+            ]);
+        }
+
+        return $transaction;
     }
 }

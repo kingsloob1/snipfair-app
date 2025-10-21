@@ -4,82 +4,110 @@ namespace App\Http\Controllers;
 
 use App\Jobs\ProcessPayfastDeposit;
 use App\Mail\DepositNotificationEmail;
+use App\Mail\WithdrawalConfirmationEmail;
+use App\Mail\WithdrawalNotificationEmail;
+use App\Mail\WithdrawalRejectedEmail;
 use App\Models\AdminPaymentMethod;
 use App\Models\AppointmentPouch;
 use App\Models\Deposit;
+use App\Models\StylistPaymentMethod;
+use Illuminate\Http\Client\HttpClientException;
 use Illuminate\Http\Request;
 use GuzzleHttp\Client;
 use App\Models\Transaction;  // Your Transaction model
+use App\Models\User;
+use App\Models\Withdrawal;
+use Exception;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\URL;
+use Str;
 
 class PaymentController extends Controller
 {
-    public function bankList(Request $request)
+    public function getBanks()
     {
-        $list = [
+        return [
             // Major/Commercial Banks
-            ["name" => 'Absa Bank', "branchCode" => '632005'],
-            ["name" => 'African Bank', "branchCode" => '430000'],
-            ["name" => 'Bidvest Bank', "branchCode" => '462005'],
-            ["name" => 'Capitec Bank', "branchCode" => '470010'],
-            ["name" => 'Discovery Bank', "branchCode" => '679000'],
-            ["name" => 'FirstRand Bank (FNB)', "branchCode" => '250655'],
-            ["name" => 'Investec Bank', "branchCode" => '580105'],
-            ["name" => 'Nedbank', "branchCode" => '198765'],
-            ["name" => 'Sasfin Bank', "branchCode" => '683000'],
-            ["name" => 'Standard Bank', "branchCode" => '051001'],
-            ["name" => 'TymeBank', "branchCode" => '678910'],
-            ["name" => 'Ubank', "branchCode" => '431010'],
-            ["name" => 'Grindrod Bank', "branchCode" => '584000'],
+            ["name" => 'Absa Bank', "branchCode" => '632005', 'is_supported_by_peach_payments' => true],
+            ["name" => 'Access Bank', "branchCode" => '410506', 'is_supported_by_peach_payments' => true],
+            ["name" => 'African Bank', "branchCode" => '430000', 'is_supported_by_peach_payments' => true],
+            ["name" => 'African Bank Business', "branchCode" => '430000', 'is_supported_by_peach_payments' => true],
+            ["name" => 'Albaraka Bank', "branchCode" => '800000', 'is_supported_by_peach_payments' => true],
+            ["name" => 'Bidvest Bank', "branchCode" => '462005', 'is_supported_by_peach_payments' => true],
+            ["name" => 'Capitec Bank', "branchCode" => '470010', 'is_supported_by_peach_payments' => true],
+            ["name" => 'Capitec Business', "branchCode" => '450105', 'is_supported_by_peach_payments' => true],
+            ["name" => 'Discovery Bank', "branchCode" => '679000', 'is_supported_by_peach_payments' => true],
+            ["name" => 'FirstRand Bank (FNB)', "branchCode" => '250655', 'is_supported_by_peach_payments' => true],
+            ["name" => 'First National Bank (FNB)', "branchCode" => '250655', 'is_supported_by_peach_payments' => true],
+            ["name" => 'Rand Merchant Bank (RMB)', "branchCode" => '250655', 'is_supported_by_peach_payments' => true],
+            ["name" => 'Investec Bank', "branchCode" => '580105', 'is_supported_by_peach_payments' => true],
+            ["name" => 'Nedbank', "branchCode" => '198765', 'is_supported_by_peach_payments' => true],
+            ["name" => 'Old Mutual Bank', "branchCode" => '462105', 'is_supported_by_peach_payments' => true],
+            ["name" => 'Sasfin Bank', "branchCode" => '683000', 'is_supported_by_peach_payments' => true],
+            ["name" => 'Standard Bank', "branchCode" => '051001', 'is_supported_by_peach_payments' => true],
+            ["name" => 'TymeBank', "branchCode" => '678910', 'is_supported_by_peach_payments' => true],
+            ["name" => 'Ubank', "branchCode" => '431010', 'is_supported_by_peach_payments' => true],
+            ["name" => 'Grindrod Bank', "branchCode" => '584000', 'is_supported_by_peach_payments' => false],
 
             // Foreign Banks/Local Branches
-            ["name" => 'Access Bank South Africa', "branchCode" => '410105'],
-            ["name" => 'Albaraka Bank', "branchCode" => '800000'],
-            ["name" => 'Bank of China', "branchCode" => '431000'],
-            ["name" => 'Citibank', "branchCode" => '350000'],
-            ["name" => 'HBZ Bank (Habib Bank AG Zurich)', "branchCode" => '570000'],
-            ["name" => 'ICBC', "branchCode" => '495000'],
-            ["name" => 'Société Générale', "branchCode" => '306009'],
+            ["name" => 'Access Bank South Africa', "branchCode" => '410105', 'is_supported_by_peach_payments' => false],
+            ["name" => 'Bank of China', "branchCode" => '431000', 'is_supported_by_peach_payments' => false],
+            ["name" => 'Citibank', "branchCode" => '350000', 'is_supported_by_peach_payments' => false],
+            ["name" => 'HBZ Bank (Habib Bank AG Zurich)', "branchCode" => '570105', 'is_supported_by_peach_payments' => true],
+            ["name" => 'ICBC', "branchCode" => '495000', 'is_supported_by_peach_payments' => false],
+            ["name" => 'Société Générale', "branchCode" => '306009', 'is_supported_by_peach_payments' => false],
             [
                 "name" => 'China Construction Bank Johannesburg Branch',
                 "branchCode" => null,
+                'is_supported_by_peach_payments' => false
             ],
             ["name" => 'Bank of Taiwan South Africa Branch', "branchCode" => null],
             [
                 "name" => 'JPMorgan Chase Bank, N.A., Johannesburg Branch',
                 "branchCode" => '432000',
+                'is_supported_by_peach_payments' => false
             ],
             [
                 "name" => 'Standard Chartered Bank Johannesburg Branch',
                 "branchCode" => '730000',
+                'is_supported_by_peach_payments' => false
             ],
             [
                 "name" => 'HSBC Bank plc - Johannesburg Branch',
                 "branchCode" => '587000',
+                'is_supported_by_peach_payments' => false
             ],
             [
                 "name" => 'State Bank of India South Africa Branch',
                 "branchCode" => '801000',
+                'is_supported_by_peach_payments' => false
             ],
 
             // Mutual Banks
-            ["name" => 'Bank Zero', "branchCode" => null],
-            ["name" => 'Finbond Mutual Bank', "branchCode" => null],
-            ["name" => 'GBS Mutual Bank', "branchCode" => null],
-            ["name" => 'YWBN Mutual Bank', "branchCode" => null],
+            ["name" => 'Bank Zero Mutual Bank', "branchCode" => '888000', 'is_supported_by_peach_payments' => true],
+            ["name" => 'Finbond Mutual Bank', "branchCode" => '589000', 'is_supported_by_peach_payments' => true],
+            ["name" => 'Finbond EPE', "branchCode" => '589000', 'is_supported_by_peach_payments' => true],
+            ["name" => 'GBS Mutual Bank', "branchCode" => null, 'is_supported_by_peach_payments' => false],
+            ["name" => 'YWBN Mutual Bank', "branchCode" => null, 'is_supported_by_peach_payments' => false],
 
             // Co-operative Banks
-            ["name" => 'Ditsobotla Primary Co-operative Bank', "branchCode" => null],
-            ["name" => 'GIG Co-operative Bank', "branchCode" => null],
-            ["name" => 'KSK Koöperatiewe Bank', "branchCode" => null],
-            ["name" => 'OSK Koöperatiewe Bank', "branchCode" => null],
-            ["name" => 'Ziphakamise Co-operative Bank', "branchCode" => null],
+            ["name" => 'Ditsobotla Primary Co-operative Bank', "branchCode" => null, 'is_supported_by_peach_payments' => false],
+            ["name" => 'GIG Co-operative Bank', "branchCode" => null, 'is_supported_by_peach_payments' => false],
+            ["name" => 'KSK Koöperatiewe Bank', "branchCode" => null, 'is_supported_by_peach_payments' => false],
+            ["name" => 'OSK Koöperatiewe Bank', "branchCode" => null, 'is_supported_by_peach_payments' => false],
+            ["name" => 'Ziphakamise Co-operative Bank', "branchCode" => null, 'is_supported_by_peach_payments' => false],
         ];
+    }
 
-        return response()->json($list);
+    public function bankList(Request $request)
+    {
+        return response()->json($this->getBanks());
     }
 
     public function getFundingMethods(Request $request)
@@ -232,7 +260,7 @@ class PaymentController extends Controller
         ];
 
         // Generate signature
-        $data['signature'] = $this->generateSignature($data, config('payfast.passphrase'));
+        $data['signature'] = $this->generatePayfastSignature($data, config('payfast.passphrase'));
 
         // Convert to param string
         $paramString = http_build_query($data);
@@ -525,7 +553,7 @@ class PaymentController extends Controller
         ];
 
         // Generate signature
-        $data['signature'] = $this->generateSignature($data, config('payfast.passphrase'));
+        $data['signature'] = $this->generatePayfastSignature($data, config('payfast.passphrase'));
 
         // Convert to param string
         $paramString = http_build_query($data);
@@ -576,7 +604,321 @@ class PaymentController extends Controller
         return back();
     }
 
-    public function webhook(Request $request)
+    private function getPeachPaymentAuthToken()
+    {
+        $cacheKey = 'peach:payment:token';
+        $authToken = Cache::get($cacheKey, null);
+
+        if (!$authToken) {
+            $merchantId = config('peachpayment.merchant_id');
+            $clientId = config('peachpayment.client_id');
+            $clientSecret = config('peachpayment.client_secret');
+            $authEndpoint = config('peachpayment.auth_endpoint');
+
+            $startTime = Carbon::now();
+            $responseJson = Http::connectTimeout(30)->timeout(120)->retry(5, 500)->dontTruncateExceptions()->post("{$authEndpoint}/api/oauth/token", [
+                'clientId' => $clientId,
+                'clientSecret' => $clientSecret,
+                'merchantId' => $merchantId
+            ])->throw()->json();
+
+            $token = Arr::get($responseJson, 'access_token', null);
+            $expiresInSeconds = (int) Arr::get($responseJson, 'expires_in', 0);
+            $tokenType = Arr::get($responseJson, 'token_type', 'Bearer');
+            $authToken = "{$tokenType} {$token}";
+
+            $reqSeconds = (int) Carbon::now()->diffInSeconds($startTime);
+            Cache::put($cacheKey, $authToken, $expiresInSeconds - ($reqSeconds + 5));
+        }
+
+        return $authToken;
+    }
+
+    private function getPeachPaymentPayoutHttpClient()
+    {
+        $merchantId = config('peachpayment.merchant_id');
+        return Http::connectTimeout(30)->timeout(120)->baseUrl(config('peachpayment.payout_endpoint') . "/api/merchants/{$merchantId}")->withHeader('Authorization', $this->getPeachPaymentAuthToken())->dontTruncateExceptions();
+    }
+
+    private function getPeachPaymentBalanceResp()
+    {
+        $cacheKey = 'peach:payment:balance';
+        return Cache::remember($cacheKey, 10, function () {
+            $responseJson = $this->getPeachPaymentPayoutHttpClient()->get("balance")->throw()->json();
+
+            $availableBalance = (float) Arr::get($responseJson, 'availableBalance', 0);
+            $currency = (float) Arr::get($responseJson, 'currency', 'ZAR');
+            $lastTransactionDate = Carbon::parse(Arr::get($responseJson, 'lastTransactionDate', Carbon::now()));
+
+            return [
+                'balance' => $availableBalance / 100,
+                'currency' => $currency,
+                'lastTransactionDate' => $lastTransactionDate
+            ];
+        });
+    }
+
+    private function withdrawFromPeachPayment(Withdrawal $withdrawal, StylistPaymentMethod $paymentMethod, User $user)
+    {
+        $amount = (float) $withdrawal->amount;
+        $uuidV4 = \Illuminate\Support\Str::uuid()->toString();
+        $refWithoutPeachPayoutId = 'WDR-' . $withdrawal->id;
+        $refWithPeachPayoutId = $refWithoutPeachPayoutId . '-PEACHPAYOUTID-' . $uuidV4;
+        $transaction = Transaction::create([
+            'user_id' => $user->id,
+            'amount' => $amount,
+            'type' => 'withdraw',
+            'status' => 'pending',
+            'ref' => $refWithPeachPayoutId,
+            'description' => 'Withdrawal request',
+        ]);
+
+        $peachPaymentBalanceResp = $this->getPeachPaymentBalanceResp();
+        $balance = $peachPaymentBalanceResp['balance'];
+        $foundBank = Arr::first($this->getBanks(), function ($bank) use ($paymentMethod) {
+            return ($bank['branchCode'] === $paymentMethod->routing_number) && !!$bank['is_supported_by_peach_payments'];
+        });
+
+        if (($amount > $balance) || !$foundBank) {
+            $transaction->update([
+                'ref' => $refWithoutPeachPayoutId,
+            ]);
+
+            return $transaction;
+        }
+
+        try {
+            $response = $this->getPeachPaymentPayoutHttpClient()->post("payouts", [
+                'payouts' => [
+                    [
+                        'payoutId' => $uuidV4,
+                        'currency' => $peachPaymentBalanceResp['currency'],
+                        'amount' => round($amount * 1000),
+                        'accountNumber' => $paymentMethod->account_number,
+                        'branchCode' => $foundBank['branchCode'],
+                        'reference' => $transaction->ref,
+                        'bankName' => $foundBank['name'],
+                        'accountHolder' => $paymentMethod->account_name,
+                        'payoutMethod' => 'realtime-eft'
+                    ]
+                ]
+            ])->throw();
+
+            $responseJson = $response->json();
+            $payoutRequestId = Arr::get($responseJson, 'payoutRequestId');
+
+            if ($response->successful() && $payoutRequestId) {
+                $transaction->update([
+                    'status' => 'processing',
+                    'processor' => 'peachpayments',
+                    'processor_id' => $uuidV4,
+                ]);
+
+                $withdrawal->update([
+                    'status' => 'processing',
+                    'processor' => 'peachpayments',
+                    'processor_id' => $payoutRequestId
+                ]);
+
+                $transactionResp = $this->processPeachPaymentPayout($withdrawal, $transaction, $responseJson);
+
+                if ($transactionResp) {
+                    $transaction = $transactionResp;
+                }
+            }
+        } catch (HttpClientException $e) {
+            $transaction->update([
+                'ref' => $refWithoutPeachPayoutId,
+            ]);
+        }
+
+        return $transaction;
+    }
+
+    /**
+     * Summary of processPeachPaymentPayout
+     * @param \App\Models\Withdrawal $withdrawal
+     * @param Transaction|null $transaction
+     * @param array|null $peachPaymentRespData
+     */
+    public function processPeachPaymentPayout(Withdrawal $withdrawal, $transaction = null, $peachPaymentRespData = null)
+    {
+        $refStartsWith = "WDR-{$withdrawal->id}-PEACHPAYOUTID-";
+        $transaction = $transaction ?? Transaction::query()
+            ->whereLike('ref', "{$refStartsWith}%")
+            ->where('type', '=', 'withdraw')
+            ->where('amount', '=', $withdrawal->amount)
+            ->where('processor', '=', 'peachpayments')
+            ->first();
+
+        if (!($transaction && $withdrawal->processor === 'peachpayments' && $withdrawal->processor_id)) {
+            return null;
+        }
+
+        if ($withdrawal->status !== 'processing') {
+            Log::warning("Processing peach payment withdrawal for {$withdrawal->id} status is not processing. Instead it is {$withdrawal->status}");
+
+            return $transaction;
+        }
+
+        $peachPaymentPayoutId = $withdrawal->processor_id;
+
+        try {
+            $responseJson = $peachPaymentRespData ?? $this->getPeachPaymentPayoutHttpClient()->get("payouts/{$peachPaymentPayoutId}/status")->throw()->json();
+
+            $payoutData = Arr::get($responseJson, 'payouts[0]');
+            Log::info($responseJson);
+
+            if (!$payoutData) {
+                Log::warning("No matching payout for peach payment withdrawal for {$withdrawal->id}");
+                return $transaction;
+            }
+
+            $payoutStatus = $payoutData['status'];
+
+            switch ($payoutStatus) {
+                case 'pending':
+                case 'processing': {
+                    Log::warning("Peach payment payout for withdrawal {$withdrawal->id} has status {$payoutStatus}");
+                    return $transaction;
+                }
+
+                case 'successful': {
+                    Log::info("Peach payment payout for withdrawal {$withdrawal->id} was successful");
+                    $withdrawal->update([
+                        'status' => 'approved'
+                    ]);
+                    $transaction->update([
+                        'status' => 'completed'
+                    ]);
+
+                    defer(function () use ($withdrawal) {
+                        Mail::to($withdrawal->user->email)->send(new WithdrawalConfirmationEmail(
+                            withdrawal: $withdrawal,
+                            stylist: $withdrawal->user,
+                        ));
+                        sendNotification(
+                            $withdrawal->user->id,
+                            route('stylist.earnings'),
+                            'Withdrawal Approved Successfully',
+                            'Your withdrawal of R' . $withdrawal->amount . ' has been approved successfully, and you would receive it in your account shortly.',
+                            'normal',
+                        );
+                    });
+
+                    return $transaction;
+                }
+
+                case 'reversed':
+                case 'failed': {
+                    Log::warning("Peach payment payout for withdrawal {$withdrawal->id} failed with status {$payoutStatus}");
+                    $withdrawal->update([
+                        'status' => 'declined'
+                    ]);
+                    $transaction->update([
+                        'status' => 'failed'
+                    ]);
+
+                    // Refund amount to user balance
+                    User::query()
+                        ->where('id', '=', $withdrawal->user_id)
+                        ->update(['balance' => DB::raw("balance + {$withdrawal->amount}")]);
+
+                    defer(function () use ($withdrawal) {
+                        Mail::to($withdrawal->user->email)->send(new WithdrawalRejectedEmail(
+                            withdrawal: $withdrawal,
+                            stylist: $withdrawal->user,
+                        ));
+                        sendNotification(
+                            $withdrawal->user->id,
+                            route('stylist.earnings'),
+                            'Withdrawal Rejected',
+                            'Your withdrawal of R' . $withdrawal->amount . ' has been rejected, and the amount has been refunded to your wallet.',
+                            'normal',
+                        );
+                    });
+
+                    return $transaction;
+                }
+
+                default: {
+                    Log::warning("Peach payment payout for withdrawal {$withdrawal->id} does not handle the following payout status {$payoutStatus}");
+                    return $transaction;
+                }
+            }
+        } catch (HttpClientException $e) {
+            Log::error($e);
+            Log::error("An error occurred while processing peach payment withdrawal for {$withdrawal->id}");
+            return $transaction;
+        }
+    }
+
+    public function withdrawFromWallet(Request $request)
+    {
+        $user = $request->user();
+        if ($user->role !== 'stylist') {
+            return response()->json([
+                'message' => 'Ooops.. Customers cannot withdraw from their balance yet'
+            ], 400);
+        }
+
+        $validated = $request->validate([
+            'amount' => ['required', 'gt:10', 'lt:5000000'],
+            'method' => ['required'],
+        ]);
+        $paymentMethod = $user->stylistPaymentMethods()->where('id', $request->input('method'))->first();
+
+        if (!$paymentMethod) {
+            return response()->json([
+                'message' => 'Ooops.. Specified payment method is invalid'
+            ], 400);
+        }
+
+        $amount = (float) $validated['amount'];
+        if ($amount > $user->balance) {
+            return response()->json([
+                'message' => 'Ooops.. Insufficient balance.'
+            ], 400);
+        }
+
+        $paymentController = $this;
+        DB::transaction(function () use ($amount, $paymentMethod, $user, $paymentController) {
+            // Deduct amount from customer balance
+            User::query()
+                ->where('id', '=', $user->id)
+                ->where('balance', '>=', $amount)
+                ->update(['balance' => DB::raw("balance - {$amount}")]);
+
+            $user->refresh();
+
+            $withdrawal = $user->withdrawals()->create([
+                'amount' => $amount,
+                'stylist_payment_method_id' => $paymentMethod->id,
+            ]);
+
+            $transaction = $paymentController->withdrawFromPeachPayment($withdrawal, $paymentMethod, $user);
+
+            defer(function () use ($withdrawal, $user) {
+                $withdrawal->load('payment_method');
+                Mail::to('admin@snipfair.com')->send(new WithdrawalNotificationEmail(
+                    withdrawal: $withdrawal,
+                    user: $user,
+                    recipientType: 'admin'
+                ));
+
+                // Notify stylist
+                Mail::to($user->email)->send(new WithdrawalNotificationEmail(
+                    withdrawal: $withdrawal,
+                    user: $user,
+                    recipientType: 'stylist'
+                ));
+            });
+        });
+
+        return response()->noContent();
+    }
+
+    public function handlePayfastWebhook(Request $request)
     {
         Log::info('Payfast ITN received: ' . json_encode($request->all()));
 
@@ -591,7 +933,7 @@ class PaymentController extends Controller
         unset($pfData['signature']); // Remove for validation
 
         // Validate signature
-        $generatedSignature = $this->generateSignature($pfData, config('payfast.passphrase'), 'webhook');
+        $generatedSignature = $this->generatePayfastSignature($pfData, config('payfast.passphrase'), 'webhook');
         if ($generatedSignature !== $request->input('signature')) {
             Log::error('Invalid Payfast signature');
             return response('Invalid signature', 400);
@@ -661,7 +1003,7 @@ class PaymentController extends Controller
         return false;
     }
 
-    private function generateSignature(array $data, ?string $passPhrase = null, ?string $type = null): string
+    private function generatePayfastSignature(array $data, ?string $passPhrase = null, ?string $type = null): string
     {
         // ksort($data);
         $paramString = '';
