@@ -318,9 +318,6 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 
 // Customer booking API routes
 Route::middleware(['web', 'auth:web'])->prefix('customer')->group(function () {
-    // Update user data
-    Route::post('/user/update', [ApiAuthController::class, 'updateUser']);
-
     Route::get('/booking-status/{portfolioId}', 'App\Http\Controllers\Customer\AppointmentController@getBookingStatus');
     Route::post('/create-appointment', 'App\Http\Controllers\Customer\AppointmentController@createAppointment');
     Route::post('/update-appointment-statuses', 'App\Http\Controllers\Customer\AppointmentController@updateAppointmentStatuses');
@@ -346,6 +343,8 @@ Route::middleware(['web', 'auth:web'])->prefix('stylist')->group(function () {
 });
 
 Route::middleware(['web', 'auth:web'])->group(function () {
+    // Update user data
+    Route::post('/user/update', [ApiAuthController::class, 'updateUser']);
     Route::post('/location-consent', [LocationServiceController::class, 'recordLocationConsent']);
     Route::get('/location-consent-status', [LocationServiceController::class, 'getLocationConsentStatus']);
     Route::post('/update-location', [LocationServiceController::class, 'updateLocation']);
