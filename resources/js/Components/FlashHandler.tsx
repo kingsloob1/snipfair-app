@@ -113,19 +113,27 @@ export default function FlashHandler({
             if (user && firebaseVapidKey && firebaseWebConfig) {
                 // Initialize Firebase
                 const app = initializeApp(firebaseWebConfig);
-                console.log('Requesting permission...');
+                const prevNotificationStatus = window.Notification.permission;
+
+                if (!['granted', 'denied'].includes(prevNotificationStatus)) {
+                    console.log('Requesting permission...');
+                }
 
                 const permission = await Notification.requestPermission();
                 switch (permission) {
                     case 'denied': {
-                        console.log('Notification permission denied.');
-                        toast.success('Notification permission granted.');
+                        if (prevNotificationStatus !== permission) {
+                            console.log('Notification permission denied.');
+                            toast.error('Notification permission denied.');
+                        }
                         break;
                     }
 
                     case 'granted': {
-                        console.log('Notification permission granted.');
-                        toast.success('Notification permission granted.');
+                        if (prevNotificationStatus !== permission) {
+                            console.log('Notification permission granted.');
+                            toast.success('Notification permission granted.');
+                        }
                         const messaging = getMessaging(app);
 
                         try {
@@ -138,13 +146,16 @@ export default function FlashHandler({
                             );
 
                             if (firebaseDeviceToken) {
-                                const response = await apiCall('/api/user', {
-                                    method: 'PATCH',
-                                    body: JSON.stringify({
-                                        firebase_device_token:
-                                            firebaseDeviceToken,
-                                    }),
-                                });
+                                const response = await apiCall(
+                                    '/api/user/update',
+                                    {
+                                        method: 'POST',
+                                        body: JSON.stringify({
+                                            firebase_device_token:
+                                                firebaseDeviceToken,
+                                        }),
+                                    },
+                                );
 
                                 console.log(
                                     'Response from setting firebase device token =====> ',

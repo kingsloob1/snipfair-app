@@ -318,6 +318,9 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 
 // Customer booking API routes
 Route::middleware(['web', 'auth:web'])->prefix('customer')->group(function () {
+    // Update user data
+    Route::post('/user/update', [ApiAuthController::class, 'updateUser']);
+
     Route::get('/booking-status/{portfolioId}', 'App\Http\Controllers\Customer\AppointmentController@getBookingStatus');
     Route::post('/create-appointment', 'App\Http\Controllers\Customer\AppointmentController@createAppointment');
     Route::post('/update-appointment-statuses', 'App\Http\Controllers\Customer\AppointmentController@updateAppointmentStatuses');
