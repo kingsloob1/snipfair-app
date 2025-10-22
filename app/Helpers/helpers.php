@@ -401,20 +401,17 @@ if (!function_exists('formatRequestSort')) {
 }
 
 if (!function_exists('getFirebaseAuth')) {
-    $firbaseAuth = Firebase::project('app')->auth();
     function getFirebaseAuth()
     {
-        global $firbaseAuth;
+        $firbaseAuth = Firebase::project('app')->auth();
         return $firbaseAuth;
     }
 }
 
 if (!function_exists('sendFireBaseMessage')) {
-    $firbaseMessaging = Firebase::project('app')->messaging();
-    ;
     function sendFirebaseMessage(CloudMessage $message, array $tokens)
     {
-        global $firbaseMessaging;
-        return $firbaseMessaging->sendMulticast($message, $tokens);
+        $firebaseMessaging = Firebase::project('app')->messaging();
+        return $firebaseMessaging->sendMulticast($message, $tokens);
     }
 }
