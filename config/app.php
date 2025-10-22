@@ -123,4 +123,5 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    'firebase_vapid_key' => env('FIREBASE_WEB_VAPID_KEY', 'BO9G_kThmIKkFkqi6aKFsRcZtfxBeZ2yw3mdLgGFCBSkHE0DPGIJbWRE9xpoHQFHHaPLnlISacZ-nEp-FfGIGFM')
 ];

@@ -8,6 +8,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\URL;
+use Kreait\Firebase\Messaging\CloudMessage;
+use Kreait\Laravel\Firebase\Facades\Firebase;
 
 if (!function_exists('getSlug')) {
     function getSlug($userId)
@@ -395,5 +397,24 @@ if (!function_exists('formatRequestSort')) {
         })->where(function ($value) use ($fields) {
             return in_array($value['property'], $fields);
         })->all();
+    }
+}
+
+if (!function_exists('getFirebaseAuth')) {
+    $firbaseAuth = Firebase::project('app')->auth();
+    function getFirebaseAuth()
+    {
+        global $firbaseAuth;
+        return $firbaseAuth;
+    }
+}
+
+if (!function_exists('sendFireBaseMessage')) {
+    $firbaseMessaging = Firebase::project('app')->messaging();
+    ;
+    function sendFirebaseMessage(CloudMessage $message, array $tokens)
+    {
+        global $firbaseMessaging;
+        return $firbaseMessaging->sendMulticast($message, $tokens);
     }
 }

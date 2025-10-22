@@ -1,6 +1,8 @@
+import { apiCall } from '@/hooks/api';
 import CookiePopup from '@/Pages/CookiePopup';
 import { PageProps } from '@/types';
 import { usePage } from '@inertiajs/react';
+import { getMessaging, getToken, isSupported } from 'firebase/messaging';
 import { waitFor } from 'poll-until-promise';
 import React, { useEffect } from 'react';
 import { toast } from 'sonner';
@@ -26,7 +28,12 @@ export default function FlashHandler({
 }) {
     const {
         url,
-        props: { flash, 'auth:from:app': authenticatedFromApp },
+        props: {
+            flash,
+            'auth:from:app': authenticatedFromApp,
+            auth: { user },
+            firebaseVapidKey,
+        },
     } = usePage<
         PageProps & {
             flash?: {
@@ -36,6 +43,7 @@ export default function FlashHandler({
                 warning?: string;
                 message?: string;
             };
+            firebaseVapidKey?: string;
         }
     >();
 
@@ -91,6 +99,83 @@ export default function FlashHandler({
         if (flash?.warning) toast.warning(flash.warning);
         if (flash?.message) toast(flash.message);
     }, [flash]);
+
+    useEffect(() => {
+        const getFirebaseNotificationTokenForDevice = async (e: MouseEvent) => {
+            if (!isSupported()) {
+                console.error('Firebase is not supported in this browser');
+                return;
+            }
+
+            if (user && firebaseVapidKey) {
+                console.log('Requesting permission...');
+
+                const permission = await Notification.requestPermission();
+                switch (permission) {
+                    case 'denied': {
+                        console.log('Notification permission denied.');
+                        toast.success('Notification permission granted.');
+                        break;
+                    }
+
+                    case 'granted': {
+                        console.log('Notification permission granted.');
+                        toast.success('Notification permission granted.');
+                        const messaging = getMessaging();
+
+                        try {
+                            // Add the public key generated from the console here.
+                            const firebaseDeviceToken = await getToken(
+                                messaging,
+                                {
+                                    vapidKey: firebaseVapidKey,
+                                },
+                            );
+
+                            if (firebaseDeviceToken) {
+                                const response = await apiCall('/api/user', {
+                                    method: 'PATCH',
+                                    body: JSON.stringify({
+                                        firebase_device_token:
+                                            firebaseDeviceToken,
+                                    }),
+                                });
+
+                                console.log(
+                                    'Response from setting firebase device token =====> ',
+                                    response,
+                                );
+                            }
+                        } catch (e) {
+                            console.error(
+                                'Failed to get firebase notification token with error ====> ',
+                                e,
+                            );
+                        }
+                        break;
+                    }
+
+                    case 'default':
+                    default: {
+                        getFirebaseNotificationTokenForDevice(e);
+                        break;
+                    }
+                }
+            }
+        };
+
+        document.addEventListener(
+            'click',
+            getFirebaseNotificationTokenForDevice,
+        );
+
+        return () => {
+            document.removeEventListener(
+                'click',
+                getFirebaseNotificationTokenForDevice,
+            );
+        };
+    }, [user, firebaseVapidKey]);
 
     return (
         <>
