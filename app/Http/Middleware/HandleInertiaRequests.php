@@ -40,7 +40,8 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
             ],
-            'firebaseVapidKey' => config('app.firebase_vapid_key', 'BO9G_kThmIKkFkqi6aKFsRcZtfxBeZ2yw3mdLgGFCBSkHE0DPGIJbWRE9xpoHQFHHaPLnlISacZ-nEp-FfGIGFM'),
+            'firebaseVapidKey' => config('app.firebase_vapid_key'),
+            'firebaseWebConfig' => config('app.firebase_web_config'),
             'requestUrl' => $request->fullUrl(),
             'appBaseURL' => URL::to('/'),
             'seo' => [

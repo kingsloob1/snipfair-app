@@ -2,6 +2,7 @@ import { apiCall } from '@/hooks/api';
 import CookiePopup from '@/Pages/CookiePopup';
 import { PageProps } from '@/types';
 import { usePage } from '@inertiajs/react';
+import { FirebaseOptions, initializeApp } from 'firebase/app';
 import { getMessaging, getToken, isSupported } from 'firebase/messaging';
 import { waitFor } from 'poll-until-promise';
 import React, { useEffect } from 'react';
@@ -33,6 +34,7 @@ export default function FlashHandler({
             'auth:from:app': authenticatedFromApp,
             auth: { user },
             firebaseVapidKey,
+            firebaseWebConfig,
         },
     } = usePage<
         PageProps & {
@@ -44,6 +46,7 @@ export default function FlashHandler({
                 message?: string;
             };
             firebaseVapidKey?: string;
+            firebaseWebConfig?: FirebaseOptions;
         }
     >();
 
@@ -107,7 +110,9 @@ export default function FlashHandler({
                 return;
             }
 
-            if (user && firebaseVapidKey) {
+            if (user && firebaseVapidKey && firebaseWebConfig) {
+                // Initialize Firebase
+                const app = initializeApp(firebaseWebConfig);
                 console.log('Requesting permission...');
 
                 const permission = await Notification.requestPermission();
@@ -121,7 +126,7 @@ export default function FlashHandler({
                     case 'granted': {
                         console.log('Notification permission granted.');
                         toast.success('Notification permission granted.');
-                        const messaging = getMessaging();
+                        const messaging = getMessaging(app);
 
                         try {
                             // Add the public key generated from the console here.

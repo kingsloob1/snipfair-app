@@ -123,5 +123,15 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
-    'firebase_vapid_key' => env('FIREBASE_WEB_VAPID_KEY', 'BO9G_kThmIKkFkqi6aKFsRcZtfxBeZ2yw3mdLgGFCBSkHE0DPGIJbWRE9xpoHQFHHaPLnlISacZ-nEp-FfGIGFM')
+    'firebase_vapid_key' => env('FIREBASE_WEB_VAPID_KEY', 'BO9G_kThmIKkFkqi6aKFsRcZtfxBeZ2yw3mdLgGFCBSkHE0DPGIJbWRE9xpoHQFHHaPLnlISacZ-nEp-FfGIGFM'),
+
+    'firebase_web_config' => [
+        'apiKey' => env('FIREBASE_WEB_API_KEY', 'AIzaSyBh3gjqkcIBoyFWb85Hn3Owph_oyX52hWE'),
+        'authDomain' => env('FIREBASE_WEB_AUTH_DOMAIN', 'snipfair-firebase.firebaseapp.com'),
+        'projectId' => env('FIREBASE_WEB_PROJECT_ID', 'snipfair-firebase'),
+        'storageBucket' => env('FIREBASE_WEB_STORAGE_BUCKET', 'snipfair-firebase.firebasestorage.app'),
+        'messagingSenderId' => env('FIREBASE_WEB_MESSAGING_SENDER_ID', '93247050443'),
+        'appId' => env('FIREBASE_WEB_APP_ID', '1:93247050443:web:58ac9f7003c60d9e32c14e'),
+        'measurementId' => env('FIREBASE_WEB_MEASUREMENT_ID', 'G-8XFC1B455F')
+    ]
 ];
