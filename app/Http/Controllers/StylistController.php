@@ -218,8 +218,8 @@ class StylistController extends Controller
         $request->validate([
             'identification_id' => 'required|string|max:255',
             'identification_file' => 'required|array|max:1',
-            'identification_file.*' => 'mimes:jpeg,png,gif,webp,pdf,docx,doc|max:5120',
-            'identification_proof' => 'required|image|max:5120',
+            'identification_file.*' => 'mimes:jpeg,png,gif,webp,pdf,docx,doc|max:10240',
+            'identification_proof' => 'required|image|max:20480',
         ]);
 
         $portfolioUrls = [];
