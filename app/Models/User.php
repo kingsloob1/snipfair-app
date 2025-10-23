@@ -565,6 +565,8 @@ class User extends Authenticatable implements MustVerifyEmail
         $existingToken = $tokens->firstWhere('token', '===', $token);
         if (!$existingToken) {
             $tokens->add($tokenCollection);
+        } else {
+            Arr::set($existingToken, 'from', $from);
         }
 
         return $this->saveFirebaseTokens($tokens);
