@@ -47,7 +47,7 @@ class DashboardController extends Controller
             return [
                 'appointment' => $appointment->id,
                 'name' => $appointment->customer->name,
-                'service' => $appointment->portfolio->category->name,
+                'service' => $appointment->portfolio?->category?->name ?? '',
                 'amount' => (float) $appointment->amount,
                 'status' => $appointment->status,
                 'date' => $appointment->created_at->format('M j, Y'),
