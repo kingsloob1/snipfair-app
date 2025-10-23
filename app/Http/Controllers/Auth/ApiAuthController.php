@@ -285,7 +285,7 @@ class ApiAuthController extends Controller
         $user->save();
 
         if (Arr::has($validated, 'firebase_device_token')) {
-            $user->addFirebaseToken($validated['firebase_device_token'], Auth::guard('sanctum')->user() ? 'app' : 'web');
+            $user->addFirebaseToken($validated['firebase_device_token'], strtolower($request->method()) === 'patch' ? 'app' : 'web');
         }
 
         return response()->noContent();
