@@ -79,7 +79,15 @@ class ApiAuthController extends Controller
      */
     public function logout(Request $request)
     {
-        $request->user()->currentAccessToken()->delete();
+        $user = $request->user();
+
+        //Remove app firebase tokens
+        $user->saveFirebaseTokens($user->getFirebaseTokens()->filter(function ($tokenData) {
+            $from = Arr::get($tokenData, 'from', null);
+            return $from && $from !== 'app';
+        }));
+
+        $user->currentAccessToken()->delete();
         return response()->noContent();
     }
 
@@ -277,7 +285,7 @@ class ApiAuthController extends Controller
         $user->save();
 
         if (Arr::has($validated, 'firebase_device_token')) {
-            $user->addFirebaseToken($validated['firebase_device_token']);
+            $user->addFirebaseToken($validated['firebase_device_token'], Auth::guard('sanctum')->user() ? 'app' : 'web');
         }
 
         return response()->noContent();
@@ -340,6 +348,12 @@ class ApiAuthController extends Controller
         $user = $request->user();
 
         try {
+            //Remove app firebase tokens
+            $user->saveFirebaseTokens($user->getFirebaseTokens()->filter(function ($tokenData) {
+                $from = Arr::get($tokenData, 'from', null);
+                return $from && $from !== 'app';
+            }));
+
             Auth::logout();
         } catch (Exception $e) {
             //

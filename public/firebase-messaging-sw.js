@@ -31,18 +31,18 @@ messaging.onMessage((payload) => {
     );
 });
 
-//Handle background messages
-messaging.onBackgroundMessage((payload) => {
-    console.log(
-        '[firebase-messaging-sw.js] Received background message ',
-        payload,
-    );
-    // Customize notification here
-    // const notificationTitle = 'Background Message Title';
-    // const notificationOptions = {
-    //     body: 'Background Message body.',
-    //     icon: '/images/logo/logo.png',
-    // };
+// //Handle background messages
+// messaging.onBackgroundMessage((payload) => {
+//     console.log(
+//         '[firebase-messaging-sw.js] Received background message ',
+//         payload,
+//     );
+//     // Customize notification here
+//     // const notificationTitle = 'Background Message Title';
+//     // const notificationOptions = {
+//     //     body: 'Background Message body.',
+//     //     icon: '/images/logo/logo.png',
+//     // };
 
-    // sw.registration.showNotification(notificationTitle, notificationOptions);
-});
+//     // sw.registration.showNotification(notificationTitle, notificationOptions);
+// });

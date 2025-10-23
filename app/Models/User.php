@@ -546,17 +546,18 @@ class User extends Authenticatable implements MustVerifyEmail
         ]);
 
         $setting->update([
-            'value' => $tokens->toJson()
+            'value' => $tokens->values()->toJson()
         ]);
 
         return $this;
     }
 
-    public function addFirebaseToken(string $token)
+    public function addFirebaseToken(string $token, string $from)
     {
         $tokens = $this->getFirebaseTokens();
         $tokenCollection = collect([
             'token' => $token,
+            'from' => $from,
             'created_at' => Carbon::now(),
             'last_used_at' => Carbon::now()
         ]);
@@ -566,7 +567,7 @@ class User extends Authenticatable implements MustVerifyEmail
             $tokens->add($tokenCollection);
         }
 
-        return $this->saveFirebaseTokens($tokens->values());
+        return $this->saveFirebaseTokens($tokens);
     }
 
     public function sendFireBaseMessage(string $title, string $body, array $other = [])
@@ -610,7 +611,7 @@ class User extends Authenticatable implements MustVerifyEmail
 
             $tokens = $tokens->filter(function ($tokenObj) use ($validTokens) {
                 return in_array(Arr::get($tokenObj, 'token'), $validTokens);
-            })->values();
+            });
 
             $this->saveFirebaseTokens($tokens);
         }

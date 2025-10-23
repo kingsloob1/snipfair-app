@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -35,14 +36,16 @@ class AuthenticatedSessionController extends Controller
 
         $user = $request->user();
         $user->last_login_at = now();
-        if($user->status === 'inactive') $user->status = 'active';
+        if ($user->status === 'inactive')
+            $user->status = 'active';
         $user->save();
 
-        if($user->status === 'banned') return $this->logout($request, 'banned');
-        
-        if($user->role === 'stylist')
+        if ($user->status === 'banned')
+            return $this->logout($request, 'banned');
+
+        if ($user->role === 'stylist')
             return redirect()->intended(route('stylist.dashboard', absolute: false));
-        elseif($user->role === 'customer')
+        elseif ($user->role === 'customer')
             return redirect()->intended(route('dashboard', absolute: false));
 
         return redirect()->intended(route('dashboard', absolute: false));
@@ -56,7 +59,16 @@ class AuthenticatedSessionController extends Controller
         return $this->logout($request);
     }
 
-    private function logout(Request $request, $reason = null){
+    private function logout(Request $request, $reason = null)
+    {
+        $user = $request->user();
+
+        //Remove web firebase tokens
+        $user->saveFirebaseTokens($user->getFirebaseTokens()->filter(function ($tokenData) {
+            $from = Arr::get($tokenData, 'from', null);
+            return $from && $from !== 'web';
+        }));
+
         Auth::guard('web')->logout();
 
         $request->session()->invalidate();

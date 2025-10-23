@@ -126,6 +126,11 @@ export default function FlashHandler({
                             console.log('Notification permission denied.');
                             toast.error('Notification permission denied.');
                         }
+
+                        document.removeEventListener(
+                            'click',
+                            getFirebaseNotificationTokenForDevice,
+                        );
                         break;
                     }
 
@@ -155,6 +160,11 @@ export default function FlashHandler({
                                                 firebaseDeviceToken,
                                         }),
                                     },
+                                );
+
+                                document.removeEventListener(
+                                    'click',
+                                    getFirebaseNotificationTokenForDevice,
                                 );
 
                                 console.log(
