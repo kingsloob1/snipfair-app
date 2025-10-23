@@ -566,7 +566,7 @@ class User extends Authenticatable implements MustVerifyEmail
             $tokens->add($tokenCollection);
         }
 
-        return $this->saveFirebaseTokens($tokens);
+        return $this->saveFirebaseTokens($tokens->values());
     }
 
     public function sendFireBaseMessage(string $title, string $body, array $other = [])
@@ -610,7 +610,7 @@ class User extends Authenticatable implements MustVerifyEmail
 
             $tokens = $tokens->filter(function ($tokenObj) use ($validTokens) {
                 return in_array(Arr::get($tokenObj, 'token'), $validTokens);
-            });
+            })->values();
 
             $this->saveFirebaseTokens($tokens);
         }
