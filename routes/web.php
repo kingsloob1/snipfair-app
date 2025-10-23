@@ -171,14 +171,6 @@ Route::group(['middleware' => ['auth', 'verified']], function () {
         Route::post('/chat/typing', [ChatController::class, 'typing'])->name('chat.typing');
     });
 
-    // Dispute functionality
-    Route::middleware('auth:query_token')->group(function () {
-        Route::get('/disputes', [App\Http\Controllers\DisputeController::class, 'index'])->name('disputes.index');
-        Route::get('/disputes/{disputeId}', [App\Http\Controllers\DisputeController::class, 'show'])->name('disputes.show');
-        Route::post('/disputes/{disputeId}/messages', [App\Http\Controllers\DisputeController::class, 'storeMessage'])->name('disputes.messages.store');
-        Route::get('/disputes/messages/{disputeMessageId}/attachments/{disputeMessageAttachmentIndex}', [App\Http\Controllers\DisputeController::class, 'downloadAttachment'])->name('disputes.messages.download');
-    });
-
     // Like functionality
     Route::post('/like/toggle', [LikeController::class, 'toggle'])->name('like.toggle');
     Route::patch('/notifications/{id}/read', [LikeController::class, 'markNotificationAsRead'])->name('notifications.read');
@@ -259,6 +251,15 @@ Route::group(['middleware' => ['auth', 'verified']], function () {
         Route::get('/customer/{id}', [CustomerController::class, 'getCustomer'])->name('customer.show');
     });
     Route::get('/user-notification/{id}', [LikeController::class, 'userNotification'])->name('user.notifications.show');
+});
+
+
+// Dispute functionality
+Route::middleware(['auth:query_token', 'verified'])->group(function () {
+    Route::get('/disputes', [App\Http\Controllers\DisputeController::class, 'index'])->name('disputes.index');
+    Route::get('/disputes/{disputeId}', [App\Http\Controllers\DisputeController::class, 'show'])->name('disputes.show');
+    Route::post('/disputes/{disputeId}/messages', [App\Http\Controllers\DisputeController::class, 'storeMessage'])->name('disputes.messages.store');
+    Route::get('/disputes/messages/{disputeMessageId}/attachments/{disputeMessageAttachmentIndex}', [App\Http\Controllers\DisputeController::class, 'downloadAttachment'])->name('disputes.messages.download');
 });
 
 
