@@ -40,23 +40,33 @@ class AppointmentController extends Controller
 
     public function index(Request $request)
     {
-        $appointments = Appointment::where('stylist_id', $request->user()->id)->whereIn('status', ['processing', 'pending', 'approved'])->with([
-            'customer',
-            'portfolio.category'
-        ])->orderBy('created_at', 'desc')->get()->map(function ($appointment) {
-            return [
-                'appointment' => $appointment->id,
-                'name' => $appointment->customer->name,
-                'stylist_id' => $appointment->stylist_id,
-                'customer_id' => $appointment->customer_id,
-                'service' => $appointment->portfolio?->category?->name ?? 'None',
-                'amount' => (float) $appointment->amount,
-                'status' => $appointment->status,
-                'date' => $appointment->created_at->format('M j, Y'),
-                'time' => $appointment->created_at->format('g:i A') . ' (' . $appointment->created_at->diffForHumans() . ')',
-                'imageUrl' => $appointment->customer->avatar ?? null,
-            ];
-        });
+        $appointments = Appointment::where('stylist_id', $request->user()->id)
+            ->whereIn('status', ['processing', 'pending', 'approved'])
+            ->with([
+                'customer' => function ($qb) {
+                    return $qb->withTrashed();
+                },
+                'portfolio' => function ($qb) {
+                    return $qb->withTrashed();
+                },
+                'portfolio.category'
+            ])
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($appointment) {
+                return [
+                    'appointment' => $appointment->id,
+                    'name' => $appointment->customer->name,
+                    'stylist_id' => $appointment->stylist_id,
+                    'customer_id' => $appointment->customer_id,
+                    'service' => $appointment->portfolio?->category?->name ?? 'None',
+                    'amount' => (float) $appointment->amount,
+                    'status' => $appointment->status,
+                    'date' => $appointment->created_at->format('M j, Y'),
+                    'time' => $appointment->created_at->format('g:i A') . ' (' . $appointment->created_at->diffForHumans() . ')',
+                    'imageUrl' => $appointment->customer->avatar ?? null,
+                ];
+            });
 
         $todayEarnings = $request->user()->transactions()
             ->whereBetween('created_at', $this->getRanges('daily'))
@@ -85,7 +95,12 @@ class AppointmentController extends Controller
     public function fullSchedules(Request $request)
     {
         $appointments = Appointment::where('stylist_id', $request->user()->id)->with([
-            'customer',
+            'customer' => function ($qb) {
+                return $qb->withTrashed();
+            },
+            'portfolio' => function ($qb) {
+                return $qb->withTrashed();
+            },
             'portfolio.category'
         ])->orderBy('created_at', 'desc')->get()->map(function ($appointment) {
             return [
@@ -193,7 +208,15 @@ class AppointmentController extends Controller
     public function getCalendar(Request $request)
     {
         $user = $request->user();
-        $appointments = $user->stylistAppointments()->with(['portfolio.category', 'customer'])
+        $appointments = $user->stylistAppointments()->with([
+            'customer' => function ($qb) {
+                return $qb->withTrashed();
+            },
+            'portfolio' => function ($qb) {
+                return $qb->withTrashed();
+            },
+            'portfolio.category'
+        ])
             ->get();
 
         $formatted = [];
@@ -247,7 +270,20 @@ class AppointmentController extends Controller
 
     public function appointment(Request $request, $id)
     {
-        $appointment = Appointment::with(['customer', 'stylist', 'stylist.stylist_profile', 'portfolio', 'portfolio.category', 'customer.location_service'])
+        $appointment = Appointment::with([
+            'customer' => function ($qb) {
+                return $qb->withTrashed();
+            },
+            'stylist' => function ($qb) {
+                return $qb->withTrashed();
+            },
+            'stylist.stylist_profile',
+            'portfolio' => function ($qb) {
+                return $qb->withTrashed();
+            },
+            'portfolio.category',
+            'customer.location_service'
+        ])
             ->where('id', $id)
             ->firstOrFail();
 
@@ -297,7 +333,22 @@ class AppointmentController extends Controller
 
     public function getAppointment(Request $request, $appointmentId)
     {
-        $appointment = Appointment::with(['customer', 'stylist', 'stylist.stylist_profile', 'portfolio', 'portfolio.category', 'customer.location_service', 'proof', 'disputes'])
+        $appointment = Appointment::with([
+            'customer' => function ($qb) {
+                return $qb->withTrashed();
+            },
+            'stylist' => function ($qb) {
+                return $qb->withTrashed();
+            },
+            'stylist.stylist_profile',
+            'portfolio' => function ($qb) {
+                return $qb->withTrashed();
+            },
+            'portfolio.category',
+            'customer.location_service',
+            'proof',
+            'disputes'
+        ])
             ->where('id', $appointmentId)
             ->firstOrFail();
 
@@ -386,7 +437,18 @@ class AppointmentController extends Controller
         ]);
 
         $stylist = $request->user();
-        $appointment = Appointment::with(['customer', 'stylist', 'portfolio'])
+        $appointment = Appointment::with([
+            'customer' => function ($qb) {
+                return $qb->withTrashed();
+            },
+            'stylist' => function ($qb) {
+                return $qb->withTrashed();
+            },
+            'stylist.stylist_profile',
+            'portfolio' => function ($qb) {
+                return $qb->withTrashed();
+            }
+        ])
             ->where('stylist_id', $stylist->id)
             ->where('status', 'pending')
             ->findOrFail($request->appointment_id);
@@ -443,7 +505,18 @@ class AppointmentController extends Controller
         ]);
 
         $stylist = $request->user();
-        $appointment = Appointment::with(['customer', 'stylist', 'portfolio'])
+        $appointment = Appointment::with([
+            'customer' => function ($qb) {
+                return $qb->withTrashed();
+            },
+            'stylist' => function ($qb) {
+                return $qb->withTrashed();
+            },
+            'stylist.stylist_profile',
+            'portfolio' => function ($qb) {
+                return $qb->withTrashed();
+            },
+        ])
             ->where('stylist_id', $stylist->id)
             ->where('status', 'approved')
             ->findOrFail($request->appointment_id);
@@ -476,7 +549,18 @@ class AppointmentController extends Controller
         ]);
 
         $stylist = $request->user();
-        $appointment = Appointment::with(['customer', 'stylist', 'portfolio'])
+        $appointment = Appointment::with([
+            'customer' => function ($qb) {
+                return $qb->withTrashed();
+            },
+            'stylist' => function ($qb) {
+                return $qb->withTrashed();
+            },
+            'stylist.stylist_profile',
+            'portfolio' => function ($qb) {
+                return $qb->withTrashed();
+            },
+        ])
             ->where('stylist_id', $stylist->id)
             ->where('status', 'confirmed')
             ->findOrFail($request->appointment_id);
@@ -521,7 +605,18 @@ class AppointmentController extends Controller
     public function getPendingAppointments(Request $request)
     {
         $stylist = $request->user();
-        $appointments = Appointment::with(['customer', 'portfolio'])
+        $appointments = Appointment::with([
+            'customer' => function ($qb) {
+                return $qb->withTrashed();
+            },
+            'stylist' => function ($qb) {
+                return $qb->withTrashed();
+            },
+            'stylist.stylist_profile',
+            'portfolio' => function ($qb) {
+                return $qb->withTrashed();
+            },
+        ])
             ->where('stylist_id', $stylist->id)
             ->where('status', 'pending')
             ->latest()
@@ -717,9 +812,16 @@ class AppointmentController extends Controller
         }
 
         $list = $queryBuilder->with([
-            'portfolio',
+            'customer' => function ($qb) {
+                return $qb->withTrashed();
+            },
+            'stylist' => function ($qb) {
+                return $qb->withTrashed();
+            },
+            'portfolio' => function ($qb) {
+                return $qb->withTrashed();
+            },
             'portfolio.category',
-            'customer'
         ])->cursorPaginate($perPage, ['*'], 'page');
 
         return $list;
@@ -734,7 +836,22 @@ class AppointmentController extends Controller
             abort(403, 'Access Denied');
         }
 
-        $appointment = Appointment::with(['customer', 'stylist', 'stylist.stylist_profile', 'portfolio', 'portfolio.category', 'customer.location_service', 'proof', 'disputes'])
+        $appointment = Appointment::with([
+            'customer' => function ($qb) {
+                return $qb->withTrashed();
+            },
+            'stylist' => function ($qb) {
+                return $qb->withTrashed();
+            },
+            'stylist.stylist_profile',
+            'portfolio' => function ($qb) {
+                return $qb->withTrashed();
+            },
+            'portfolio.category',
+            'customer.location_service',
+            'proof',
+            'disputes'
+        ])
             ->where('id', '=', $appointmentId)
             // ->where('stylist_id','=', $user->id)
             ->firstOrFail();

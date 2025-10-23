@@ -925,7 +925,9 @@ class CustomerApiController extends Controller
                 'stylist' => function ($qb) {
                     $qb->withTrashed();
                 },
-                'portfolio',
+                'portfolio' => function ($qb) {
+                    $qb->withTrashed();
+                },
                 'portfolio.category'
             ]);
         });
@@ -965,14 +967,17 @@ class CustomerApiController extends Controller
         $perPage = formatPerPage($request);
 
         $appointments = $customer->customerAppointments()
-            ->whereHas('stylist')->with([
-                    'stylist' => function ($qb) {
-                        $qb->withTrashed();
-                    },
-                    'stylist.location_service',
-                    'portfolio',
-                    'portfolio.category'
-                ])
+            ->whereHas('stylist')
+            ->with([
+                'stylist' => function ($qb) {
+                    $qb->withTrashed();
+                },
+                'stylist.location_service',
+                'portfolio' => function ($qb) {
+                    $qb->withTrashed();
+                },
+                'portfolio.category'
+            ])
             ->orderBy('created_at', 'desc')
             ->cursorPaginate($perPage, ['*'], 'page')
             ->through(function ($appointment) use ($customer) {
@@ -1003,7 +1008,9 @@ class CustomerApiController extends Controller
                 $qb->withTrashed();
             },
             'stylist.location_service',
-            'portfolio',
+            'portfolio' => function ($qb) {
+                $qb->withTrashed();
+            },
             'portfolio.category',
             'review',
             'disputes',
