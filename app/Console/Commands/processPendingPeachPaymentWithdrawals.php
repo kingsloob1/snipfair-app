@@ -30,15 +30,6 @@ class processPendingPeachPaymentWithdrawals extends Command implements Isolatabl
      */
     public function handle(PaymentController $paymentController)
     {
-        User::findOrFail(39)->sendFireBaseMessage('Appointmeent Test Notification Again', 'Test decsription', [
-            'data' => [
-                'type' => 'appointment',
-                'type_identifier' => 46,
-                'silent' => false
-            ],
-            'link' => 'https://google.com'
-        ]);
-
         $command = $this;
         $this->info('Start processing pending peach payment withdrawals');
         $withdrawalIds = $this->argument('withdrawal');
