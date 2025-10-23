@@ -748,7 +748,7 @@ class AppointmentController extends Controller
             'appointment_id' => 'required|exists:appointments,id',
             'verdict' => 'required|in:processing,pending,approved,rescheduled,confirmed,completed,canceled,escalated',
         ]);
-        $user = $request->user;
+        $user = $request->user();
 
         //approved,canceled
         $appointment = $user->stylistAppointments()->where('id', '=', $request->appointment_id)->firstOrFail();
@@ -847,7 +847,7 @@ class AppointmentController extends Controller
             'code' => 'required|string',
         ]);
 
-        $user = $request->user;
+        $user = $request->user();
         $appointment = $user->stylistAppointments()->where('id', '=', $appointmentId)->firstOrFail();
 
         if ($request->variant === 'confirmed') {
