@@ -168,17 +168,23 @@ class WorkController extends Controller
         $maxBookingAmount = Arr::get($adminConfig ?? [], 'max_booking_amount');
 
         if ($minBookingAmount && $request->price < $minBookingAmount) {
-            throw new BadRequestHttpException('Minimum booking amount is R' . $minBookingAmount);
+            return response()->json([
+                'message' => 'Minimum booking amount is R' . $minBookingAmount
+            ], 400);
         }
 
         if ($maxBookingAmount && $request->price > $maxBookingAmount) {
-            throw new BadRequestHttpException('Maximum booking amount is R' . $maxBookingAmount);
+            return response()->json([
+                'message' => 'Maximum booking amount is R' . $maxBookingAmount
+            ], 400);
         }
 
         $category = $request->input('category_id') ? Category::where('id', $validated['category_id'])->first() : Category::where('name', $validated['category'])->first();
 
         if (!$category) {
-            throw new BadRequestHttpException('Selected work category is invalid');
+            return response()->json([
+                'message' => 'Selected work category is invalid'
+            ], 400);
         }
 
         $mediaPaths = [];
@@ -200,15 +206,19 @@ class WorkController extends Controller
         ]);
 
         if (!$work) {
-            throw new BadRequestHttpException('An error occurred while saving your service');
+            return response()->json([
+                'message' => 'An error occurred while saving your portfolio'
+            ], 400);
         }
 
         $requirementsResp = $this->stylistController->runRequirementManager($user, true);
 
         $work->load(['category'])->loadCount(['likes']);
 
-        if ($requirementsResp['next_requirement']) {
-            return $this->stylistController->executeRequirementAction($requirementsResp, 'Portfolio was created successfully. ', true);
+        if (!$request->expectsJson()) {
+            if ($requirementsResp['next_requirement']) {
+                return $this->stylistController->executeRequirementAction($requirementsResp, 'Portfolio was created successfully. ', true);
+            }
         }
 
         return $work;
