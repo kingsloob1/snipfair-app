@@ -24,6 +24,28 @@ class AppointmentStatusUpdated implements ShouldBroadcastNow
     {
         $this->appointment = $appointment;
         $this->previousStatus = $previousStatus;
+
+        //Trigger firebase notification
+        defer(function () use ($appointment, $previousStatus) {
+            //Send to stylist
+            $appointment->stylist->sendFireBaseMessage("Appointment Status Updated", "Appointment ({$appointment->booking_id}) status changed from {$previousStatus} to {$appointment->status}", [
+                'data' => [
+                    'type' => 'appointment',
+                    'type_identifier' => (int) $appointment->id
+                ],
+                // 'link' => route('customer.appointment.show', $appointment->id)
+                'link' => route('stylist.appointment', $appointment->id)
+            ]);
+
+            //Send to Customer
+            $appointment->customer->sendFireBaseMessage("Your Appointment ({$appointment->booking_id}) Status Changed", "Appointment ($appointment->booking_id) status changed from {$previousStatus} to {$appointment->status}", [
+                'data' => [
+                    'type' => 'appointment',
+                    'type_identifier' => (int) $appointment->id
+                ],
+                'link' => route('customer.appointment.show', $appointment->id)
+            ]);
+        });
     }
 
     /**

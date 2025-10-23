@@ -10,6 +10,7 @@ use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 
 class NotificationPushed
@@ -23,6 +24,49 @@ class NotificationPushed
     public function __construct(Notification $notification)
     {
         $this->notification = $notification;
+
+        //Trigger firebase notification
+        defer(function () use ($notification) {
+            $type = 'notification';
+            $id = null;
+
+            switch (true) {
+                case Str::endsWith($notification->type, 'customer/wallet'):
+                case Str::endsWith($notification->type, 'stylist/earnings'): {
+                    $type = 'wallet';
+                    break;
+                }
+
+                case preg_match('/\b(stylist|customer)\b\/appointment\/(\d{1,})/', $notification->type, $matches): {
+                    $type = 'appointment';
+                    $id = Arr::get($matches, '2', null);
+                    break;
+                }
+
+                case preg_match('/\b(disputes)\b\/(\d{1,})/', $notification->type, $matches): {
+                    $type = 'dispute';
+                    $id = Arr::get($matches, '2', null);
+                    break;
+                }
+
+                default: {
+                    $type = 'notification';
+                }
+            }
+
+            if ($id) {
+                $id = (int) $id;
+            }
+
+            //Send to user
+            $notification->user->sendFireBaseMessage($notification->title, $notification->description, [
+                'data' => [
+                    'type' => $type,
+                    'type_identifier' => $id,
+                ],
+                'link' => $notification->type
+            ]);
+        });
     }
 
     /**

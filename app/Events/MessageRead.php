@@ -24,6 +24,22 @@ class MessageRead implements ShouldBroadcastNow
     {
         $this->message = $message;
         $this->conversation = $conversation;
+
+        //Trigger firebase notification
+        defer(function () use ($message, $conversation) {
+            $isReceiverStylist = $message->receiver->role === 'stylist';
+            $receiverName = ($isReceiverStylist ? $message->receiver->stylist_profile?->business_name : null) ?? $message->receiver->name;
+
+            //Send to sender
+            $message->sender->sendFireBaseMessage("{$receiverName} read your message", '', [
+                'data' => [
+                    'type' => 'conversation',
+                    'type_identifier' => (int) $conversation->id,
+                    'silent' => true,
+                ],
+                'link' => route($isReceiverStylist ? 'customer.chat' : 'stylist.chat', ['conversation' => $conversation->id])
+            ]);
+        });
     }
 
     /**

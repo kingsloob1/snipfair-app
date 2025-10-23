@@ -22,6 +22,19 @@ class AppointmentCreated implements ShouldBroadcastNow
     public function __construct(Appointment $appointment)
     {
         $this->appointment = $appointment;
+
+        //Trigger firebase notification
+        defer(function () use ($appointment) {
+            //Send to stylist
+            $appointment->stylist->sendFireBaseMessage("New Appointment", "Appointment ($appointment->booking_id) created for {$appointment->portfolio->title}", [
+                'data' => [
+                    'type' => 'appointment',
+                    'type_identifier' => (int) $appointment->id
+                ],
+                // 'link' => route('customer.appointment.show', $appointment->id)
+                'link' => route('stylist.appointment', $appointment->id)
+            ]);
+        });
     }
 
     /**

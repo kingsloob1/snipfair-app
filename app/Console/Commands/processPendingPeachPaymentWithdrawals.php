@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Http\Controllers\PaymentController;
+use App\Models\User;
 use App\Models\Withdrawal;
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Console\Isolatable;

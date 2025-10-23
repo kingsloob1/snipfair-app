@@ -399,19 +399,3 @@ if (!function_exists('formatRequestSort')) {
         })->all();
     }
 }
-
-if (!function_exists('getFirebaseAuth')) {
-    function getFirebaseAuth()
-    {
-        $firbaseAuth = Firebase::project('app')->auth();
-        return $firbaseAuth;
-    }
-}
-
-if (!function_exists('sendFireBaseMessage')) {
-    function sendFirebaseMessage(CloudMessage $message, array $tokens)
-    {
-        $firebaseMessaging = Firebase::project('app')->messaging();
-        return $firebaseMessaging->sendMulticast($message, $tokens);
-    }
-}

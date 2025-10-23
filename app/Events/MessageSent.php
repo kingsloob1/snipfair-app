@@ -26,6 +26,21 @@ class MessageSent implements ShouldBroadcastNow
     {
         $this->message = $message;
         $this->conversation = $conversation;
+
+        //Trigger firebase notification
+        defer(function () use ($message, $conversation) {
+            $isSenderStylist = $message->sender->role === 'stylist';
+            $senderName = ($isSenderStylist ? $message->sender->stylist_profile?->business_name : null) ?? $message->sender->name;
+
+            //Send to receiver
+            $message->receiver->sendFireBaseMessage("{$senderName} sent a message", $message->text, [
+                'data' => [
+                    'type' => 'conversation',
+                    'type_identifier' => (int) $conversation->id
+                ],
+                'link' => route($isSenderStylist ? 'customer.chat' : 'stylist.chat', ['conversation' => $conversation->id])
+            ]);
+        });
     }
 
     /**

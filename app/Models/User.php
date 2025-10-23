@@ -12,7 +12,11 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Kreait\Firebase\Messaging\CloudMessage;
+use Kreait\Laravel\Firebase\Facades\Firebase;
 use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Support\Facades\URL;
+use Kreait\Firebase\Messaging\{CloudMessage as FirebaseMessagingCloudMessage};
 
 class User extends Authenticatable implements MustVerifyEmail
 {
@@ -544,6 +548,8 @@ class User extends Authenticatable implements MustVerifyEmail
         $setting->update([
             'value' => $tokens->toJson()
         ]);
+
+        return $this;
     }
 
     public function addFirebaseToken(string $token)
@@ -560,6 +566,61 @@ class User extends Authenticatable implements MustVerifyEmail
             $tokens->add($tokenCollection);
         }
 
-        $this->saveFirebaseTokens($tokens);
+        return $this->saveFirebaseTokens($tokens);
+    }
+
+    public function sendFireBaseMessage(string $title, string $body, array $other = [])
+    {
+        $tokens = $this->getFirebaseTokens();
+        if ($tokens->count()) {
+            $messageData = Arr::get($other, 'data', []);
+            $link = Arr::get($other, 'link', URL::to('/'));
+
+
+            $message = FirebaseMessagingCloudMessage::fromArray([
+                'notification' => [
+                    'title' => $title,
+                    'body' => $body,
+                    'image' => URL::to('/images/logo/logo.png')
+                ],
+                'data' => $messageData,
+                'webpush' => [
+                    'notification' => [
+                        'icon' => URL::to('/images/logo/logo.png')
+                    ],
+                    'fcm_options' => [
+                        'link' => $link,
+                    ]
+                ]
+            ]);
+
+            $firebaseMessaging = Firebase::project('app')->messaging();
+            $report = $firebaseMessaging->sendMulticast($message, $tokens->pluck('token')->toArray());
+
+            $validTokens = $report->validTokens();
+            $now = Carbon::now();
+
+            foreach ($validTokens as $token) {
+                $tokenInCollection = $tokens->firstWhere('token', '===', $token);
+
+                if ($tokenInCollection) {
+                    Arr::set($tokenInCollection, 'last_used_at', $now);
+                }
+            }
+
+            $tokens = $tokens->filter(function ($tokenObj) use ($validTokens) {
+                return in_array(Arr::get($tokenObj, 'token'), $validTokens);
+            });
+
+            $this->saveFirebaseTokens($tokens);
+        }
+
+        return $this;
+    }
+
+    public static function sendFireBaseMessageToUser($user, string $title, string $body, array $other = [])
+    {
+        $user = $user instanceof User ? $user : User::findOrFail($user);
+        return $user->sendFireBaseMessage($title, $body, $other);
     }
 }

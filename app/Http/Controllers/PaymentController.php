@@ -432,7 +432,6 @@ class PaymentController extends Controller
         $user = $request->user();
 
         $transactions = Transaction::where('user_id', $user->id)
-            ->whereIn('type', ['topup', 'refund', 'payment'])
             ->orderBy('created_at', 'desc')
             ->cursorPaginate($perPage, ['*'], 'page')
             ->through(function (Transaction $transaction) {

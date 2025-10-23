@@ -28,6 +28,24 @@ class UserTyping implements ShouldBroadcastNow
         $this->user = $user;
         $this->conversation = $conversation;
         $this->isTyping = $isTyping;
+
+        //Trigger firebase notification
+        defer(function () use ($user, $conversation) {
+            $isSenderStylist = $user->role === 'stylist';
+            $senderName = ($isSenderStylist ? $user->stylist_profile?->business_name : null) ?? $user->name;
+
+            $receiver = $conversation->initiator_id == $user->id ? $conversation->recipient : $conversation->initiator;
+
+            //Send to receiver
+            $receiver->sendFireBaseMessage("{$senderName} is typing a message", '', [
+                'data' => [
+                    'type' => 'conversation',
+                    'type_identifier' => (int) $conversation->id,
+                    'silent' => true,
+                ],
+                'link' => route($isSenderStylist ? 'customer.chat' : 'stylist.chat', ['conversation' => $conversation->id])
+            ]);
+        });
     }
 
     /**

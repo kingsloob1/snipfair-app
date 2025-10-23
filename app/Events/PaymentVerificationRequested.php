@@ -26,6 +26,19 @@ class PaymentVerificationRequested implements ShouldBroadcastNow
         $this->appointment = $appointment;
         $this->paymentAmount = $paymentAmount;
         $this->paymentReference = $paymentReference;
+
+        //Trigger firebase notification
+        defer(function () use ($appointment) {
+            //Send to customer
+            $appointment->customer->sendFireBaseMessage("Appointment Payment Verification Has Been Initiated", "Appointment ($appointment->booking_id) payment verification has been initiated", [
+                'data' => [
+                    'type' => 'appointment',
+                    'type_identifier' => (int) $appointment->id
+                ],
+                // 'link' => route('customer.appointment.show', $appointment->id)
+                'link' => route('customer.appointment.show', $appointment->id)
+            ]);
+        });
     }
 
     /**

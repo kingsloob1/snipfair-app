@@ -481,6 +481,14 @@ class TransactionController extends Controller
             ]);
         }
 
+        sendNotification(
+            $deposit->user->id,
+            route('customer.wallet'),
+            'Deposit Rejected',
+            'Your deposit of R' . $deposit->amount . ' has been rejected',
+            'normal',
+        );
+
         return $transaction;
     }
 }
