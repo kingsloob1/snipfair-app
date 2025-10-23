@@ -49,7 +49,7 @@ class AppointmentController extends Controller
                 'name' => $appointment->customer->name,
                 'stylist_id' => $appointment->stylist_id,
                 'customer_id' => $appointment->customer_id,
-                'service' => $appointment->portfolio->category->name,
+                'service' => $appointment->portfolio?->category?->name ?? 'None',
                 'amount' => (float) $appointment->amount,
                 'status' => $appointment->status,
                 'date' => $appointment->created_at->format('M j, Y'),
@@ -90,7 +90,7 @@ class AppointmentController extends Controller
         ])->orderBy('created_at', 'desc')->get()->map(function ($appointment) {
             return [
                 'name' => $appointment->customer->name,
-                'service' => $appointment->portfolio->category->name,
+                'service' => $appointment->portfolio?->category?->name ?? 'None',
                 'amount' => (float) $appointment->amount,
                 'status' => $appointment->status,
                 'date' => $appointment->created_at->format('M j, Y'),
@@ -214,7 +214,7 @@ class AppointmentController extends Controller
 
             $formatted[$dateKey][] = [
                 'id' => (string) $appointment->id,
-                'title' => optional($appointment->portfolio->category)->name ?? 'None',
+                'title' => $appointment->portfolio?->category?->name ?? 'None',
                 'startTime' => $startTime->format('h:i A'),
                 'endTime' => $endTime->format('h:i A'),
                 'color' => $color,
@@ -532,7 +532,7 @@ class AppointmentController extends Controller
                     'booking_id' => $appointment->booking_id,
                     'customer_name' => $appointment->customer->name,
                     'customer_email' => $appointment->customer->email,
-                    'portfolio_title' => $appointment->portfolio->title,
+                    'portfolio_title' => $appointment->portfolio?->title ?? '',
                     'amount' => $appointment->amount,
                     'appointment_date' => $appointment->appointment_date,
                     'appointment_time' => $appointment->appointment_time,
