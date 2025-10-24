@@ -247,7 +247,7 @@ class DashboardController extends Controller
                 $stylist->subscription = $stylist->plan ?? 'Yet to Subscribe';
                 $stylist->avatar = $this->getAvatar($stylist);
                 return $stylist;
-            }));
+            }), 'all');
 
         // Get stylists with computed fields
         $stylists = Inertia::defer(fn() => User::where('role', 'stylist')
@@ -265,7 +265,7 @@ class DashboardController extends Controller
                 $stylist->subscription = $stylist->plan ?? 'Yet to Subscribe';
                 $stylist->avatar = $this->getAvatar($stylist);
                 return $stylist;
-            }));
+            }), 'approved_or_flagged');
 
         // Get rejected stylists
         $rejectedStylists = Inertia::defer(fn() => User::where('role', 'stylist')
@@ -283,7 +283,7 @@ class DashboardController extends Controller
                 $stylist->subscription = $stylist->plan ?? 'Yet to Subscribe';
                 $stylist->avatar = $this->getAvatar($stylist);
                 return $stylist;
-            }));
+            }), 'rejected');
 
         // Get pending stylist applications
         $stylist_approvals = Inertia::defer(fn() => User::where('role', 'stylist')
@@ -306,7 +306,7 @@ class DashboardController extends Controller
                     'specialties' => $user->portfolios()->with('category')->get()->pluck('category.name')->filter()->unique()->take(3)->values()->toArray(),
                     'portfolio_count' => $user->portfolios()->count(),
                 ];
-            }));
+            }), 'approvals');
 
         $deleted_users = Inertia::defer(fn() => User::onlyTrashed()->get()
             ->map(function ($user) {
@@ -320,7 +320,7 @@ class DashboardController extends Controller
                     'role' => $user->role,
                     'deleted_by' => 'Admin',
                 ];
-            }));
+            }), 'deleted');
 
 
         return Inertia::render('Admin/Account/Users/Index', [
