@@ -7,6 +7,8 @@ import {
     SelectValue,
 } from '@/Components/ui/select';
 import { AdminAccountLayout } from '@/Layouts/AdminAccountLayout';
+import { Deferred } from '@inertiajs/react';
+import { Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import CustomersTable from './_Includes/CustomersTable';
 import DeletedUsers from './_Includes/DeletedUsers';
@@ -134,20 +136,70 @@ export default function Users({
 
     const renderTabContent = () => {
         switch (activeTab) {
-            case 'customers':
-                return <CustomersTable customers={customers} />;
             case 'all_stylists':
-                return <StylistsTable stylists={all_stylists} />;
+                return (
+                    <Deferred
+                        data="all_stylists"
+                        fallback={
+                            <Loader2 className="h-3 w-3 animate-spin text-white" />
+                        }
+                    >
+                        <StylistsTable stylists={all_stylists} />;
+                    </Deferred>
+                );
+
             case 'rejected_stylists':
-                return <StylistsTable stylists={rejected_stylists} />;
+                return (
+                    <Deferred
+                        data="rejected_stylists"
+                        fallback={
+                            <Loader2 className="h-3 w-3 animate-spin text-white" />
+                        }
+                    >
+                        <StylistsTable stylists={rejected_stylists} />;
+                    </Deferred>
+                );
+
             case 'stylists':
-                return <StylistsTable stylists={stylists} />;
+                return (
+                    <Deferred
+                        data="stylists"
+                        fallback={
+                            <Loader2 className="h-3 w-3 animate-spin text-white" />
+                        }
+                    >
+                        <StylistsTable stylists={stylists} />;
+                    </Deferred>
+                );
+
             case 'approvals':
                 return (
-                    <PendingStylistApprovals applications={stylist_approvals} />
+                    <Deferred
+                        data="stylist_approvals"
+                        fallback={
+                            <Loader2 className="h-3 w-3 animate-spin text-white" />
+                        }
+                    >
+                        <PendingStylistApprovals
+                            applications={stylist_approvals}
+                        />
+                        ;
+                    </Deferred>
                 );
+
             case 'deleted_users':
-                return <DeletedUsers deleted_users={deleted_users} />;
+                return (
+                    <Deferred
+                        data="deleted_users"
+                        fallback={
+                            <Loader2 className="h-3 w-3 animate-spin text-white" />
+                        }
+                    >
+                        <DeletedUsers deleted_users={deleted_users} />;
+                    </Deferred>
+                );
+
+            case 'customers':
             default:
                 return <CustomersTable customers={customers} />;
         }
