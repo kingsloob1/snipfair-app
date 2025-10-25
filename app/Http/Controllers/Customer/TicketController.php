@@ -94,8 +94,6 @@ class TicketController extends Controller
             abort(403, 'Unauthorized access to ticket.');
         }
 
-        dd($request->file(), $request->all());
-
         $request->validate([
             'message' => 'required|string',
             'attachments' => 'nullable|array|max:10',
@@ -106,7 +104,7 @@ class TicketController extends Controller
 
         if ($request->hasFile('attachments')) {
             foreach ($request->file('attachments') as $file) {
-                $path = $file->store('dispute-attachments', 'public');
+                $path = $file->store('ticket-message-attachments', 'public');
                 $attachments[] = [
                     'name' => $file->getClientOriginalName(),
                     'path' => $path,
@@ -121,7 +119,7 @@ class TicketController extends Controller
             'sender_type' => 'App\Models\User',
             'sender_id' => Auth::id(),
             'message' => $request->message,
-            'attchments' => $attachments,
+            'attachments' => $attachments,
         ]);
 
         // Reopen ticket if it was closed
