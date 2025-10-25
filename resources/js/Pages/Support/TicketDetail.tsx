@@ -8,17 +8,21 @@ import {
     Calendar,
     CheckCircle2,
     Clock,
+    Download,
     MessageCircle,
     Paperclip,
     Send,
     Shield,
     User,
+    X,
 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { FormEventHandler, useRef } from 'react';
+import React, { FormEventHandler, useRef } from 'react';
+import { toast } from 'sonner';
 
 interface TicketMessage {
     id: number;
+    ticket_id: string | number;
     message: string;
     created_at: string;
     sender_type: string;
@@ -29,7 +33,13 @@ interface TicketMessage {
         email?: string;
         name?: string;
     };
-    attachments?: string[];
+    attachments?: {
+        name: string;
+        url: string;
+        path: string;
+        size: number;
+        type: string;
+    }[];
     is_internal: boolean;
 }
 
@@ -105,6 +115,14 @@ const formatDate = (dateString: string) => {
     });
 };
 
+const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
+
 const MessageBubble = ({
     message,
     isFromCustomer,
@@ -138,6 +156,41 @@ const MessageBubble = ({
                 >
                     <p className="text-sm">{message.message}</p>
                 </div>
+                {/* Attachments */}
+                {message.attachments && message.attachments.length > 0 && (
+                    <div className="mt-3 space-y-2">
+                        {message.attachments.map((attachment, index) => (
+                            <div
+                                key={index}
+                                className={`flex items-center space-x-2 rounded p-2 ${
+                                    message.sender_type === 'App\\Models\\Admin'
+                                        ? 'bg-orange-500'
+                                        : 'border bg-white'
+                                }`}
+                            >
+                                <Paperclip className="h-4 w-4" />
+                                <div className="min-w-0 flex-1">
+                                    <p className="truncate text-xs">
+                                        {attachment.name}
+                                    </p>
+                                    <p className="text-xs opacity-75">
+                                        {formatFileSize(attachment.size)}
+                                    </p>
+                                </div>
+                                <a
+                                    href={window.route(
+                                        'tickets.download.message.attachment',
+                                        [message.ticket_id, message.id, index],
+                                    )}
+                                    className="flex items-center space-x-1 text-xs hover:underline"
+                                >
+                                    <Download className="h-3 w-3" />
+                                    <span>Download</span>
+                                </a>
+                            </div>
+                        ))}
+                    </div>
+                )}
                 <div className="mt-1 flex items-center gap-2 text-xs text-gray-500">
                     <span>
                         {isFromCustomer
@@ -163,16 +216,56 @@ const MessageBubble = ({
 const TicketContainer = ({ ticket }: TicketDetailProps) => {
     const { data, setData, post, processing, errors, reset } = useForm({
         message: '',
+        attachments: [] as File[],
     });
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files) {
+            const files = Array.from(e.target.files);
+            const totalFiles = data.attachments.length + files.length;
+
+            if (totalFiles > 10) {
+                toast.error('You can only attach a maximum of 10 files');
+                return;
+            }
+
+            setData((prevData) => {
+                const attachments = [...prevData.attachments, ...files].slice(
+                    0,
+                    10,
+                );
+                return {
+                    ...prevData,
+                    attachments,
+                };
+            });
+        }
+    };
+
+    const removeAttachment = (index: number) => {
+        setData((prevData) => {
+            const attachments = prevData.attachments.filter(
+                (_, i) => i !== index,
+            );
+
+            return {
+                ...prevData,
+                attachments,
+            };
+        });
+
+        toast.success('Attachment removed');
+    };
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
 
         if (!data.message.trim()) return;
 
-        post(route('tickets.send-message', ticket.ticket_id), {
+        post(window.route('tickets.send-message', ticket.ticket_id), {
+            forceFormData: true,
             onSuccess: () => {
                 reset('message');
                 setTimeout(() => {
@@ -188,7 +281,7 @@ const TicketContainer = ({ ticket }: TicketDetailProps) => {
             {/* Header */}
             <div className="mb-8">
                 <Link
-                    href={route('tickets.index')}
+                    href={window.route('tickets.index')}
                     className="mb-4 inline-flex items-center gap-2 text-gray-600 transition-colors hover:text-gray-900"
                 >
                     <ArrowLeft className="h-4 w-4" />
@@ -298,16 +391,50 @@ const TicketContainer = ({ ticket }: TicketDetailProps) => {
                                 </p>
                             )}
                         </div>
+                        {/* Attachments Preview */}
+                        {data.attachments.length > 0 && (
+                            <div className="mb-3 space-y-2">
+                                {data.attachments.map((file, index) => (
+                                    <div
+                                        key={index}
+                                        className="flex items-center space-x-2 rounded bg-gray-50 p-2"
+                                    >
+                                        <Paperclip className="h-4 w-4 text-gray-500" />
+                                        <div className="min-w-0 flex-1">
+                                            <p className="truncate text-sm">
+                                                {file.name}
+                                            </p>
+                                            <p className="text-xs text-gray-500">
+                                                {formatFileSize(file.size)}
+                                            </p>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                removeAttachment(index)
+                                            }
+                                            className="text-red-500 hover:text-red-700"
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
 
                         <div className="flex items-center justify-between">
-                            <button
-                                type="button"
-                                className="inline-flex items-center gap-2 px-3 py-2 text-gray-600 transition-colors hover:text-gray-900"
-                            >
-                                <Paperclip className="h-4 w-4" />
+                            <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-gray-300 p-2 px-3 py-2 text-gray-600 hover:bg-gray-50">
+                                <Paperclip className="h-5 w-5" />
+                                <input
+                                    type="file"
+                                    multiple
+                                    className="hidden"
+                                    accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.doc,.docx"
+                                    onChange={handleFileChange}
+                                    disabled={data.attachments.length >= 10}
+                                />
                                 Attach File
-                            </button>
-
+                            </label>
                             <button
                                 type="submit"
                                 disabled={processing || !data.message.trim()}
@@ -344,17 +471,17 @@ export default function TicketDetail({
     const routes = [
         {
             name: 'Dashboard',
-            path: route('dashboard'),
+            path: window.route('dashboard'),
             active: false,
         },
         {
             name: 'Support',
-            path: route('tickets.index'),
+            path: window.route('tickets.index'),
             active: false,
         },
         {
             name: `Ticket #${ticket.ticket_id}`,
-            path: route('tickets.show', ticket.ticket_id),
+            path: window.route('tickets.show', ticket.ticket_id),
             active: true,
         },
     ];

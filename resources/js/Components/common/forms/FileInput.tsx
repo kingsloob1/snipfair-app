@@ -1,5 +1,3 @@
-/* eslint-disable jsx-a11y/no-static-element-interactions */
-
 import { cn } from '@/lib/utils';
 import { FolderPlus } from 'lucide-react';
 import mime from 'mime/lite';
@@ -14,6 +12,7 @@ interface CustomFileSetting {
 interface PortfolioUploadProps {
     value?: File[];
     type?: 'file' | 'image' | 'document_or_image' | 'custom';
+    // eslint-disable-next-line no-unused-vars
     onChange: (files: File[]) => void;
     maxFiles?: number;
     disabled?: boolean;

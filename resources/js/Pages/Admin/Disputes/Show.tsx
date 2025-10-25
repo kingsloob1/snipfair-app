@@ -14,7 +14,7 @@ import {
     Send,
     X,
 } from 'lucide-react';
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { toast } from 'sonner';
 
 interface DisputeMessage {
@@ -186,7 +186,7 @@ const AdminDisputeShow = ({ dispute }: DisputeShowProps) => {
             });
 
             const response = await apiCall(
-                route('admin.disputes.messages.store', dispute.id),
+                window.route('admin.disputes.messages.store', dispute.id),
                 {
                     method: 'POST',
                     body: formData,
@@ -222,7 +222,7 @@ const AdminDisputeShow = ({ dispute }: DisputeShowProps) => {
     const handleUpdateStatus = async (currentStatus: string) => {
         try {
             const response = await apiCall(
-                route('admin.disputes.status.update', dispute.id),
+                window.route('admin.disputes.status.update', dispute.id),
                 {
                     method: 'PATCH',
                     body: JSON.stringify({
@@ -251,7 +251,7 @@ const AdminDisputeShow = ({ dispute }: DisputeShowProps) => {
     const handleUpdatePriority = async (newPriority: Dispute['priority']) => {
         try {
             const response = await apiCall(
-                route('admin.disputes.priority.update', dispute.id),
+                window.route('admin.disputes.priority.update', dispute.id),
                 {
                     method: 'PATCH',
                     body: JSON.stringify({
@@ -310,7 +310,7 @@ const AdminDisputeShow = ({ dispute }: DisputeShowProps) => {
         }
 
         try {
-            patch(route('admin.disputes.status.update', dispute.id), {
+            patch(window.route('admin.disputes.status.update', dispute.id), {
                 onSuccess: () => {
                     toast.success('Dispute resolved successfully');
                     reset();
@@ -390,17 +390,17 @@ const AdminDisputeShow = ({ dispute }: DisputeShowProps) => {
     const routes = [
         {
             name: 'Admin Dashboard',
-            path: route('admin.dashboard'),
+            path: window.route('admin.dashboard'),
             active: true,
         },
         {
             name: 'Disputes',
-            path: route('admin.disputes.index'),
+            path: window.route('admin.disputes.index'),
             active: true,
         },
         {
             name: `Dispute #${dispute.ref_id}`,
-            path: route('admin.disputes.show', dispute.id),
+            path: window.route('admin.disputes.show', dispute.id),
             active: false,
         },
     ];
@@ -469,7 +469,7 @@ const AdminDisputeShow = ({ dispute }: DisputeShowProps) => {
                                                                 </p>
                                                             </div>
                                                             <a
-                                                                href={route(
+                                                                href={window.route(
                                                                     'disputes.messages.download',
                                                                     [
                                                                         message.id,
@@ -617,15 +617,16 @@ const AdminDisputeShow = ({ dispute }: DisputeShowProps) => {
                             <div className="space-y-3">
                                 <Link
                                     className="flex items-center space-x-3"
-                                    href={route(
+                                    href={window.route(
                                         'admin.users.customer',
                                         dispute.customer.id,
                                     )}
                                 >
                                     <CommonAvatar
                                         image={
-                                            `/storage/${dispute.customer.avatar}` ||
-                                            ''
+                                            dispute.customer?.avatar
+                                                ? `/storage/${dispute.customer.avatar}`
+                                                : ''
                                         }
                                         name={`${dispute.customer.first_name} ${dispute.customer.last_name}`}
                                         className="h-10 w-10 rounded-full object-cover"
@@ -648,15 +649,16 @@ const AdminDisputeShow = ({ dispute }: DisputeShowProps) => {
 
                                 <Link
                                     className="flex items-center space-x-3"
-                                    href={route(
+                                    href={window.route(
                                         'admin.users.stylist',
                                         dispute.stylist.id,
                                     )}
                                 >
                                     <CommonAvatar
                                         image={
-                                            `/storage/${dispute.stylist.avatar}` ||
-                                            ''
+                                            dispute.stylist?.avatar
+                                                ? `/storage/${dispute.stylist.avatar}`
+                                                : ''
                                         }
                                         name={`${dispute.stylist.first_name} ${dispute.stylist.last_name}`}
                                         className="h-10 w-10 rounded-full object-cover"

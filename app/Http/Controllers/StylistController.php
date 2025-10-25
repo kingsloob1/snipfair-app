@@ -564,7 +564,9 @@ class StylistController extends Controller
         $isProfileComplete = count($completenessArrToUse) === count(array_filter($completenessArrToUse));
 
         if ($isProfileComplete) {
-            if (($user->stylist_profile?->status === 'unverified') || $autoPlaceForVerifcation) {
+            $stylistStatus = $user->stylist_profile?->status === 'unverified' ?? '';
+
+            if (($stylistStatus === 'unverified') || (in_array($stylistStatus, ['unverified', 'rejected']) && $autoPlaceForVerifcation)) {
                 $user->stylist_profile->update([
                     'is_available' => false,
                     'status' => 'pending',

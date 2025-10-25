@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Ticket;
 use App\Models\TicketMessage;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -68,6 +70,18 @@ class TicketController extends Controller
 
         $ticket->load(['messages.sender']);
 
+        $ticket->messages->map(function (TicketMessage $message) {
+            $message->attachments = array_map(function ($attachment) {
+                $filePath = formatStoredFilePath(Arr::get($attachment, 'path'));
+
+                return array_merge($attachment, [
+                    'url' => $filePath ? Storage::url($filePath) : '',
+                ]);
+            }, $message->attachments ?? []);
+
+            return $message;
+        });
+
         return Inertia::render('Support/TicketDetail', [
             'ticket' => $ticket,
         ]);
@@ -82,13 +96,30 @@ class TicketController extends Controller
 
         $request->validate([
             'message' => 'required|string',
+            'attachments' => 'nullable|array|max:5',
+            'attachments.*' => 'file|mimes:jpg,jpeg,png,gif,webp,pdf,doc,docx|max:20480',
         ]);
+
+        $attachments = [];
+
+        if ($request->hasFile('attachments')) {
+            foreach ($request->file('attachments') as $file) {
+                $path = $file->store('dispute-attachments', 'public');
+                $attachments[] = [
+                    'name' => $file->getClientOriginalName(),
+                    'path' => $path,
+                    'size' => $file->getSize(),
+                    'type' => $file->getMimeType(),
+                ];
+            }
+        }
 
         TicketMessage::create([
             'ticket_id' => $ticket->id,
             'sender_type' => 'App\Models\User',
             'sender_id' => Auth::id(),
             'message' => $request->message,
+            'attchments' => $attachments,
         ]);
 
         // Reopen ticket if it was closed
@@ -97,5 +128,40 @@ class TicketController extends Controller
         }
 
         return back()->with('success', 'Message sent successfully.');
+    }
+
+    /**
+     * Download an attachment from a ticket message.
+     */
+    public function downloadAttachment(Request $request, $ticketId, $messageId, $attachmentIndex)
+    {
+        $user = $request->user();
+        $ticketMessage = TicketMessage::query()
+            ->whereHas('ticket', function ($qb) use ($ticketId, $user) {
+                $qb->where('id', '=', $ticketId)->where('user_id', '=', $user->id);
+            })
+            ->where('id', '=', $messageId)
+            ->firstOrFail();
+
+        $attachments = $ticketMessage->attachments;
+        if (!$attachments || !isset($attachments[$attachmentIndex])) {
+            return response()->json([
+                'message' => 'Attachment not found.'
+            ], 404);
+        }
+
+        $attachment = $attachments[$attachmentIndex];
+        $filePath = formatStoredFilePath($attachment['path']);
+
+        if (!Storage::disk('public')->exists($filePath)) {
+            return response()->json([
+                'message' => 'File not found.'
+            ], 404);
+        }
+
+        return response()->download(
+            Storage::disk('public')->path($filePath),
+            $attachment['name']
+        );
     }
 }

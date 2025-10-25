@@ -21,6 +21,8 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use SebastianBergmann\CodeCoverage\Report\Html\Dashboard;
 
+// Route::get('test-view', [HomeController::class, 'testView']);
+
 // SEO Routes
 Route::get('/sitemap.xml', [SEOController::class, 'sitemap'])->name('sitemap');
 Route::get('/robots.txt', [SEOController::class, 'robots'])->name('robots');
@@ -275,6 +277,7 @@ Route::group(['middleware' => ['auth:query_token']], function () {
         Route::post('/', [CustomerTicketController::class, 'store'])->name('store');
         Route::get('{ticket}', [CustomerTicketController::class, 'show'])->name('show');
         Route::post('{ticket}/messages', [CustomerTicketController::class, 'sendMessage'])->name('send-message');
+        Route::get('{ticket}/messages/{messageId}/attachments/{attachmentIndex}', [CustomerTicketController::class, 'downloadAttachment'])->name('download.message.attachment');
     });
     Route::get('/link/{link}', [HomeController::class, 'linkRedirect'])->name('link.redirect');
     Route::get('/stylist-public/{id}', [HomeController::class, 'showStylist'])->name('link.show');

@@ -16,8 +16,6 @@ use App\Http\Controllers\StylistController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
-Route::get('test-view', [HomeController::class, 'testView']);
-
 Route::middleware('guest')->group(function () {
     Route::get('register', [RegisteredUserController::class, 'create'])
         ->name('register');

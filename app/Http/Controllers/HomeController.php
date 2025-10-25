@@ -18,7 +18,74 @@ class HomeController extends Controller
 {
     public function testView()
     {
-        return Inertia::render('Auth/Stylist/Identification');
+        // return Inertia::render('Support/TicketDetail', [
+        //     'auth' => [
+        //         'user' => User::find(40),
+        //     ],
+        //     'ticket' => [
+        //         "id" => 1,
+        //         "ticket_id" => 1,
+        //         "subject" => "A very nice ticket",
+        //         "description" => "I have an issue with this guy",
+        //         "status" => 'pending', //'open' | 'in_progress' | 'closed' | 'pending';
+        //         "priority" => 'low', //'low' | 'medium' | 'high' | 'risky';
+        //         "created_at" => now(),
+        //         "updated_at" => now(),
+        //         "resolved_at" => now(),
+        //         'messages' => [
+        //             [
+        //                 "id" => 1,
+        //                 'ticket_id' => '1',
+        //                 "message" => 'Hi there',
+        //                 "created_at" => now(),
+        //                 "sender_type" => 'App\Models\User',
+        //                 "sender" => [
+        //                     "id" => 1,
+        //                     "first_name" => "Okafor",
+        //                     "last_name" => "Obinna",
+        //                     "email" => "kingsleoob1@gmail.com",
+        //                     "name" => "Okafor Obinna Kingsley"
+        //                 ],
+        //                 "attachments" => [
+        //                     [
+        //                         'name' => 'kings.pdf',
+        //                         'path' => 'avatars/0qv7Eht7GbTT9Y4k7P53rzf7ZEUMsqzLO2R13Uto.jpg'
+        //                     ],
+        //                     [
+        //                         'name' => 'men.pdf',
+        //                         'path' => 'works/media/0lW9RgbvtlF568ymJJDeacx3sTHZVNVLfnI4GKRA.jpg'
+        //                     ]
+        //                 ],
+        //                 "is_internal" => false,
+        //             ],
+        //             [
+        //                 "id" => 1,
+        //                 'ticket_id' => '1',
+        //                 "message" => 'Hi there',
+        //                 "created_at" => now(),
+        //                 "sender_type" => 'App\Models\User',
+        //                 "sender" => [
+        //                     "id" => 1,
+        //                     "first_name" => "Okafor",
+        //                     "last_name" => "Obinna",
+        //                     "email" => "kingsleoob1@gmail.com",
+        //                     "name" => "Okafor Obinna Kingsley"
+        //                 ],
+        //                 "attachments" => [
+        //                     [
+        //                         'name' => 'kings.pdf',
+        //                         'path' => 'avatars/0qv7Eht7GbTT9Y4k7P53rzf7ZEUMsqzLO2R13Uto.jpg'
+        //                     ],
+        //                     [
+        //                         'name' => 'men.pdf',
+        //                         'path' => 'works/media/0lW9RgbvtlF568ymJJDeacx3sTHZVNVLfnI4GKRA.jpg'
+        //                     ]
+        //                 ],
+        //                 "is_internal" => false,
+        //             ]
+        //         ]
+        //     ],
+        // ]);
     }
 
     public function home()
