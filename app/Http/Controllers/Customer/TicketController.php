@@ -94,9 +94,11 @@ class TicketController extends Controller
             abort(403, 'Unauthorized access to ticket.');
         }
 
+        dd($request->file(), $request->all());
+
         $request->validate([
             'message' => 'required|string',
-            'attachments' => 'nullable|array|max:5',
+            'attachments' => 'nullable|array|max:10',
             'attachments.*' => 'file|mimes:jpg,jpeg,png,gif,webp,pdf,doc,docx|max:20480',
         ]);
 

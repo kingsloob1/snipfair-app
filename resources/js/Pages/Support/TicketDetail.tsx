@@ -267,7 +267,7 @@ const TicketContainer = ({ ticket }: TicketDetailProps) => {
         post(window.route('tickets.send-message', ticket.ticket_id), {
             forceFormData: true,
             onSuccess: () => {
-                reset('message');
+                reset('message', 'attachments');
                 setTimeout(() => {
                     messagesEndRef.current?.scrollIntoView({
                         behavior: 'smooth',
