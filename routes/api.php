@@ -183,9 +183,13 @@ Route::middleware('api')->group(function () {
 
                     Route::get('/list', [StylistAppointmentController::class, 'getAppointmentList']);
 
-                    Route::get('{id}', [StylistAppointmentController::class, 'getSpecificAppointment']);
+                    Route::get('{appointmentId}', [StylistAppointmentController::class, 'getSpecificAppointment']);
 
-                    Route::post('{id}', [StylistAppointmentController::class, 'updateSpecificAppointment']);
+                    Route::post('{appointmentId}', [StylistAppointmentController::class, 'updateSpecificAppointment']);
+
+                    Route::post('{appointmentId}/dispute', [StylistAppointmentController::class, 'disputeAppointment']);
+
+                    Route::post('{appointmentId}/proof', [StylistAppointmentController::class, 'submitAppointmentWorkProof']);
 
                     //Comment start here
                     // Route::get('/pending-appointments', 'App\Http\Controllers\Stylist\AppointmentController@getPendingAppointments');

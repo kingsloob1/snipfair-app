@@ -1097,21 +1097,21 @@ class CustomerApiController extends Controller
                 recipient: null, // admin doesn't need recipient object
                 recipientType: 'admin'
             ));
+
+            $superAdmins = Admin::where('role', 'super-admin')
+                ->where('is_active', true)
+                ->get();
+
+            foreach ($superAdmins as $admin) {
+                AdminNotificationHelper::create(
+                    $admin->id,
+                    route('admin.disputes.show', $dispute->id),
+                    'New Dispute from ' . $appointment->customer->name,
+                    "Email: {$appointment->customer->email}\nMessage: " . substr($dispute->comment, 0, 100) . '...',
+                    'normal'
+                );
+            }
         });
-
-        $superAdmins = Admin::where('role', 'super-admin')
-            ->where('is_active', true)
-            ->get();
-
-        foreach ($superAdmins as $admin) {
-            AdminNotificationHelper::create(
-                $admin->id,
-                route('admin.disputes.show', $dispute->id),
-                'New Dispute from ' . $appointment->customer->name,
-                "Email: {$appointment->customer->email}\nMessage: " . substr($validated['comment'], 0, 100) . '...',
-                'normal'
-            );
-        }
 
         return response()->noContent();
     }

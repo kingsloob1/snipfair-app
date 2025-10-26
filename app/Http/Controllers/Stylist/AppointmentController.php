@@ -1152,4 +1152,100 @@ class AppointmentController extends Controller
 
         return response()->noContent();
     }
+
+    public function disputeAppointment(Request $request, $appointmentId)
+    {
+        $user = $request->user();
+        $validated = $request->validate([
+            'comment' => 'required|string',
+            'images' => 'required|array|max:10|min:1',
+            'images.*' => 'image|max:5120',
+        ]);
+
+        $appointment = $user->stylistAppointments()->findOrFail($appointmentId);
+
+        $imagePaths = [];
+
+        if ($request->hasFile('images')) {
+            foreach ($request->file('images') as $file) {
+                $imagePaths[] = $file->store('works/dispute', 'public');
+            }
+        }
+
+        $dispute = AppointmentDispute::create([
+            'appointment_id' => $appointment->id,
+            'customer_id' => $appointment->customer_id,
+            'stylist_id' => $appointment->stylist_id,
+            'from' => 'stylist',
+            'comment' => $validated['comment'],
+            'image_urls' => $imagePaths,
+            'status' => 'open',
+            'priority' => 'low',
+            'ref_id' => $appointment->id,
+            'resolution_amount' => $appointment->amount,
+        ]);
+
+        $appointment->update(['status' => 'escalated']);
+
+        defer(function () use ($appointment, $dispute) {
+            Mail::to('admin@snipfair.com')->send(new AppointmentDisputeEmail(
+                dispute: $dispute,
+                appointment: $appointment,
+                recipient: null, // admin doesn't need recipient object
+                recipientType: 'admin'
+            ));
+
+            $superAdmins = Admin::where('role', 'super-admin')
+                ->where('is_active', true)
+                ->get();
+
+            foreach ($superAdmins as $admin) {
+                AdminNotificationHelper::create(
+                    $admin->id,
+                    route('admin.disputes.show', $dispute->id),
+                    'New Dispute from ' . $appointment->customer->name,
+                    "Email: {$appointment->customer->email}\nMessage: " . substr($dispute->comment, 0, 100) . '...',
+                    'normal'
+                );
+            }
+        });
+
+        return response()->noContent();
+    }
+
+    public function submitAppointmentWorkProof(Request $request, $appointmentId)
+    {
+        $user = $request->user();
+        $validated = $request->validate([
+            'comment' => 'required|string',
+            'images' => 'required|array|max:10|min:1',
+            'images.*' => 'image|max:5120',
+        ]);
+
+        $appointment = $user->stylistAppointments()->with(['proof'])->findOrFail($appointmentId);
+
+        if ($appointment->proof) {
+            return response()->json([
+                'message' => 'Ooops... You have already submitted proof of work done for this appointment'
+            ], 400);
+        }
+
+        $imagePaths = [];
+
+        if ($request->hasFile('images')) {
+            foreach ($request->file('images') as $file) {
+                $imagePaths[] = $file->store('works/proof', 'public');
+            }
+        }
+
+        /* $proof = */
+        AppointmentProof::create([
+            'appointment_id' => $appointmentId,
+            'user_id' => $user->id,
+            'comment' => $validated['comment'],
+            'media_urls' => $imagePaths,
+        ]);
+
+        return response()->noContent();
+    }
 }
