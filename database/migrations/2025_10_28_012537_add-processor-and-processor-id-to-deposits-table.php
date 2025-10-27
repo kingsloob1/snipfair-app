@@ -10,7 +10,7 @@ return new class extends Migration {
      */
     public function up(): void
     {
-        Schema::table('deposts', function (Blueprint $table) {
+        Schema::table('deposits', function (Blueprint $table) {
             $table->string('processor')->default('local')->nullable();
             $table->string('processor_id')->nullable();
         });
@@ -21,7 +21,7 @@ return new class extends Migration {
      */
     public function down(): void
     {
-        Schema::table('deposts', function (Blueprint $table) {
+        Schema::table('deposits', function (Blueprint $table) {
             $table->dropColumn('processor');
             $table->dropColumn('processor_id');
         });
