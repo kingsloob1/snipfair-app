@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\GeneralController as ApiGeneralController;
 use App\Http\Controllers\Auth\ApiAuthController;
+use App\Http\Controllers\Auth\SocialController;
 use App\Http\Controllers\ChatApiController;
 use App\Http\Controllers\CustomerApiController;
 use App\Http\Controllers\DisputeController;
@@ -35,6 +36,9 @@ Route::middleware('api')->group(function () {
 
     //Login
     Route::post('login', [ApiAuthController::class, 'login']);
+
+    //Google Login
+    Route::post('login/google', [SocialController::class, 'handleGoogleLoginFromApi']);
 
     //Register Customer
     Route::post('register/customer', [ApiAuthController::class, 'registerCustomer']);

@@ -80,6 +80,9 @@ class ApiAuthController extends Controller
     public function logout(Request $request)
     {
         $user = $request->user();
+        if (!$user) {
+            return response()->noContent();
+        }
 
         //Remove app firebase tokens
         $user->saveFirebaseTokens($user->getFirebaseTokens()->filter(function ($tokenData) {
@@ -87,7 +90,14 @@ class ApiAuthController extends Controller
             return $from && $from !== 'app';
         }));
 
-        $user->currentAccessToken()->delete();
+        /**
+         * @var \Laravel\Sanctum\PersonalAccessToken
+         */
+        $currentAccessToken = $user->currentAccessToken();
+        if ($currentAccessToken) {
+            $currentAccessToken->delete();
+        }
+
         return response()->noContent();
     }
 

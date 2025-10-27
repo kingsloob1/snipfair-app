@@ -13,11 +13,19 @@ use Illuminate\Support\Facades\Hash;
 use App\Mail\WelcomeEmail;
 use App\Models\StylistSchedule;
 use App\Models\StylistSetting;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
+use Laravel\Socialite\Two\GoogleProvider;
+use Symfony\Component\HttpFoundation\Exception\BadRequestException;
 
 class SocialController extends Controller
 {
+    public function __construct(private ApiAuthController $apiAuthController)
+    {
+    }
+
     public function redirectToGoogle(Request $request, $role = 'customer')
     {
         // Validate role parameter
@@ -26,29 +34,20 @@ class SocialController extends Controller
             $role = 'customer';
         }
 
-        return Socialite::driver('google')
+        /** @var GoogleProvider $socialiteGoogleDriver */
+        $socialiteGoogleDriver = Socialite::driver('google');
+
+        return $socialiteGoogleDriver
             ->with(['state' => base64_encode(json_encode(['role' => $role]))])
             ->redirect();
     }
 
-    public function handleGoogleCallback(Request $request)
+    /**
+     * @param \Laravel\Socialite\AbstractUser $socialiteUser
+     * @param 'customer'|'stylist' $role
+     * */
+    private function processGoogleSocialiteUser($socialiteUser, $role = 'customer')
     {
-        try {
-            // Get the role from state parameter
-            $state = $request->get('state');
-            $stateData = json_decode(base64_decode($state), true);
-            $role = $stateData['role'] ?? 'customer';
-
-            /** @var SocialiteUser $socialiteUser */
-            $socialiteUser = Socialite::driver('google')->stateless()->user();
-        } catch (ClientException $e) {
-            return redirect()->route('login')
-                ->withErrors('error', 'Invalid credentials provided.');
-        } catch (\Exception $e) {
-            return redirect()->route('login')
-                ->withErrors('error', 'Authentication failed. Please try again.');
-        }
-
         $email = $socialiteUser->getEmail();
 
         // Extract names
@@ -68,11 +67,12 @@ class SocialController extends Controller
 
         // Check if user already exists
         $user = User::where('email', $email)->first();
+        $wasCreated = false;
 
         if (!$user) {
-            if($role === 'customer'){
-                if(!getAdminConfig('allow_registration_customers')){
-                    return back()->with('error', 'Registration is disabled currently, try again later or contact support if issue persists');
+            if ($role === 'customer') {
+                if (!getAdminConfig('allow_registration_customers')) {
+                    throw new BadRequestException('Registration is disabled currently, try again later or contact support if issue persists');
                 }
                 $user = User::create([
                     'name' => $firstName . ' ' . $lastName,
@@ -87,8 +87,8 @@ class SocialController extends Controller
                     'avatar' => $avatarUrl,
                 ]);
             } else if ($role === 'stylist') {
-                if(!getAdminConfig('allow_registration_stylists')){
-                    return back()->with('error', 'Registration is disabled currently, try again later or contact support if issue persists');
+                if (!getAdminConfig('allow_registration_stylists')) {
+                    throw new BadRequestException('Registration is disabled currently, try again later or contact support if issue persists');
                 }
                 $user = User::create([
                     'first_name' => $firstName,
@@ -125,31 +125,73 @@ class SocialController extends Controller
             }
 
             $user->email_verified_at = now();
-            $user->save();
-            // Send welcome email
-            Mail::to($email)->send(new WelcomeEmail($user->first_name, $user->email, null, $role));
-            $message = "Registration successful! Welcome to our platform.";
+            $wasCreated = true;
         } else {
-            // User exists, check if they have a normal account
-            if ($user->type !== 'google') {
-                return redirect()->route('login')
-                    ->with('error', "An account with this email already exists for another authentication method. Please log in with your password.");
-            }
-
-            $message = "Welcome back!";
+            $wasCreated = false;
         }
 
         $user->last_login_at = now();
         $user->save();
 
-        // Log the user in using Laravel's built-in authentication
-        Auth::login($user, true); // true for "remember me"
-        $request->session()->regenerate();
+        if ($wasCreated) {
+            defer(function () use ($user) {
+                // Send welcome email
+                Mail::to($user->email)->send(new WelcomeEmail($user->first_name, $user->email, null, $user->role));
+            });
+        }
 
-        // Redirect based on role or user preference
-        $redirectTo = $this->getRedirectPath($user);
+        return ['user' => $user, 'was_created' => $wasCreated];
+    }
 
-        return redirect($redirectTo)->with('success', $message);
+    public function handleGoogleCallback(Request $request)
+    {
+        try {
+            // Get the role from state parameter
+            $state = $request->get('state');
+            $stateData = json_decode(base64_decode($state), true);
+            $role = $stateData['role'] ?? 'customer';
+
+            /** @var GoogleProvider $socialiteGoogleDriver */
+            $socialiteGoogleDriver = Socialite::driver('google');
+            $socialiteUser = $socialiteGoogleDriver->stateless()->user();
+        } catch (ClientException $e) {
+            return redirect()->route('login')
+                ->withErrors('error', 'Invalid credentials provided.');
+        } catch (\Exception $e) {
+            return redirect()->route('login')
+                ->withErrors('error', 'Authentication failed. Please try again.');
+        }
+
+        if (!$socialiteUser) {
+            return redirect()->route('login')
+                ->withErrors('error', 'Authentication failed. Please try again.');
+        }
+
+        try {
+            $resp = $this->processGoogleSocialiteUser($socialiteUser, $role);
+
+            $user = Arr::get($resp, 'user');
+            $wasCreated = Arr::get($resp, 'was_created', false);
+
+            if (!$user) {
+                return redirect()->route('login')
+                    ->with('error', "An error occurred while logging into user account. Kindly use another authentication method.");
+            }
+
+            $message = $wasCreated ? 'Registration successful! Welcome to our platform.' : 'Welcome back';
+
+            // Log the user in using Laravel's built-in authentication
+            Auth::login($user, true); // true for "remember me"
+            $request->session()->regenerate();
+
+            // Redirect based on role or user preference
+            $redirectTo = $this->getRedirectPath($user);
+
+            return redirect($redirectTo)->with('success', $message);
+        } catch (BadRequestException $e) {
+            return redirect()->route('login')
+                ->with('error', $e->getMessage());
+        }
     }
 
     private function getRedirectPath(User $user): string
@@ -161,6 +203,59 @@ class SocialController extends Controller
             case 'customer':
             default:
                 return '/dashboard';
+        }
+    }
+
+    public function handleGoogleLoginFromApi(Request $request)
+    {
+        $request->validate([
+            'device_name' => 'required|string|max:255',
+            'access_token' => 'required|string',
+            'role' => [
+                'required',
+                Rule::in(['customer', 'stylist'])
+            ],
+        ]);
+
+        /** @var GoogleProvider $socialiteGoogleDriver */
+        $socialiteGoogleDriver = Socialite::driver('google');
+
+        $googleUser =
+            $socialiteGoogleDriver->userFromToken($request->access_token);
+
+        if (!$googleUser) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Authentication failed. Please try again.'
+            ], 400);
+        }
+
+        try {
+            $resp = $this->processGoogleSocialiteUser($googleUser);
+            $user = Arr::get($resp, 'user');
+            $wasCreated = Arr::get($resp, 'was_created', false);
+
+            if (!$user) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'An error occurred while logging into user account. Kindly use another authentication method.'
+                ], 400);
+            }
+
+            return array_merge(
+                $this->apiAuthController->generateAuthResponseForUserDevice(
+                    $user,
+                    $request->device_name
+                ),
+                [
+                    'was_created' => $wasCreated
+                ]
+            );
+        } catch (BadRequestException $e) {
+            return response()->json([
+                'status' => false,
+                'message' => $e->getMessage()
+            ], 400);
         }
     }
 }
