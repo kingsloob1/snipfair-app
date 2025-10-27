@@ -93,6 +93,20 @@ class ProcessPayfastDeposit implements ShouldQueue
 
             try {
                 DB::transaction(function () use ($appointment, $deposit, $transaction, $status, $pfPaymentId, $cleanUpWithStatus, $transactionController) {
+                    if ($deposit) {
+                        $deposit->update([
+                            'processor' => 'payfast',
+                            'processor_id' => $pfPaymentId
+                        ]);
+                    }
+
+                    if ($transaction) {
+                        $transaction->update([
+                            'processor' => 'payfast',
+                            'processor_id' => $pfPaymentId
+                        ]);
+                    }
+
                     switch ($status) {
                         case 'complete': {
                             $transactionController->approveDepositNative($deposit, $transaction);

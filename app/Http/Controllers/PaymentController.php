@@ -282,6 +282,7 @@ class PaymentController extends Controller
             ]);
 
             $body = json_decode((string) $response->getBody(), true);
+
             if (Arr::has($body, 'uuid')) {
                 $inSandbox = (bool) config('payfast.test_mode');
 
@@ -1121,7 +1122,7 @@ class PaymentController extends Controller
             return response('Invalid signature', 400);
         }
 
-        $transactionId = $pfData['m_payment_id'] ?? null;
+        $transactionId = $pfData['f'] ?? null;
         $deposit = Deposit::find($pfData['item_name'] ?? null);
 
         if (!$deposit) {

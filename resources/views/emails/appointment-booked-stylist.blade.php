@@ -29,11 +29,11 @@
             </tr>
             <tr>
                 <th>Service Date</th>
-                <td>{{ \Carbon\Carbon::parse($appointment->appointment_date)->format('F j, Y') }}</td>
+                <td>{{ $appointment->appointment_date_time->format('F j, Y') }}</td>
             </tr>
             <tr>
                 <th>Service Time</th>
-                <td>{{ \Carbon\Carbon::parse($appointment->appointment_time)->format('g:i A') }}</td>
+                <td>{{ $appointment->appointment_date_time->format('g:i A') }}</td>
             </tr>
             <tr>
                 <th>Duration</th>

@@ -55,7 +55,7 @@ class Appointment extends Model
                 $dateTime = Carbon::parse($value);
                 return [
                     'appointment_date' => $dateTime->format('Y-m-d'),
-                    'appointment_time' => $dateTime->format('H-i-s'),
+                    'appointment_time' => $dateTime->format('H:i:s'),
                 ];
             }
         );

@@ -231,7 +231,7 @@ class SocialController extends Controller
         }
 
         try {
-            $resp = $this->processGoogleSocialiteUser($googleUser);
+            $resp = $this->processGoogleSocialiteUser($googleUser, $request->role);
             $user = Arr::get($resp, 'user');
             $wasCreated = Arr::get($resp, 'was_created', false);
 

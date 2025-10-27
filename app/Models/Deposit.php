@@ -6,29 +6,34 @@ use Illuminate\Database\Eloquent\Model;
 
 class Deposit extends Model
 {
-    protected $fillable = ['user_id', 'appointment_id', 'portfolio_id', 'transaction_id', 'amount', 'admin_payment_method_id', 'status'];
+    protected $fillable = ['user_id', 'appointment_id', 'portfolio_id', 'transaction_id', 'amount', 'admin_payment_method_id', 'status', 'processor', 'processor_id'];
 
     protected $casts = [
         'amount' => 'float',
     ];
 
-    public function user() {
+    public function user()
+    {
         return $this->belongsTo(User::class);
     }
 
-    public function portfolio() {
+    public function portfolio()
+    {
         return $this->belongsTo(Portfolio::class);
     }
 
-    public function appointment() {
+    public function appointment()
+    {
         return $this->belongsTo(Appointment::class);
     }
 
-    public function transaction() {
+    public function transaction()
+    {
         return $this->belongsTo(Transaction::class);
     }
 
-    public function payment_method() {
+    public function payment_method()
+    {
         return $this->belongsTo(AdminPaymentMethod::class, 'admin_payment_method_id');
     }
 }
