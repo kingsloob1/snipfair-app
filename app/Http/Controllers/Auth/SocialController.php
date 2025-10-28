@@ -84,9 +84,9 @@ class SocialController extends Controller
 
         if (!$user) {
             if ($role === 'customer') {
-                // if (!getAdminConfig('allow_registration_customers')) {
-                //     throw new BadRequestException('Registration is disabled currently, try again later or contact support if issue persists');
-                // }
+                if (!getAdminConfig('allow_registration_customers')) {
+                    throw new BadRequestException('Registration is disabled currently, try again later or contact support if issue persists');
+                }
                 $user = User::create([
                     'name' => $firstName . ' ' . $lastName,
                     'first_name' => $firstName,
@@ -289,11 +289,6 @@ class SocialController extends Controller
             );
         } catch (BadRequestException $e) {
             Log::error($e);
-            Log::info(json_encode([
-                'status' => false,
-                'message' => $e->getMessage()
-            ]));
-
             return response()->json([
                 'status' => false,
                 'message' => $e->getMessage()
