@@ -16,9 +16,12 @@ use App\Models\StylistSetting;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Laravel\Socialite\Two\GoogleProvider;
 use Symfony\Component\HttpFoundation\Exception\BadRequestException;
+
+use function Illuminate\Log\log;
 
 class SocialController extends Controller
 {
@@ -217,7 +220,7 @@ class SocialController extends Controller
             ],
         ]);
 
-        echo var_dump($request->all());
+        Log::info($request->all());
 
         /** @var GoogleProvider $socialiteGoogleDriver */
         $socialiteGoogleDriver = Socialite::driver('google');
