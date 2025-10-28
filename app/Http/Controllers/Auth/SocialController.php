@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Http\File;
 use Illuminate\Http\Request;
 use App\Models\User;
 use GuzzleHttp\Exception\ClientException;
@@ -17,6 +18,7 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Laravel\Socialite\Two\GoogleProvider;
 use Symfony\Component\HttpFoundation\Exception\BadRequestException;
@@ -51,8 +53,6 @@ class SocialController extends Controller
      * */
     private function processGoogleSocialiteUser($socialiteUser, $role = 'customer')
     {
-        Log::info($socialiteUser->attributes);
-        Log::info($socialiteUser->user);
         $email = $socialiteUser->getEmail();
 
         // Extract names
@@ -69,6 +69,10 @@ class SocialController extends Controller
         }
 
         $avatarUrl = $socialiteUser->getAvatar() ?? null;
+        $getLocalAvatar = function () use ($avatarUrl) {
+            $imageContent = file_get_contents($avatarUrl);
+            return Storage::disk('public')->putFile('avatars', $imageContent);
+        };
 
         // Check if user already exists
         $user = User::where('email', $email)->first();
@@ -76,9 +80,9 @@ class SocialController extends Controller
 
         if (!$user) {
             if ($role === 'customer') {
-                if (!getAdminConfig('allow_registration_customers')) {
-                    throw new BadRequestException('Registration is disabled currently, try again later or contact support if issue persists');
-                }
+                // if (!getAdminConfig('allow_registration_customers')) {
+                //     throw new BadRequestException('Registration is disabled currently, try again later or contact support if issue persists');
+                // }
                 $user = User::create([
                     'name' => $firstName . ' ' . $lastName,
                     'first_name' => $firstName,
@@ -89,7 +93,7 @@ class SocialController extends Controller
                     'role' => $role,
                     'type' => 'google',
                     'email_verified_at' => now(),
-                    'avatar' => $avatarUrl,
+                    'avatar' => $getLocalAvatar() ?: null,
                 ]);
             } else if ($role === 'stylist') {
                 if (!getAdminConfig('allow_registration_stylists')) {
@@ -104,7 +108,7 @@ class SocialController extends Controller
                     'password' => Hash::make(Str::random(12)),
                     'type' => 'google',
                     'role' => 'stylist',
-                    'avatar' => $avatarUrl,
+                    'avatar' => $getLocalAvatar() ?: null,
                     'email_verified_at' => now(),
                 ]);
 
@@ -132,8 +136,27 @@ class SocialController extends Controller
             $user->email_verified_at = now();
             $wasCreated = true;
         } else {
+            //Auto verify user if user is not verified
+            if (!$user->email_verified_at) {
+                $user->email_verified_at = now();
+            }
+
+            if ($role !== $user->role) {
+                switch ($user->role) {
+                    case 'stylist': {
+                        throw new BadRequestException('A stylist account currently exists for this email');
+                    }
+
+
+                    case 'customer': {
+                        throw new BadRequestException('A customer account currently exists for this email');
+                    }
+                }
+            }
+
             $wasCreated = false;
         }
+
 
         $user->last_login_at = now();
         $user->save();
