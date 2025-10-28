@@ -51,6 +51,7 @@ class SocialController extends Controller
      * */
     private function processGoogleSocialiteUser($socialiteUser, $role = 'customer')
     {
+        Log::info($socialiteUser);
         $email = $socialiteUser->getEmail();
 
         // Extract names
