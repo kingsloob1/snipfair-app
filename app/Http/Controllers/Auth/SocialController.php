@@ -193,6 +193,7 @@ class SocialController extends Controller
             return redirect($redirectTo)->with('success', $message);
         } catch (BadRequestException $e) {
             Log::error($e);
+
             return redirect()->route('login')
                 ->with('error', $e->getMessage());
         }
@@ -259,6 +260,11 @@ class SocialController extends Controller
             );
         } catch (BadRequestException $e) {
             Log::error($e);
+            Log::info(json_encode([
+                'status' => false,
+                'message' => $e->getMessage()
+            ]));
+
             return response()->json([
                 'status' => false,
                 'message' => $e->getMessage()
