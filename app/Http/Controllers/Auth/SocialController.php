@@ -217,6 +217,8 @@ class SocialController extends Controller
             ],
         ]);
 
+        echo var_dump($request->all());
+
         /** @var GoogleProvider $socialiteGoogleDriver */
         $socialiteGoogleDriver = Socialite::driver('google');
 
