@@ -71,7 +71,10 @@ class SocialController extends Controller
         $avatarUrl = $socialiteUser->getAvatar() ?? null;
         $getLocalAvatar = function () use ($avatarUrl) {
             $avatarContents = file_get_contents($avatarUrl);
-            $filePath = 'avatars/' . Str::uuid() . '.jpg';
+            do {
+                $filePath = 'avatars/' . Str::uuid() . '.jpg';
+            } while (Storage::disk('public')->exists($filePath));
+
             return Storage::disk('public')->put($filePath, $avatarContents) ? $filePath : null;
         };
 
