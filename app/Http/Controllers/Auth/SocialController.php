@@ -72,7 +72,7 @@ class SocialController extends Controller
         $getLocalAvatar = function () use ($avatarUrl) {
             $avatarContents = file_get_contents($avatarUrl);
             $filePath = 'avatars/' . Str::uuid() . '.jpg';
-            return Storage::put($filePath, $avatarContents) ? $filePath : null;
+            return Storage::disk('public')->put($filePath, $avatarContents) ? $filePath : null;
         };
 
         // Check if user already exists
