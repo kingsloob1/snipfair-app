@@ -133,6 +133,8 @@ class ProcessPayfastDeposit implements ShouldQueue
                     }
                 });
             } catch (Exception $e) {
+                Log::error('Payfast deposit failed with error');
+                Log::error($e);
                 $cleanUpWithStatus('pending');
             }
         });

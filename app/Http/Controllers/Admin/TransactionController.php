@@ -388,6 +388,10 @@ class TransactionController extends Controller
             }
         }
 
+        $deposit->update([
+            'status' => 'approved',
+        ]);
+
         if ($transaction) {
             $transaction->update([
                 'status' => 'completed'
@@ -450,6 +454,16 @@ class TransactionController extends Controller
             }
         }
 
+        $deposit->update([
+            'status' => 'declined',
+        ]);
+
+        if ($transaction) {
+            $transaction->update([
+                'status' => 'failed'
+            ]);
+        }
+
         if ($appointment) {
             //Reverse transaction for wallet debit
             $appointment
@@ -473,12 +487,6 @@ class TransactionController extends Controller
             $appointment->save();
 
             broadcast(new AppointmentStatusUpdated($appointment, $previousStatus));
-        }
-
-        if ($transaction) {
-            $transaction->update([
-                'status' => 'failed'
-            ]);
         }
 
         sendNotification(
