@@ -535,6 +535,18 @@ class StylistController extends Controller
         return back()->with('success', 'Work removed.');
     }
 
+    public function isProfileComplete(array $profile_completeness)
+    {
+        $fieldsToIgnoreInCompletnessVerification = ['status_approved', 'subscription_status'];
+        $completenessArrToUse = Arr::where($profile_completeness, function ($value, $key) use ($fieldsToIgnoreInCompletnessVerification) {
+            return !in_array($key, $fieldsToIgnoreInCompletnessVerification);
+        });
+
+        $isProfileComplete = count($completenessArrToUse) === count(array_filter($completenessArrToUse));
+
+        return $isProfileComplete;
+    }
+
     public function checkProfileCompleteness(User $user, bool $autoPlaceForVerifcation = true)
     {
         $user->refresh();
@@ -556,12 +568,7 @@ class StylistController extends Controller
             'subscription_status' => $user->subscription_status === 'active',
         ];
 
-        $fieldsToIgnoreInCompletnessVerification = ['status_approved', 'subscription_status'];
-        $completenessArrToUse = Arr::where($profile_completeness, function ($value, $key) use ($fieldsToIgnoreInCompletnessVerification) {
-            return !in_array($key, $fieldsToIgnoreInCompletnessVerification);
-        });
-
-        $isProfileComplete = count($completenessArrToUse) === count(array_filter($completenessArrToUse));
+        $isProfileComplete = $this->isProfileComplete($profile_completeness);
 
         if ($isProfileComplete) {
             $stylistStatus = $user->stylist_profile?->status === 'unverified' ?? '';
