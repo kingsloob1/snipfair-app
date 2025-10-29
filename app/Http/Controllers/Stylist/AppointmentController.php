@@ -718,32 +718,35 @@ class AppointmentController extends Controller
             $stylist->save();
         }
 
-        foreach ($validated['schedules'] as $dayData) {
-            $schedule = $user->stylistSchedules()->where('day', strtolower($dayData['day']))->first();
+        $schedules = Arr::get($validated, 'schedules');
+        if ($schedules && is_array($schedules)) {
+            foreach ($validated['schedules'] as $dayData) {
+                $schedule = $user->stylistSchedules()->where('day', strtolower($dayData['day']))->first();
 
-            if ($schedule) {
-                $schedule->update(['available' => $dayData['available']]);
-                $schedule->slots()->delete();
-                if (isset($dayData['timeSlots']) && is_array($dayData['timeSlots']) && !empty($dayData['timeSlots'])) {
-                    foreach ($dayData['timeSlots'] as $slot) {
-                        try {
-                            $schedule->slots()->create([
-                                'from' => $slot['from'] . ':00', // Add seconds if needed
-                                'to' => $slot['to'] . ':00',     // Add seconds if needed
-                            ]);
-                        } catch (\Exception $e) {
-                            Log::error('Failed to create slot', [
-                                'error' => $e->getMessage(),
-                                'slot' => $slot,
-                                'schedule_id' => $schedule->id
-                            ]);
+                if ($schedule) {
+                    $schedule->update(['available' => $dayData['available']]);
+                    $schedule->slots()->delete();
+                    if (isset($dayData['timeSlots']) && is_array($dayData['timeSlots']) && !empty($dayData['timeSlots'])) {
+                        foreach ($dayData['timeSlots'] as $slot) {
+                            try {
+                                $schedule->slots()->create([
+                                    'from' => $slot['from'] . ':00', // Add seconds if needed
+                                    'to' => $slot['to'] . ':00',     // Add seconds if needed
+                                ]);
+                            } catch (\Exception $e) {
+                                Log::error('Failed to create slot', [
+                                    'error' => $e->getMessage(),
+                                    'slot' => $slot,
+                                    'schedule_id' => $schedule->id
+                                ]);
+                            }
                         }
+                    } else {
+                        Log::info('No timeSlots to process for day: ' . $dayData['day']);
                     }
                 } else {
-                    Log::info('No timeSlots to process for day: ' . $dayData['day']);
+                    Log::warning('Schedule not found for day: ' . $dayData['day']);
                 }
-            } else {
-                Log::warning('Schedule not found for day: ' . $dayData['day']);
             }
         }
 
