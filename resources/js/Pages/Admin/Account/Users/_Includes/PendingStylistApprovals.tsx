@@ -1,3 +1,4 @@
+/* eslint-disable jsx-a11y/label-has-associated-control */
 import CustomButton from '@/Components/common/CustomButton';
 import CommonAvatar from '@/Components/common/forms/CommonAvatar';
 import Modal from '@/Components/Modal';
@@ -64,12 +65,12 @@ const PendingStylistApprovals: React.FC<PendingStylistApprovalsProps> = ({
 
         switch (type) {
             case 'approve':
-                router.post(route('admin.stylists.approve'), {
+                router.post(window.route('admin.stylists.approve'), {
                     application_id: application.id,
                 });
                 break;
             case 'reject':
-                router.post(route('admin.stylists.reject'), {
+                router.post(window.route('admin.stylists.reject'), {
                     application_id: application.id,
                 });
                 break;
@@ -211,7 +212,7 @@ const PendingStylistApprovals: React.FC<PendingStylistApprovalsProps> = ({
                                     className="absolute right-0 top-0 p-2 md:p-2"
                                     onClick={() =>
                                         router.visit(
-                                            route(
+                                            window.route(
                                                 'admin.users.stylist',
                                                 selectedApplication?.id,
                                             ),

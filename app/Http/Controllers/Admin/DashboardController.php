@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use Inertia\Inertia;
 use App\Mail\StylistAccountApprovedEmail;
+use App\Mail\StylistAccountRejectedEmail;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 
@@ -447,11 +448,23 @@ class DashboardController extends Controller
         if ($user->stylist_profile) {
             $user->update(['status' => 'active']);
             $user->stylist_profile->update(['status' => 'approved']);
-            Mail::to($user->email)->send(new StylistAccountApprovedEmail(
-                stylistName: $user->first_name,
-                stylistEmail: $user->email,
-                loginUrl: url('/login')
-            ));
+
+
+            defer(function () use ($user) {
+                sendNotification(
+                    $user->id,
+                    route('stylist.profile'),
+                    'Congratulations! Your Stylist Account is Approved 🎉',
+                    'Welcome Aboard — Your Stylist Profile Is Live! Start showcasing your work',
+                    'normal',
+                );
+
+                Mail::to($user->email)->send(new StylistAccountApprovedEmail(
+                    stylistName: $user->first_name,
+                    stylistEmail: $user->email,
+                    loginUrl: url('/login')
+                ));
+            });
         }
 
         // Update user status
@@ -467,6 +480,21 @@ class DashboardController extends Controller
         // Update stylist profile status
         if ($user->stylist_profile) {
             $user->stylist_profile->update(['status' => 'rejected']);
+
+            defer(function () use ($user) {
+                sendNotification(
+                    $user->id,
+                    route('stylist.profile'),
+                    'We Couldn’t Approve Your Business (This Time)',
+                    'Your Application Requires Changes. Ensure you have updated your profile with all the services you offer.',
+                    'normal',
+                );
+
+                Mail::to($user->email)->send(new StylistAccountRejectedEmail(
+                    stylistName: $user->first_name,
+                    stylistEmail: $user->email
+                ));
+            });
         }
 
         return back()->with('success', 'Stylist application rejected.');
