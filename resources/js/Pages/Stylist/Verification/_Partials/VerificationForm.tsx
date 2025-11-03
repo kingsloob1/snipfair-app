@@ -527,10 +527,12 @@ export default function VerificationForm({
                             <div className="col-span-3">
                                 <CustomInput
                                     className="w-full px-1 py-1 text-sm"
-                                    label={index === 0 ? 'Your URL' : ''}
+                                    label={
+                                        index === 0 ? 'Social media handle' : ''
+                                    }
                                     name={`url_${social.id}`}
                                     value={social.url}
-                                    placeholder="https://..."
+                                    placeholder="@yourhandle or https://yourprofileurl.com"
                                     onChange={(e) =>
                                         handleSocialChange(
                                             social.id!,
