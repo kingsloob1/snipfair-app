@@ -4,11 +4,14 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -30,14 +33,25 @@ class AuthenticatedSessionController extends Controller
      */
     public function store(LoginRequest $request): RedirectResponse
     {
-        $request->authenticate();
+        $email = mb_strtolower($request->email);
+        $user = User::whereRaw('lower(email) = ?', [
+            $email
+        ])->first();
 
+        if (!$user || !Hash::check($request->password, $user->password)) {
+            throw ValidationException::withMessages([
+                'email' => ['The provided credentials are incorrect.'],
+            ]);
+        }
+
+        Auth::guard('web')->login($user);
         $request->session()->regenerate();
 
-        $user = $request->user();
         $user->last_login_at = now();
-        if ($user->status === 'inactive')
+        if ($user->status === 'inactive') {
             $user->status = 'active';
+        }
+
         $user->save();
 
         if ($user->status === 'banned')

@@ -51,7 +51,7 @@ class SocialController extends Controller
      * */
     private function processGoogleSocialiteUser($socialiteUser, $role = 'customer')
     {
-        $email = $socialiteUser->getEmail();
+        $email = mb_strtolower($socialiteUser->getEmail());
 
         // Extract names
         if ($socialiteUser->offsetExists('given_name')) {
@@ -77,7 +77,9 @@ class SocialController extends Controller
         };
 
         // Check if user already exists
-        $user = User::where('email', $email)->first();
+        $user = User::whereRaw('lower(email) = ?', [
+            $email
+        ])->first();
         $wasCreated = false;
 
         if (!$user) {
