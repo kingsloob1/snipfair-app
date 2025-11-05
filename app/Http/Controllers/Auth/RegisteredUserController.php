@@ -37,6 +37,7 @@ class RegisteredUserController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|string|lowercase|email|max:255|unique:' . User::class,
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            'gender' => 'sometimes|in:male,female,other',
         ]);
 
         if (!getAdminConfig('allow_registration_customers')) {
@@ -49,6 +50,7 @@ class RegisteredUserController extends Controller
             'last_name' => explode(' ', $request->name, 2)[1] ?? '',
             'email' => $request->email,
             'phone' => '',
+            'gender' => $request->gender ?: null,
             'password' => Hash::make($request->password),
         ]);
 

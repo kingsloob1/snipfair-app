@@ -290,6 +290,7 @@ class StylistController extends Controller
             'location' => 'nullable|sometimes|string|max:255',
             'country' => 'nullable|sometimes|string|max:255',
             'bio' => 'nullable|sometimes|string|min:5',
+            'gender' => 'sometimes|in:male,female,other',
         ]);
 
         $user->update([
@@ -299,6 +300,7 @@ class StylistController extends Controller
             'phone' => $request->phone ?: $user->phone,
             'country' => $request->country ?: $request->location ?: $user->country,
             'bio' => $request->bio ?: $user->bio,
+            'gender' => $request->gender ?: $user->gender,
         ]);
 
         $stylist->update([
@@ -796,6 +798,7 @@ class StylistController extends Controller
             'first_name' => 'sometimes|required|string|max:255',
             'last_name' => 'sometimes|required|string|max:255',
             'phone' => ['sometimes', 'numeric', new PhoneNumber()],
+            'gender' => 'sometimes|in:male,female,other',
             'years_of_experience' => 'sometimes|required|numeric|min:0|gt:0|max:50',
             'country' => 'sometimes|required|string|max:255',
             'bio' => 'nullable|sometimes|string|min:5',
@@ -843,6 +846,7 @@ class StylistController extends Controller
             'phone' => $request->phone ?: $user->phone,
             'country' => $request->country ?: $user->country,
             'bio' => $request->bio ?: $user->bio,
+            'gender' => $request->gender ?: $user->gender,
         ]);
 
         $socials = [];
@@ -898,8 +902,6 @@ class StylistController extends Controller
             'years_of_experience' => $request->years_of_experience ?: $stylist->years_of_experience,
             'socials' => count($socials) ? $socials : null,
             'works' => count($validWorkMedia) ? $validWorkMedia : null,
-            'is_available' => false,
-            'status' => 'unverified',
         ]);
 
         $disk = Storage::disk('public');
@@ -1074,8 +1076,6 @@ class StylistController extends Controller
         $stylist->update([
             'business_name' => $request->business_name,
             'socials' => $socials,
-            'is_available' => false,
-            'status' => 'unverified',
         ]);
 
         $existing = $stylist->works ?? [];

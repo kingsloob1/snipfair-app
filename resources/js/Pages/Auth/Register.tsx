@@ -6,7 +6,7 @@ import Separator from '@/Components/common/Separator';
 import { Checkbox } from '@/Components/ui/checkbox';
 import { Label } from '@/Components/ui/label';
 import AuthLayout from '@/Layouts/AuthLayout';
-import { cn } from '@/lib/utils';
+import { cn, genderOptions } from '@/lib/utils';
 import { registerSchema } from '@/schema/Forms';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { FocusEvent, FormEventHandler, useState } from 'react';
@@ -19,6 +19,7 @@ type RegisterFormProps = {
     password: string;
     password_confirmation: string;
     accept_terms: boolean;
+    gender?: string;
 };
 
 export default function Register() {
@@ -39,6 +40,7 @@ export default function Register() {
         email: '',
         password: '',
         password_confirmation: '',
+        gender: undefined,
         accept_terms: false,
     });
 
@@ -77,6 +79,7 @@ export default function Register() {
                     password: '',
                     password_confirmation: '',
                     accept_terms: '',
+                    gender: '',
                 };
 
                 const formErrors = error.errors.reduce((acc, curr) => {
@@ -105,6 +108,7 @@ export default function Register() {
             | 'email'
             | 'password'
             | 'password_confirmation'
+            | 'gender'
             | 'accept_terms';
 
         if (typeof event === 'string') {
@@ -145,6 +149,18 @@ export default function Register() {
                         error={errors.email}
                         handleFocus={handleFocus}
                         isRequired={true}
+                    />
+                    <CustomInput
+                        inputType="custom-select"
+                        label="Gender"
+                        name="gender"
+                        placeholder="male, female, others"
+                        value={String(data.gender)}
+                        onPhoneChange={(value) => setData('gender', value)}
+                        className="rounded-md border border-sf-stroke bg-transparent p-1 text-sm shadow-sm focus-within:border-2 focus-within:border-sf-primary focus-within:ring-sf-primary"
+                        isRequired={false}
+                        error={errors.gender}
+                        selectOptions={genderOptions}
                     />
                     <CustomInput
                         className="w-full px-2 py-2"

@@ -10,6 +10,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/Components/ui/dialog';
+import { genderOptions } from '@/lib/utils';
 import { router, useForm } from '@inertiajs/react';
 import { isEmpty } from 'lodash-es';
 import { FormEventHandler, useState } from 'react';
@@ -20,6 +21,7 @@ type ProfileFormProps = {
     first_name: string;
     last_name: string;
     email: string;
+    gender?: string;
     years_of_experience: string;
     business_name: string;
     phone?: string;
@@ -32,6 +34,7 @@ interface ProfileDetailProps {
     first_name: string;
     last_name: string;
     email: string;
+    gender: string | null;
     title?: string;
     avatar: string;
     rating: number;
@@ -56,6 +59,7 @@ export default function ProfileForm({
             first_name: profile_details.first_name,
             last_name: profile_details.last_name,
             email: profile_details.email,
+            gender: profile_details?.gender ?? undefined,
             years_of_experience: profile_details.years_of_experience,
             business_name: profile_details.title ?? '',
             phone: profile_details.phone,
@@ -144,6 +148,18 @@ export default function ProfileForm({
                     error={errors.email}
                     handleFocus={() => clearErrors('email')}
                     isRequired={true}
+                />
+                <CustomInput
+                    inputType="custom-select"
+                    label="Gender"
+                    name="gender"
+                    placeholder="male, female, others"
+                    value={String(data.gender)}
+                    onPhoneChange={(value) => setData('gender', value)}
+                    className="rounded-md border border-sf-stroke bg-transparent p-1 text-sm shadow-sm focus-within:border-2 focus-within:border-sf-primary focus-within:ring-sf-primary"
+                    isRequired={false}
+                    error={errors.gender}
+                    selectOptions={genderOptions}
                 />
                 <CustomInput
                     inputType="custom-select"

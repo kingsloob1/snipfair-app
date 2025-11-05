@@ -131,6 +131,7 @@ class ApiAuthController extends Controller
             'last_name' => 'required|string|max:255',
             'email' => 'required|string|lowercase|email|max:255|unique:' . User::class,
             'phone' => ['nullable', 'numeric', new PhoneNumber()],
+            'gender' => 'sometimes|in:male,female,other',
             'password' => ['required', 'confirmed', Password::defaults()],
             'device_name' => 'required|string|max:255',
         ]);
@@ -141,6 +142,7 @@ class ApiAuthController extends Controller
                 'password' => Hash::make($request->password),
                 'type' => 'normal',
                 'role' => 'customer',
+                'gender' => $request->gender ?: null
             ]),
         );
 
@@ -158,6 +160,7 @@ class ApiAuthController extends Controller
             'last_name' => 'required|string|max:255',
             'email' => 'required|string|lowercase|email|max:255|unique:' . User::class,
             'phone' => ['required', 'numeric', new PhoneNumber()],
+            'gender' => 'sometimes|in:male,female,other',
             'password' => ['required', 'confirmed', Password::defaults()],
             'device_name' => 'required|string|max:255',
         ]);
@@ -168,6 +171,9 @@ class ApiAuthController extends Controller
                 'password' => Hash::make($request->password),
                 'type' => 'normal',
                 'role' => 'stylist',
+        ,
+
+                'gender' => $request->gender ?: null
             ]),
         );
 
@@ -281,6 +287,7 @@ class ApiAuthController extends Controller
         $validated = $request->validate([
             'use_location' => 'sometimes|boolean',
             'country' => 'sometimes|string|max:200',
+            'gender' => 'sometimes|in:male,female,other',
             'firebase_device_token' => 'sometimes|string|max:255'
         ]);
 
@@ -294,6 +301,8 @@ class ApiAuthController extends Controller
         if (Arr::has($validated, 'country')) {
             $user->country = $validated['country'];
         }
+
+        $user->gender = $request->gender ?: $user->gender;
 
         $user->save();
 
