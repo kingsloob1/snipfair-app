@@ -289,6 +289,15 @@ class StylistController extends Controller
             'bio' => 'nullable|sometimes|string|min:5',
         ]);
 
+        dd([
+            // 'first_name' => $request->first_name,
+            // 'last_name' => $request->last_name,
+            // 'email' => $request->email,
+            'phone' => $request->phone ?: $user->phone,
+            'country' => $request->country,
+            'bio' => $request->bio ?: $user->bio,
+        ], $request->all());
+
         $user->update([
             // 'first_name' => $request->first_name,
             // 'last_name' => $request->last_name,
