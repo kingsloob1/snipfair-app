@@ -274,20 +274,11 @@ class StylistController extends Controller
         $user = $request->user();
         $stylist = $user->stylist_profile;
 
-
-        dd([
-            // 'first_name' => $request->first_name,
-            // 'last_name' => $request->last_name,
-            // 'email' => $request->email,
-            'phone' => $request->phone ?: $user->phone,
-            'country' => $request->country,
-            'bio' => $request->bio ?: $user->bio,
-        ], $request->all());
-
         if (!$user || !$stylist) {
             abort(403, 'Access Denied');
         }
 
+        echo var_dump($request->all());
         $request->validate([
             'first_name' => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
@@ -298,6 +289,15 @@ class StylistController extends Controller
             'country' => 'required|string|max:255',
             'bio' => 'nullable|sometimes|string|min:5',
         ]);
+
+        dd([
+            // 'first_name' => $request->first_name,
+            // 'last_name' => $request->last_name,
+            // 'email' => $request->email,
+            'phone' => $request->phone ?: $user->phone,
+            'country' => $request->country,
+            'bio' => $request->bio ?: $user->bio,
+        ], $request->all());
 
         $user->update([
             // 'first_name' => $request->first_name,
