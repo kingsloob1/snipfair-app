@@ -65,7 +65,7 @@ export default function ProfileForm({
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
 
-        put(route('stylist.profile.update'), {
+        put(window.route('stylist.profile.update'), {
             onFinish: () => setIsOpen(true),
         });
     };
@@ -202,7 +202,7 @@ export default function ProfileForm({
                 onClose={() => setIsOpen(false)}
                 primaryButtonText="Back to Home"
                 handlePrimaryClick={() =>
-                    router.visit(route('stylist.dashboard'))
+                    router.visit(window.route('stylist.dashboard'))
                 }
                 title="Profile Updated"
                 description="You have successfully updated your account"
