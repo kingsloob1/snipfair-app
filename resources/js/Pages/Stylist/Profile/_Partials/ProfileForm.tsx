@@ -11,8 +11,10 @@ import {
     DialogTitle,
 } from '@/Components/ui/dialog';
 import { router, useForm } from '@inertiajs/react';
+import { isEmpty } from 'lodash-es';
 import { FormEventHandler, useState } from 'react';
 import 'react-phone-number-input/style.css';
+import { toast } from 'sonner';
 
 type ProfileFormProps = {
     first_name: string;
@@ -49,7 +51,7 @@ export default function ProfileForm({
     profile_details: ProfileDetailProps;
 }) {
     const [isOpen, setIsOpen] = useState(false);
-    const { data, setData, put, processing, clearErrors, errors } =
+    const { data, setData, put, processing, clearErrors, errors, setError } =
         useForm<ProfileFormProps>({
             first_name: profile_details.first_name,
             last_name: profile_details.last_name,
@@ -67,6 +69,14 @@ export default function ProfileForm({
         put(window.route('stylist.profile.update'), {
             onSuccess: (page) => {
                 console.log('Success is =====> ', page);
+                const props = page.props;
+                if (props?.errors && !isEmpty(props.errors)) {
+                    setError(props.errors);
+                    toast.error('Some fields are invalid');
+                    return;
+                }
+
+                setIsOpen(true);
             },
             onError: (errors) => {
                 console.log('Errors is =====> ', errors);
@@ -137,7 +147,7 @@ export default function ProfileForm({
                     label="Years of Experience"
                     name="years_of_experience"
                     placeholder="Your Experience"
-                    value={data.years_of_experience}
+                    value={String(data.years_of_experience)}
                     onPhoneChange={(value) =>
                         setData('years_of_experience', value)
                     }
