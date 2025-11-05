@@ -68,6 +68,7 @@ export default function Index({
         first_name: string;
         last_name: string;
         email: string;
+        gender: string | null;
         avatar: string;
         rating: number;
         reviews_count: number;
@@ -100,6 +101,7 @@ export default function Index({
         first_name: user.first_name,
         last_name: user.last_name,
         email: user.email,
+        gender: user.gender,
         title: user.stylist_profile?.business_name || 'Stylist',
         avatar: `/storage/${user.avatar}`,
         banner: `/storage/${user.stylist_profile?.banner}`,
