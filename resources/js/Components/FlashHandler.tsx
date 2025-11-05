@@ -196,7 +196,7 @@ export default function FlashHandler({
                                 setFirebaseTokenData({
                                     user_id: String(user.id),
                                     token: firebaseDeviceToken,
-                                    isSaved: false,
+                                    isSaved: true,
                                 });
 
                                 console.log(
