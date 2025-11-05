@@ -302,6 +302,9 @@ class StylistController extends Controller
             'years_of_experience' => $request->years_of_experience ?: $stylist->years_of_experience,
             'business_name' => $request->business_name ?: $stylist->business_name,
         ]);
+
+        $this->checkProfileCompleteness($user);
+
         return redirect()->back()->with('success', 'Profile updated successfully.');
     }
 
