@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\AdminNotificationHelper;
 use App\Models\Category;
 use App\Models\Like;
 use App\Models\Payment;
@@ -27,6 +28,7 @@ use Illuminate\Validation\Rules;
 use Inertia\Inertia;
 use Inertia\Response;
 use App\Mail\WelcomeEmail;
+use App\Models\Admin;
 use App\Models\Appointment;
 use App\Rules\PhoneNumber;
 use Carbon\CarbonPeriod;
@@ -582,6 +584,22 @@ class StylistController extends Controller
                     'is_available' => false,
                     'status' => 'pending',
                 ]);
+
+                defer(function () use ($user) {
+                    $superAdmins = Admin::where('role', 'super-admin')
+                        ->where('is_active', true)
+                        ->get();
+
+                    foreach ($superAdmins as $admin) {
+                        AdminNotificationHelper::create(
+                            $admin->id,
+                            route('admin.users'),
+                            'Stylist Business approval request for ' . $user->stylist_profile->business_name,
+                            "Business Name: {$user->stylist_profile->business_name}\Stylist Name: " . $user->name . "\Stylist Email: {$user->email}",
+                            'normal'
+                        );
+                    }
+                });
             }
         }
 
