@@ -154,7 +154,7 @@ export default function Register() {
                         inputType="custom-select"
                         label="Gender"
                         name="gender"
-                        placeholder="male, female, others"
+                        placeholder="Your Gender"
                         value={String(data.gender)}
                         onPhoneChange={(value) => setData('gender', value)}
                         className="rounded-md border border-sf-stroke bg-transparent p-1 text-sm shadow-sm focus-within:border-2 focus-within:border-sf-primary focus-within:ring-sf-primary"
