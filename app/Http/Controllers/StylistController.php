@@ -282,11 +282,11 @@ class StylistController extends Controller
             'first_name' => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
             // 'email' => 'required|email|unique:users,email,' . $user->id,
-            'years_of_experience' => 'required|numeric|min:1|gte:1|max:50',
+            'years_of_experience' => 'required|numeric|min:0|gte:0|max:50',
             'business_name' => 'nullable|sometimes|string|max:255',
             'phone' => 'nullable|sometimes|string|max:20',
             'location' => 'nullable|sometimes|string|max:255',
-            'country' => 'required|string|max:255',
+            'country' => 'nullable|sometimes|string|max:255',
             'bio' => 'nullable|sometimes|string|min:5',
         ]);
 
