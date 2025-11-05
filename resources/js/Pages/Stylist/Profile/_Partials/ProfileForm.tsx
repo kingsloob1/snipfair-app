@@ -48,7 +48,6 @@ export default function ProfileForm({
 }: {
     profile_details: ProfileDetailProps;
 }) {
-    console.log('ProfileForm', profile_details);
     const [isOpen, setIsOpen] = useState(false);
     const { data, setData, put, processing, clearErrors, errors } =
         useForm<ProfileFormProps>({
@@ -66,7 +65,12 @@ export default function ProfileForm({
         e.preventDefault();
 
         put(window.route('stylist.profile.update'), {
-            onFinish: () => setIsOpen(true),
+            onSuccess: (page) => {
+                console.log('Success is =====> ', page);
+            },
+            onError: (errors) => {
+                console.log('Errors is =====> ', errors);
+            },
         });
     };
 

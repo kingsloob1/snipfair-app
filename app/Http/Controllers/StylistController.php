@@ -285,26 +285,17 @@ class StylistController extends Controller
             'years_of_experience' => 'required|numeric|min:0|gt:0|max:50',
             'business_name' => 'nullable|sometimes|string|max:255',
             'phone' => 'nullable|sometimes|string|max:20',
-            'country' => 'required|string|max:255',
+            'location' => 'nullable|sometimes|string|max:255',
+            'country' => 'nullable|sometimes|string|max:255',
             'bio' => 'nullable|sometimes|string|min:5',
         ]);
-
-        dd([
-            'new' => 'here',
-            // 'first_name' => $request->first_name,
-            // 'last_name' => $request->last_name,
-            // 'email' => $request->email,
-            'phone' => $request->phone ?: $user->phone,
-            'country' => $request->country,
-            'bio' => $request->bio ?: $user->bio,
-        ], $request->all());
 
         $user->update([
             // 'first_name' => $request->first_name,
             // 'last_name' => $request->last_name,
             // 'email' => $request->email,
             'phone' => $request->phone ?: $user->phone,
-            'country' => $request->country,
+            'country' => $request->country ?: $request->location ?: $user->country,
             'bio' => $request->bio ?: $user->bio,
         ]);
 
