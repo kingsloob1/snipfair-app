@@ -63,6 +63,12 @@ export default function ProfileForm({
             bio: profile_details.bio ?? '',
         });
 
+    const handleFormError = (errors: Record<string, string | unknown>) => {
+        setError(errors);
+        toast.error('Some fields are invalid');
+        return;
+    };
+
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
 
@@ -71,15 +77,14 @@ export default function ProfileForm({
                 console.log('Success is =====> ', page);
                 const props = page.props;
                 if (props?.errors && !isEmpty(props.errors)) {
-                    setError(props.errors);
-                    toast.error('Some fields are invalid');
-                    return;
+                    return handleFormError(props.errors);
                 }
 
                 setIsOpen(true);
             },
             onError: (errors) => {
                 console.log('Errors is =====> ', errors);
+                return handleFormError(errors);
             },
         });
     };
