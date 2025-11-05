@@ -22,6 +22,8 @@ declare global {
     }
 }
 
+let hasSetFirebaseToken = false;
+
 export default function FlashHandler({
     children,
 }: {
@@ -104,6 +106,14 @@ export default function FlashHandler({
     }, [flash]);
 
     useEffect(() => {
+        if (!(user || firebaseVapidKey)) {
+            hasSetFirebaseToken = false;
+        }
+
+        if (hasSetFirebaseToken) {
+            return () => null;
+        }
+
         const getFirebaseNotificationTokenForDevice = async (e: MouseEvent) => {
             if (!isSupported()) {
                 console.error('Firebase is not supported in this browser');
@@ -167,6 +177,7 @@ export default function FlashHandler({
                                     getFirebaseNotificationTokenForDevice,
                                 );
 
+                                hasSetFirebaseToken = true;
                                 console.log(
                                     'Response from setting firebase device token =====> ',
                                     response,
@@ -200,6 +211,7 @@ export default function FlashHandler({
                 'click',
                 getFirebaseNotificationTokenForDevice,
             );
+            hasSetFirebaseToken = false;
         };
     }, [user, firebaseVapidKey]);
 

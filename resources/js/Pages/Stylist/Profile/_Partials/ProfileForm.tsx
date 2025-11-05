@@ -74,7 +74,6 @@ export default function ProfileForm({
 
         put(window.route('stylist.profile.update'), {
             onSuccess: (page) => {
-                console.log('Success is =====> ', page);
                 const props = page.props;
                 if (props?.errors && !isEmpty(props.errors)) {
                     return handleFormError(props.errors);
@@ -83,7 +82,6 @@ export default function ProfileForm({
                 setIsOpen(true);
             },
             onError: (errors) => {
-                console.log('Errors is =====> ', errors);
                 return handleFormError(errors);
             },
         });
