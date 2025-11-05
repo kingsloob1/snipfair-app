@@ -171,8 +171,6 @@ class ApiAuthController extends Controller
                 'password' => Hash::make($request->password),
                 'type' => 'normal',
                 'role' => 'stylist',
-        ,
-
                 'gender' => $request->gender ?: null
             ]),
         );
