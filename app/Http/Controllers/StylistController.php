@@ -286,21 +286,21 @@ class StylistController extends Controller
             'business_name' => 'nullable|sometimes|string|max:255',
             'phone' => 'nullable|sometimes|string|max:20',
             'country' => 'required|string|max:255',
-            'bio' => 'nullable|sometimes|string|min:25',
+            'bio' => 'nullable|sometimes|string|min:5',
         ]);
 
         $user->update([
             // 'first_name' => $request->first_name,
             // 'last_name' => $request->last_name,
             // 'email' => $request->email,
-            'phone' => $request->phone,
+            'phone' => $request->phone ?: $user->phone,
             'country' => $request->country,
-            'bio' => $request->bio,
+            'bio' => $request->bio ?: $user->bio,
         ]);
 
         $stylist->update([
-            'years_of_experience' => $request->years_of_experience,
-            'business_name' => $request->business_name,
+            'years_of_experience' => $request->years_of_experience ?: $stylist->years_of_experience,
+            'business_name' => $request->business_name ?: $stylist->business_name,
         ]);
         return redirect()->back()->with('success', 'Profile updated successfully.');
     }
@@ -776,7 +776,7 @@ class StylistController extends Controller
             'phone' => ['sometimes', 'numeric', new PhoneNumber()],
             'years_of_experience' => 'sometimes|required|numeric|min:0|gt:0|max:50',
             'country' => 'sometimes|required|string|max:255',
-            'bio' => 'nullable|sometimes|string|min:25',
+            'bio' => 'nullable|sometimes|string|min:5',
             'business_name' => 'nullable|string|max:255',
             'socials' => 'sometimes|required|array|list',
             'socials.*.social_app' => 'required|string|max:255',
@@ -872,8 +872,8 @@ class StylistController extends Controller
         }
 
         $stylist->update([
-            'business_name' => $request->business_name ?? $stylist->business_name,
-            'years_of_experience' => $request->years_of_experience ?? $stylist->years_of_experience,
+            'business_name' => $request->business_name ?: $stylist->business_name,
+            'years_of_experience' => $request->years_of_experience ?: $stylist->years_of_experience,
             'socials' => count($socials) ? $socials : null,
             'works' => count($validWorkMedia) ? $validWorkMedia : null,
             'is_available' => false,
