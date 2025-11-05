@@ -6,6 +6,7 @@ import { FirebaseOptions, initializeApp } from 'firebase/app';
 import { getMessaging, getToken, isSupported } from 'firebase/messaging';
 import { waitFor } from 'poll-until-promise';
 import React, { useEffect } from 'react';
+import { useLocalStorage } from 'react-use';
 import { toast } from 'sonner';
 import FullscreenOverlay from './FullscreenOverlay';
 import { Toaster } from './ui/sonner';
@@ -21,8 +22,6 @@ declare global {
         };
     }
 }
-
-let hasSetFirebaseToken = false;
 
 export default function FlashHandler({
     children,
@@ -51,6 +50,13 @@ export default function FlashHandler({
             firebaseWebConfig?: FirebaseOptions;
         }
     >();
+
+    const [firebaseTokenData, setFirebaseTokenData, deleteFirebaseTokenData] =
+        useLocalStorage<{
+            user_id: string;
+            token: string;
+            isSaved: boolean;
+        }>('firebase-messaging-token-data');
 
     useEffect(() => {
         if (typeof window.Tawk_API !== 'undefined') {
@@ -107,11 +113,16 @@ export default function FlashHandler({
 
     useEffect(() => {
         if (!(user || firebaseVapidKey)) {
-            hasSetFirebaseToken = false;
+            deleteFirebaseTokenData();
+            return () => null;
         }
 
-        if (hasSetFirebaseToken) {
-            return () => null;
+        if (firebaseTokenData) {
+            if (firebaseTokenData.user_id !== String(user.id)) {
+                deleteFirebaseTokenData();
+            } else if (firebaseTokenData.isSaved) {
+                return () => null;
+            }
         }
 
         const getFirebaseNotificationTokenForDevice = async (e: MouseEvent) => {
@@ -161,6 +172,11 @@ export default function FlashHandler({
                             );
 
                             if (firebaseDeviceToken) {
+                                setFirebaseTokenData({
+                                    user_id: String(user.id),
+                                    token: firebaseDeviceToken,
+                                    isSaved: false,
+                                });
                                 const response = await apiCall(
                                     '/api/user/update',
                                     {
@@ -177,7 +193,12 @@ export default function FlashHandler({
                                     getFirebaseNotificationTokenForDevice,
                                 );
 
-                                hasSetFirebaseToken = true;
+                                setFirebaseTokenData({
+                                    user_id: String(user.id),
+                                    token: firebaseDeviceToken,
+                                    isSaved: false,
+                                });
+
                                 console.log(
                                     'Response from setting firebase device token =====> ',
                                     response,
@@ -211,7 +232,6 @@ export default function FlashHandler({
                 'click',
                 getFirebaseNotificationTokenForDevice,
             );
-            hasSetFirebaseToken = false;
         };
     }, [user, firebaseVapidKey]);
 
