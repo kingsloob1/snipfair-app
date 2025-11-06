@@ -112,7 +112,7 @@ export default function FlashHandler({
     }, [flash]);
 
     useEffect(() => {
-        if (!(user || firebaseVapidKey)) {
+        if (!(user && firebaseVapidKey)) {
             deleteFirebaseTokenData();
             return () => null;
         }
