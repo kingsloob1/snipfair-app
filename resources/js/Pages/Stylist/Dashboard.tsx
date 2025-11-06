@@ -14,9 +14,10 @@ interface DashboardProps {
     appointments?: AppointmentCardProps[];
     statistics?: {
         total_earnings: number;
-        total_appointments: number;
+        active_appointments: number;
         average_rating: number;
         total_portfolios: number;
+        all_bookings: number;
     };
     bookingTrends?: Array<{
         name: string;
@@ -52,7 +53,7 @@ export default function Dashboard({
     const routes = [
         {
             name: 'Dashboard',
-            path: route('stylist.dashboard'),
+            path: window.route('stylist.dashboard'),
             active: false,
         },
     ];
@@ -63,7 +64,9 @@ export default function Dashboard({
                 routes={routes}
                 sub="Here's what's happening with your business today"
                 cta="Manage Services"
-                ctaAction={() => router.visit(route('stylist.portfolio'))}
+                ctaAction={() =>
+                    router.visit(window.route('stylist.portfolio'))
+                }
             />
             <section className="mx-auto max-w-7xl px-5">
                 <div className="mb-6">
@@ -84,7 +87,7 @@ export default function Dashboard({
                     />
                     <StatCard
                         title="Active Appointments"
-                        value={`${statistics?.total_appointments ?? 0}`}
+                        value={`${statistics?.active_appointments ?? 0}`}
                         period="Today"
                         change={{
                             value: 0,
@@ -104,7 +107,7 @@ export default function Dashboard({
                     />
                     <StatCard
                         title="All Bookings"
-                        value={`${statistics?.total_portfolios ?? 0}`}
+                        value={`${statistics?.all_bookings ?? 0}`}
                         period="This Week"
                         change={{
                             value: 0,

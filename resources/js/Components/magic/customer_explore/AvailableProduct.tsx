@@ -6,7 +6,7 @@ import { MergedStylistPortfolioItem } from '@/types/custom_types';
 import { router } from '@inertiajs/react';
 import { CalendarRange, Heart, MapPin, Star } from 'lucide-react';
 import { motion } from 'motion/react';
-import { useState } from 'react';
+import React, { useState } from 'react';
 
 const AvailableProduct = ({
     stylist,
@@ -240,7 +240,10 @@ const AvailableProduct = ({
                         <CustomButton
                             onClick={() =>
                                 router.visit(
-                                    route('customer.stylists.show', stylist.id),
+                                    window.route(
+                                        'customer.stylists.show',
+                                        stylist.id,
+                                    ),
                                 )
                             }
                             className="w-28 px-2 py-1.5 text-[10px] md:px-3 md:py-2"

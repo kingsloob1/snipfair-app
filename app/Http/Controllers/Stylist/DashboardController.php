@@ -27,18 +27,21 @@ class DashboardController extends Controller
 
     public function index(Request $request)
     {
-        $totalEarnings = $request->user()->transactions()
+        $totalEarnings = (float) $request->user()->transactions()
             ->where('type', 'earning')
             ->where('status', 'completed')
             ->sum('amount') ?? 0;
-        $appointmentsCount = $request->user()->stylistAppointments()
-            ->where('status', 'confirmed')
+        $activeAppointmentCount = (int) $request->user()->stylistAppointments()
+            ->whereIn('status', ['confirmed', 'escalated'])
             ->count();
-        $averageRating = $request->user()->stylistAppointments()
+        $averageRating = (float) $request->user()->stylistAppointments()
             ->join('reviews', 'appointments.id', '=', 'reviews.appointment_id')
             ->whereNotNull('reviews.rating')
             ->avg('reviews.rating') ?? 0;
-        $portfolioCount = $request->user()->portfolios()->count();
+        $portfolioCount = (int) $request->user()->portfolios()->count();
+        $allBookingCount = (int) $request->user()->stylistAppointments()
+            ->where('status', 'completed')
+            ->count();
 
         $appointments = Appointment::where('stylist_id', $request->user()->id)->whereIn('status', ['processing', 'pending', 'approved'])->with([
             'customer',
@@ -112,9 +115,10 @@ class DashboardController extends Controller
             'appointments' => $appointments,
             'statistics' => [
                 'total_earnings' => $totalEarnings,
-                'total_appointments' => $appointmentsCount,
+                'active_appointments' => $activeAppointmentCount,
                 'average_rating' => $averageRating ? round($averageRating, 1) : 0,
                 'total_portfolios' => $portfolioCount,
+                'all_bookings' => $allBookingCount,
             ],
             'bookingTrends' => $bookingTrends,
             'appointmentTrends' => $appointmentTrends,

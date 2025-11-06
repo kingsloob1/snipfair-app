@@ -1158,6 +1158,38 @@ class StylistController extends Controller
             ]);
         });
 
+        $approvedAppointmentCount = (int) $user->stylistAppointments()
+            ->where('status', 'approved')
+            ->count();
+
+        $canceledAppointmentCount = (int) $user->stylistAppointments()
+            ->where('status', 'canceled')
+            ->count();
+
+        $processingAppointmentCount = (int) $user->stylistAppointments()
+            ->where('status', 'processing')
+            ->count();
+
+        $confirmedAppointmentCount = (int) $user->stylistAppointments()
+            ->where('status', 'confirmed')
+            ->count();
+
+        $pendingAppointmentCount = (int) $user->stylistAppointments()
+            ->where('status', 'pending')
+            ->count();
+
+        $rescheduledAppointmentCount = (int) $user->stylistAppointments()
+            ->where('status', 'rescheduled')
+            ->count();
+
+        $disputeAppointmentCount = (int) $user->stylistAppointments()
+            ->where('status', 'escalated')
+            ->count();
+
+        $completeAppointmentCount = (int) $user->stylistAppointments()
+            ->where('status', 'completed')
+            ->count();
+
         $resp = [
             'total' => [
                 'works' => (int) $user->portfolios()->count(),
@@ -1166,13 +1198,20 @@ class StylistController extends Controller
                     ['type', '=', 'portfolio'],
                     ['status', '=', true]
                 ])->count(),
-                'appointments' => (int) $user->stylistAppointments()
-                    ->where('status', 'confirmed')
-                    ->count(),
                 'earnings' => (float) $user->transactions()
                     ->where('type', 'earning')
                     ->where('status', 'completed')
                     ->sum('amount') ?? 0,
+                'processing_appointments' => $processingAppointmentCount,
+                'pending_appointments' => $pendingAppointmentCount,
+                'approved_appointments' => $approvedAppointmentCount,
+                'rescheduled_appointments' => $rescheduledAppointmentCount,
+                'confirmed_appointments' => $confirmedAppointmentCount,
+                'active_appointments' => $confirmedAppointmentCount + $disputeAppointmentCount,
+                'dispute_appointments' => $disputeAppointmentCount,
+                'complete_appointments' => $completeAppointmentCount,
+                'canceled_appointments' => $canceledAppointmentCount,
+                'appointments' => $completeAppointmentCount,
             ],
             'average_rating' => (float) $user->stylistAppointments()
                 ->join('reviews', 'appointments.id', '=', 'reviews.appointment_id')
@@ -1186,7 +1225,7 @@ class StylistController extends Controller
                     ->sum('amount') ?? 0,
                 'appointments' => (int) $user->stylistAppointments()
                     ->whereBetween('created_at', getDateRanges('daily'))
-                    ->where('status', 'confirmed')
+                    ->whereIn('status', ['confirmed', 'escalated', 'completed'])
                     ->count(),
                 'pending_appointments' => (int) $user->stylistAppointments()
                     ->whereBetween('created_at', getDateRanges('daily'))
