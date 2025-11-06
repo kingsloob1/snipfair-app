@@ -519,7 +519,7 @@ class DashboardController extends Controller
         $categories = $stylist->portfolios()->whereHas('category')->with('category')->get()
             ->map(function ($portfolio) {
                 return [
-                    'category' => $portfolio->category->name ?? 'Uncategorized',
+                    'category' => $portfolio->category?->name ?? 'Uncategorized',
                     'price' => $portfolio->price,
                 ];
             })
@@ -535,7 +535,7 @@ class DashboardController extends Controller
                 return [
                     'id' => $portfolio->id,
                     'title' => $portfolio->title,
-                    'category' => $portfolio->category->name ?? 'Uncategorized',
+                    'category' => $portfolio->category?->name ?? 'Uncategorized',
                     'price' => $portfolio->price,
                     'duration' => $portfolio->duration,
                     'description' => $portfolio->description,

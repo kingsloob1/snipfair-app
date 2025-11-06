@@ -216,7 +216,7 @@ class CustomerController extends Controller
             $categories = $stylist->portfolios()->whereHas('category')->with('category')->get()
                 ->map(function ($portfolio) {
                     return [
-                        'category' => $portfolio->category->name ?? 'Uncategorized',
+                        'category' => $portfolio->category?->name ?? 'Uncategorized',
                         'price' => $portfolio->price,
                     ];
                 })
@@ -286,7 +286,7 @@ class CustomerController extends Controller
                 return [
                     'id' => $portfolio->id,
                     'banner_image' => $portfolioBannerImage,
-                    'category' => $portfolio->category->name,
+                    'category' => $portfolio->category?->name ?? 'Uncategorized',
                     'name' => $portfolio->title,
                     'description' => $portfolio->description,
                     'appointment_counts' => $portfolio->appointments()->count(),
@@ -363,7 +363,7 @@ class CustomerController extends Controller
             $categories = $all_categories
                 ->map(function ($portfolio) {
                     return [
-                        'category' => $portfolio->category->name ?? 'Uncategorized',
+                        'category' => $portfolio->category?->name ?? 'Uncategorized',
                         'price' => $portfolio->price,
                     ];
                 })
@@ -471,7 +471,7 @@ class CustomerController extends Controller
         $categories = $stylist->portfolios()->whereHas('category')->with('category')->get()
             ->map(function ($portfolio) {
                 return [
-                    'category' => $portfolio->category->name ?? 'Uncategorized',
+                    'category' => $portfolio->category?->name ?? 'Uncategorized',
                     'price' => $portfolio->price,
                 ];
             })
@@ -487,7 +487,7 @@ class CustomerController extends Controller
                 return [
                     'id' => $portfolio->id,
                     'title' => $portfolio->title,
-                    'category' => $portfolio->category->name ?? 'Uncategorized',
+                    'category' => $portfolio->category?->name ?? 'Uncategorized',
                     'price' => $portfolio->price,
                     'duration' => $portfolio->duration,
                     'description' => $portfolio->description,
@@ -683,7 +683,7 @@ class CustomerController extends Controller
             $categories = $stylist->portfolios()->whereHas('category')->with('category')->get()
                 ->map(function ($portfolio) {
                     return [
-                        'category' => $portfolio->category->name ?? 'Uncategorized',
+                        'category' => $portfolio->category?->name ?? 'Uncategorized',
                         'price' => $portfolio->price,
                     ];
                 })
@@ -1097,7 +1097,7 @@ class CustomerController extends Controller
                     'id' => $appointment->id,
                     'stylistName' => $appointment->stylist->name,
                     'stylistTitle' => $appointment->stylist->stylist_profile->business_name ?? 'Stylist',
-                    'appointmentType' => $appointment->portfolio->category->name,
+                    'appointmentType' => $appointment->portfolio->category?->name ?? 'Uncategorized',
                     'location' => $customer->country,
                     'time' => Carbon::createFromFormat('H:i:s', $appointment->appointment_time)
                         ->format('g:i A'),
