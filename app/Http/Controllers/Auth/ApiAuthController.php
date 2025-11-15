@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Helpers\NotificationHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Notification;
 use App\Models\StylistSchedule;
@@ -361,6 +362,22 @@ class ApiAuthController extends Controller
                     'is_read' => (bool) $notification->is_seen,
                 ];
             });
+    }
+
+    public function markNotificationAsRead(Request $request, $id)
+    {
+        $user = $request->user();
+        $success = NotificationHelper::markAsRead($id, $user->id);
+
+        return response()->noContent();
+    }
+
+    public function markAllNotificationsAsRead(Request $request)
+    {
+        $user = $request->user();
+        $count = NotificationHelper::markAllAsRead($user->id);
+
+        return response()->noContent();
     }
 
     public function deleteUser(Request $request)

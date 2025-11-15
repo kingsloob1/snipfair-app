@@ -12,6 +12,8 @@ use App\Models\Appointment;
 use App\Models\AppointmentDispute;
 use App\Models\AppointmentPouch;
 use App\Models\Category;
+use App\Models\CustomerNotificationSetting;
+use App\Models\CustomerSetting;
 use App\Models\Deposit;
 use App\Models\Like;
 use App\Models\LocationService;
@@ -1331,6 +1333,117 @@ class CustomerApiController extends Controller
         return response()->noContent();
     }
 
+    public function updatePreferenceSettings(Request $request)
+    {
+        $request->validate([
+            'preferred_time' => ['string', 'in:,morning,afternoon,evening,special'],
+            'preferred_stylist' => ['string', 'in:,male,female,none'],
+            'auto_rebooking' => ['boolean'],
+            'use_location' => ['boolean'],
+            'enable_mobile_appointment' => ['boolean'],
+            'email_reminders' => ['boolean'],
+            'sms_reminders' => ['boolean'],
+            'phone_reminders' => ['boolean'],
+            'language' => ['required', 'string', 'in:english,spanish,french'],
+            'currency' => ['required', 'string', 'in:$,€,£'],
+        ]);
+
+        $customer = $request->user();
+        $customer->update([
+            'use_location' => $request->use_location,
+        ]);
+
+        // Get or create customer settings record
+        $customerSetting = $customer->customerSetting ?? new CustomerSetting(['user_id' => $customer->id]);
+
+        // Update preferences
+        $customerSetting->fill([
+            'preferred_time' => $request->preferred_time,
+            'preferred_stylist' => $request->preferred_stylist,
+            'auto_rebooking' => $request->auto_rebooking,
+            'enable_mobile_appointment' => $request->enable_mobile_appointment,
+            'email_reminders' => $request->email_reminders,
+            'sms_reminders' => $request->sms_reminders,
+            'phone_reminders' => $request->phone_reminders,
+            'language' => $request->language,
+            'currency' => $request->currency,
+        ]);
+
+        $customerSetting->save();
+
+        return response()->noContent();
+    }
+
+    public function updateNotificationSettings(Request $request)
+    {
+        $request->validate([
+            'booking_confirmation' => ['boolean'],
+            'appointment_reminders' => ['boolean'],
+            'favorite_stylist_update' => ['boolean'],
+            'promotions_offers' => ['boolean'],
+            'review_reminders' => ['boolean'],
+            'payment_confirmations' => ['boolean'],
+            'email_notifications' => ['boolean'],
+            'push_notifications' => ['boolean'],
+            'sms_notifications' => ['boolean'],
+        ]);
+
+        $customer = $request->user();
+
+        // Get or create customer notification settings record
+        $notificationSetting = $customer->customerNotificationSetting ?? new CustomerNotificationSetting(['user_id' => $customer->id]);
+
+        // Update notification settings
+        $notificationSetting->fill($request->only([
+            'booking_confirmation',
+            'appointment_reminders',
+            'favorite_stylist_update',
+            'promotions_offers',
+            'review_reminders',
+            'payment_confirmations',
+            'email_notifications',
+            'push_notifications',
+            'sms_notifications',
+        ]));
+
+        $notificationSetting->save();
+
+        return response()->noContent();
+    }
+
+    public function updateBillingInfo(Request $request)
+    {
+        $request->validate([
+            'billing_name' => 'required|string|max:255',
+            'billing_email' => 'required|email|max:255',
+            'billing_city' => 'nullable|string|max:255',
+            'billing_zip' => 'nullable|string|max:20',
+            'billing_location' => 'nullable|string|max:500',
+        ]);
+
+        $customer = $request->user();
+        $customer_profile = $customer->customer_profile;
+
+        if (!$customer_profile) {
+            $customer_profile = $customer->customer_profile()->create([
+                'billing_name' => $request->billing_name,
+                'billing_email' => $request->billing_email,
+                'billing_city' => $request->billing_city,
+                'billing_zip' => $request->billing_zip,
+                'billing_location' => $request->billing_location,
+            ]);
+        } else {
+            $customer_profile->update([
+                'billing_name' => $request->billing_name,
+                'billing_email' => $request->billing_email,
+                'billing_city' => $request->billing_city,
+                'billing_zip' => $request->billing_zip,
+                'billing_location' => $request->billing_location,
+            ]);
+        }
+
+        return response()->noContent();
+    }
 
     // public function explore(Request $request)
     // {

@@ -83,6 +83,12 @@ Route::middleware('api')->group(function () {
             // Get user notifications
             Route::get('/notifications', [ApiAuthController::class, 'getUserNotifications']);
 
+            // Mark notification as read
+            Route::post('/notifications/{id}/read', [ApiAuthController::class, 'markNotificationAsRead']);
+
+            // Mark all notification as read
+            Route::post('/notifications/read-all', [ApiAuthController::class, 'markAllNotificationsAsRead']);
+
             // Delete user data
             Route::delete('', [ApiAuthController::class, 'deleteUser']);
 
@@ -222,6 +228,15 @@ Route::middleware('api')->group(function () {
             // get customer profile data
             Route::get('profile', [CustomerApiController::class, 'getProfile']);
 
+            // Update customer preerences
+            Route::patch('/preferences', [CustomerApiController::class, 'updatePreferenceSettings']);
+
+            // Update customer notification settings
+            Route::patch('/notification/settings', [CustomerApiController::class, 'updateNotificationSettings']);
+
+            // Update customer billing info
+            Route::patch('/billing', [CustomerApiController::class, 'updateBillingInfo']);
+
             // get stylist list
             Route::get('stylist/list', [CustomerApiController::class, 'getStylists']);
 
@@ -234,7 +249,7 @@ Route::middleware('api')->group(function () {
             // get single portfolio
             Route::get('portfolio/{portfolioId}', [CustomerApiController::class, 'getPortfolio']);
 
-            //Customer appointment routes
+            // Customer appointment routes
             Route::group(['prefix' => '/appointment'], function () {
                 Route::post('/book', [CustomerApiController::class, 'bookAppointment']);
 
