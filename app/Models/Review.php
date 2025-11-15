@@ -13,7 +13,8 @@ class Review extends Model
 
     protected $dates = ['deleted_at'];
 
-    public function appointment() {
+    public function appointment()
+    {
         return $this->belongsTo(Appointment::class);
     }
 }

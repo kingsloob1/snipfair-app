@@ -394,7 +394,14 @@ class CustomerApiController extends Controller
         $query = $request->query('query');
         $categoryId = $request->query('category_id');
         $favourite = $request->query('favourite');
-        $sortGroups = formatRequestSort($request, ['years_of_experience', 'average_rating', 'distance', 'trending', 'favourite', 'profile_likes_count', 'portfolio_likes_count', 'reviews_count', 'min_price', 'max_price', 'appointments_count', 'name', 'first_name', 'last_name', 'portfolio_visits_count', 'profile_visits_count', 'completed_appointments_count'], '-trending');
+        $topRated = $request->query('top_rated');
+        $online = $request->query('online');
+        $highestRated = $request->query(key: 'highest_rated');
+        $lowestPrice = $request->query(key: 'lowest_price');
+        $minPrice = $request->query(key: 'min_price');
+        $maxPrice = $request->query(key: 'max_price');
+
+        $sortGroups = formatRequestSort($request, ['years_of_experience', 'average_rating', 'distance', 'trending', 'favourite', 'profile_likes_count', 'portfolio_likes_count', 'reviews_count', 'min_price', 'max_price', 'appointments_count', 'name', 'first_name', 'last_name', 'portfolio_visits_count', 'profile_visits_count', 'completed_appointments_count', 'last_login_at'], '-trending');
 
 
         $queryBuilder = $this->getStylistQueryBuilder($user)->where('role', 'stylist')->whereHas('stylist_profile', function ($qb) {
@@ -419,6 +426,75 @@ class CustomerApiController extends Controller
             } else {
                 $queryBuilder = $queryBuilder->whereDoesntHave('stylist_profile.likes', $handler);
             }
+        }
+
+        if ($topRated) {
+            $topRatedBool = filter_var($topRated, FILTER_VALIDATE_BOOLEAN);
+            $queryBuilder->where('is_featured', $topRatedBool ? '=' : '<>', true);
+            array_unshift($sortGroups, [
+                'property' => 'average_rating',
+                'direction' => $topRatedBool ? 'DESC' : 'ASC'
+            ]);
+        }
+
+        if ($online) {
+            $onlineBool = filter_var($online, FILTER_VALIDATE_BOOLEAN);
+
+            $logicalComparison = $onlineBool ? '=' : '<>';
+            $queryBuilder = $queryBuilder->whereRaw("(if(`users`.`last_login_at` is not null, `users`.`last_login_at` > date_sub(now(), interval 5 minute),false) {$logicalComparison} true)");
+
+            array_unshift($sortGroups, [
+                'property' => 'last_login_at',
+                'direction' => $onlineBool ? 'DESC' : 'ASC'
+            ]);
+        }
+
+        if ($highestRated) {
+            $highestRatedBool = filter_var($highestRated, FILTER_VALIDATE_BOOLEAN);
+
+            $logicalComparison = $highestRatedBool ? '>=' : '<';
+            $queryBuilder->whereRaw("(ifnull((select avg(re.rating) from reviews re inner join appointments ap on (re.appointment_id = ap.id) where ap.stylist_id = `users`.`id` limit 1), 0) {$logicalComparison} 4.5)");
+
+            array_unshift($sortGroups, [
+                'property' => 'average_rating',
+                'direction' => $highestRatedBool ? 'DESC' : 'ASC'
+            ]);
+        }
+
+        if ($lowestPrice) {
+            $lowestPriceBool = filter_var($lowestPrice, FILTER_VALIDATE_BOOLEAN);
+
+            $logicalComparison = $lowestPriceBool ? '<' : '>=';
+            $queryBuilder->whereRaw("(ifnull((select min(po.price) from portfolios po where po.user_id = `users`.`id` limit 1), 0) {$logicalComparison} 100)");
+
+            array_unshift($sortGroups, [
+                'property' => $lowestPriceBool ? 'min_price' : 'max_price',
+                'direction' => $lowestPriceBool ? 'ASC' : 'DESC'
+            ]);
+        }
+
+        if ($minPrice) {
+            $minPrice = filter_var($minPrice, FILTER_VALIDATE_FLOAT, [
+                'options' => [
+                    'default' => 0.0,
+                    'min_range' => 0.0
+                ],
+                'flags' => FILTER_FLAG_ALLOW_THOUSAND
+            ]);
+
+            $queryBuilder->whereRaw("(ifnull((select min(po.price) from portfolios po where po.user_id = `users`.`id` limit 1), 0) >= {$minPrice})");
+        }
+
+        if ($maxPrice) {
+            $maxPrice = filter_var($maxPrice, FILTER_VALIDATE_FLOAT, [
+                'options' => [
+                    'default' => 0.0,
+                    'min_range' => 0.0
+                ],
+                'flags' => FILTER_FLAG_ALLOW_THOUSAND
+            ]);
+
+            $queryBuilder->whereRaw("(ifnull((select min(po.price) from portfolios po where po.user_id = `users`.`id` limit 1), 0) <= {$maxPrice})");
         }
 
         if ($query) {
