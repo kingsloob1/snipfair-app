@@ -324,6 +324,12 @@ class ApiAuthController extends Controller
                 $id = null;
 
                 switch (true) {
+                    case Str::endsWith($notification->type, 'stylist/profile'):
+                    case Str::endsWith($notification->type, 'customer/profile'): {
+                        $type = 'profile';
+                        break;
+                    }
+
                     case Str::endsWith($notification->type, 'customer/wallet'):
                     case Str::endsWith($notification->type, 'stylist/earnings'): {
                         $type = 'wallet';

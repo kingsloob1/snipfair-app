@@ -41,19 +41,19 @@ class CustomerApiController extends Controller
     public function getStats(Request $request)
     {
         $customer = $request->user();
-        $totalSpendings = (float) $request->user()->transactions()
+        $totalSpendings = (float) $customer->transactions()
             ->where('type', 'payment')
             ->where('status', 'completed')
             ->sum('amount') ?? 0;
-        $appointmentsCount = (int) $request->user()->customerAppointments()
+        $appointmentsCount = (int) $customer->customerAppointments()
             ->count();
-        $appointmentsCompleted = (int) $request->user()->customerAppointments()
+        $appointmentsCompleted = (int) $customer->customerAppointments()
             ->where('status', 'completed')
             ->count();
-        $appointmentsActive = (int) $request->user()->customerAppointments()
+        $appointmentsActive = (int) $customer->customerAppointments()
             ->whereIn('status', ['approved', 'pending'])
             ->count();
-        $appointmentsCanceled = (int) $request->user()->customerAppointments()
+        $appointmentsCanceled = (int) $customer->customerAppointments()
             ->where('status', 'canceled')
             ->count();
 
