@@ -933,7 +933,7 @@ class CustomerApiController extends Controller
         $portfolio = $this->getPortfolioQueryBuilder($user)
             ->join('users', 'portfolios.user_id', '=', 'users.id', 'inner')
             ->join('stylists', 'stylists.user_id', '=', 'users.id', 'inner')
-            ->where('id', '=', $portfolioId)
+            ->where('portfolios.id', '=', $portfolioId)
             ->with([
                 'category',
                 'user' => function ($qb) {
