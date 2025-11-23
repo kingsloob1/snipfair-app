@@ -39,6 +39,41 @@ class FAQSeeder extends Seeder
                 'answer' => 'You can contact our customer support through the help section in your account, via email at support@snipfair.com, or through our live chat feature.',
                 'category' => 'general',
             ],
+            [
+                'question' => 'How can I delete my account?',
+                'answer' => 'You can delete your account directly from within the app. Go to Account → Delete Account and follow the on-screen instructions. Once you confirm, your account will be scheduled for permanent deletion.',
+                'category' => 'account',
+            ],
+            [
+                'question' => 'What happens when I delete my account?',
+                'answer' => 'Deleting your account permanently removes: Your profile information, Saved data and preferences, Any content associated with your account, Authentication credentials. This action cannot be undone.',
+                'category' => 'account',
+            ],
+            [
+                'question' => 'How long does it take to delete my data?',
+                'answer' => 'Your account is immediately deactivated, and full data deletion is completed within 7 - 30 days',
+                'category' => 'account',
+            ],
+            [
+                'question' => 'Can I recover my account after deleting it?',
+                'answer' => 'No. Once the deletion process begins, your data cannot be restored.',
+                'category' => 'account',
+            ],
+            [
+                'question' => 'Do I need to uninstall the app after deleting my account?',
+                'answer' => 'Uninstalling the app does not delete your account. You must request account deletion through the in-app Delete Account option or via our support team.',
+                'category' => 'account',
+            ],
+            [
+                'question' => 'Can I request deletion by email?',
+                'answer' => 'Yes. If you cannot access your account, you can request deletion by contacting our support team at support@snipfair.com using the subject “Account Deletion Request”. We may request verification to confirm ownership.',
+                'category' => 'account',
+            ],
+            [
+                'question' => 'What data is retained after deletion?',
+                'answer' => 'We only retain information required by law (e.g., transaction records for tax/audit purposes). All other personal data is removed permanently.',
+                'category' => 'account',
+            ],
         ];
 
         foreach ($faqs as $faq) {
