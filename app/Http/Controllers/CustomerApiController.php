@@ -647,7 +647,7 @@ class CustomerApiController extends Controller
 
         $queryBuilder = Portfolio::query()
             ->selectRaw('`portfolios`.*')
-            ->selectRaw('`users`.`last_login_at` as last_login_at')
+            ->selectRaw('`users`.`last_login_at` as `last_login_at`')
             ->selectSub(
                 Review::query()
                     ->selectRaw('AVG(rating)')
@@ -780,11 +780,11 @@ class CustomerApiController extends Controller
             ->whereRaw("`stylists`.`is_available` = true and `stylists`.`status` = 'approved'");
 
         if ($categoryId) {
-            $queryBuilder = $queryBuilder->where('category_id', '=', $categoryId);
+            $queryBuilder = $queryBuilder->where('portfolios.category_id', '=', $categoryId);
         }
 
         if ($stylistId) {
-            $queryBuilder = $queryBuilder->where('user_id', '=', $stylistId);
+            $queryBuilder = $queryBuilder->where('portfolios.user_id', '=', $stylistId);
         }
 
         if ($favourite) {
@@ -931,6 +931,8 @@ class CustomerApiController extends Controller
         $user->load(['location_service']);
 
         $portfolio = $this->getPortfolioQueryBuilder($user)
+            ->join('users', 'portfolios.user_id', '=', 'users.id', 'inner')
+            ->join('stylists', 'stylists.user_id', '=', 'users.id', 'inner')
             ->where('id', '=', $portfolioId)
             ->with([
                 'category',
