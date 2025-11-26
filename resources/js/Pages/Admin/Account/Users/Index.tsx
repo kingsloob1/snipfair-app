@@ -18,6 +18,10 @@ import StylistsTable from './_Includes/StylistsTable';
 interface Customer {
     id: number;
     name: string;
+    first_name: string;
+    last_name: string;
+    phone: string;
+    gender: string | null;
     email: string;
     country?: string;
     created_at: string;
@@ -30,6 +34,10 @@ interface Customer {
 interface Stylist {
     id: number;
     name: string;
+    first_name: string;
+    last_name: string;
+    phone: string;
+    gender: string | null;
     email: string;
     country?: string;
     created_at: string;
@@ -69,17 +77,24 @@ interface Stylist {
 interface StylistApplication {
     id: string;
     name: string;
+    first_name: string;
+    last_name: string;
+    phone: string;
+    gender: string | null;
     email: string;
     created_at: string;
     avatar?: string;
     country?: string;
     bio?: string;
-    phone?: string;
 }
 
 interface DeletedUser {
     id: string;
     name: string;
+    first_name: string;
+    last_name: string;
+    phone: string;
+    gender: string | null;
     email: string;
     created_at: string;
     avatar?: string;

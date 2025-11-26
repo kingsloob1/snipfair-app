@@ -7,6 +7,10 @@ import React, { useState } from 'react';
 interface DeletedUser {
     id: string;
     name: string;
+    first_name: string;
+    last_name: string;
+    phone: string;
+    gender: string | null;
     email: string;
     created_at: string;
     avatar?: string;
@@ -49,10 +53,10 @@ const DeletedUsers: React.FC<DeletedUsersProps> = ({ deleted_users = [] }) => {
 
         switch (type) {
             case 'restore':
-                router.post(route('admin.users.restore', user.id), {});
+                router.post(window.route('admin.users.restore', user.id), {});
                 break;
             case 'delete':
-                router.post(route('admin.users.delete', user.id), {});
+                router.post(window.route('admin.users.delete', user.id), {});
                 break;
         }
 
@@ -100,6 +104,11 @@ const DeletedUsers: React.FC<DeletedUsersProps> = ({ deleted_users = [] }) => {
                                     <p className="mb-2 text-sm text-gray-600">
                                         {user.email}
                                     </p>
+                                    {user.phone && (
+                                        <p className="mb-2 text-sm text-gray-600">
+                                            {user.email}
+                                        </p>
+                                    )}
                                     <div className="flex items-center text-sm text-gray-500">
                                         <Calendar className="mr-1 h-4 w-4" />
                                         <span>

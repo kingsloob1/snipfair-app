@@ -1,3 +1,4 @@
+/* eslint-disable jsx-a11y/label-has-associated-control */
 import CommonAvatar from '@/Components/common/forms/CommonAvatar';
 import Modal from '@/Components/Modal';
 import {
@@ -15,11 +16,15 @@ import {
     UserCheck,
     UserX,
 } from 'lucide-react';
-import { useState } from 'react';
+import React, { useState } from 'react';
 
 interface Customer {
     id: number;
     name: string;
+    first_name: string;
+    last_name: string;
+    phone: string;
+    gender: string | null;
     email: string;
     country?: string;
     created_at: string;
@@ -87,17 +92,17 @@ const CustomersTable: React.FC<CustomersTableProps> = ({ customers }) => {
 
         switch (type) {
             case 'disable':
-                router.post(route('admin.users.disable'), {
+                router.post(window.route('admin.users.disable'), {
                     user_id: customer.id,
                 });
                 break;
             case 'enable':
-                router.post(route('admin.users.enable'), {
+                router.post(window.route('admin.users.enable'), {
                     user_id: customer.id,
                 });
                 break;
             case 'delete':
-                router.delete(route('admin.users.destroy', customer.id));
+                router.delete(window.route('admin.users.destroy', customer.id));
                 break;
         }
 
@@ -151,6 +156,9 @@ const CustomersTable: React.FC<CustomersTableProps> = ({ customers }) => {
                             <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                                 Customer
                             </th>
+                            <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">
+                                Phone Number
+                            </th>
                             <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                                 Location
                             </th>
@@ -191,6 +199,9 @@ const CustomersTable: React.FC<CustomersTableProps> = ({ customers }) => {
                                             </div>
                                         </div>
                                     </div>
+                                </td>
+                                <td className="whitespace-nowrap px-6 py-4 text-center text-sm text-gray-900">
+                                    {customer.phone || 'N/A'}
                                 </td>
                                 <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-900">
                                     {customer.country || 'N/A'}

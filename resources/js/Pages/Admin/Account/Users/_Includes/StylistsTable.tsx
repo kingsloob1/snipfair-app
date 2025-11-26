@@ -1,3 +1,4 @@
+/* eslint-disable jsx-a11y/label-has-associated-control */
 import CustomButton from '@/Components/common/CustomButton';
 import CommonAvatar from '@/Components/common/forms/CommonAvatar';
 import Modal from '@/Components/Modal';
@@ -17,11 +18,15 @@ import {
     UserCheck,
     UserX,
 } from 'lucide-react';
-import { useState } from 'react';
+import React, { useState } from 'react';
 
 interface Stylist {
     id: number;
     name: string;
+    first_name: string;
+    last_name: string;
+    phone: string;
+    gender: string | null;
     email: string;
     country?: string;
     created_at: string;
@@ -119,27 +124,29 @@ const StylistsTable: React.FC<StylistsTableProps> = ({ stylists }) => {
 
         switch (type) {
             case 'disable':
-                router.post(route('admin.stylists.disable'), {
+                router.post(window.route('admin.stylists.disable'), {
                     user_id: stylist.id,
                 });
                 break;
             case 'enable':
-                router.post(route('admin.stylists.enable'), {
+                router.post(window.route('admin.stylists.enable'), {
                     user_id: stylist.id,
                 });
                 break;
             case 'flag':
-                router.post(route('admin.stylists.flag'), {
+                router.post(window.route('admin.stylists.flag'), {
                     user_id: stylist.id,
                 });
                 break;
             case 'reinstate':
-                router.post(route('admin.stylists.unflag'), {
+                router.post(window.route('admin.stylists.unflag'), {
                     user_id: stylist.id,
                 });
                 break;
             case 'delete':
-                router.delete(route('admin.stylists.destroy', stylist.id));
+                router.delete(
+                    window.route('admin.stylists.destroy', stylist.id),
+                );
                 break;
         }
 
@@ -209,6 +216,9 @@ const StylistsTable: React.FC<StylistsTableProps> = ({ stylists }) => {
                             <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                                 Stylist
                             </th>
+                            <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">
+                                Phone Number
+                            </th>
                             <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                                 Location
                             </th>
@@ -258,6 +268,9 @@ const StylistsTable: React.FC<StylistsTableProps> = ({ stylists }) => {
                                             </div>
                                         </div>
                                     </div>
+                                </td>
+                                <td className="whitespace-nowrap px-6 py-4 text-center text-sm text-gray-900">
+                                    {stylist.phone || 'N/A'}
                                 </td>
                                 <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-900">
                                     {stylist.country || 'N/A'}
@@ -483,7 +496,7 @@ const StylistsTable: React.FC<StylistsTableProps> = ({ stylists }) => {
                             fullWidth={false}
                             onClick={() =>
                                 router.visit(
-                                    route(
+                                    window.route(
                                         'admin.users.stylist',
                                         selectedStylist?.id,
                                     ),
