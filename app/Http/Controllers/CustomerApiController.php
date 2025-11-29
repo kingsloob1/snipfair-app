@@ -984,6 +984,14 @@ class CustomerApiController extends Controller
             'extra' => 'nullable|string',
         ]);
 
+        $websiteConfig = WebsiteConfiguration::first();
+        if ($websiteConfig?->disable_booking_message) {
+            return response()->json([
+                'success' => false,
+                'message' => $websiteConfig?->disable_booking_message,
+            ], 400);
+        }
+
         $customer = $request->user();
         $portfolio = Portfolio::with([
             'user' => function ($qb) {

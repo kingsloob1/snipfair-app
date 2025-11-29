@@ -16,6 +16,7 @@ use Illuminate\Http\Request;
 use GuzzleHttp\Client;
 use App\Models\Transaction;  // Your Transaction model
 use App\Models\User;
+use App\Models\WebsiteConfiguration;
 use App\Models\Withdrawal;
 use Exception;
 use Illuminate\Support\Arr;
@@ -152,6 +153,14 @@ class PaymentController extends Controller
                 'exists:portfolios,id'
             ]
         ]);
+
+        $websiteConfig = WebsiteConfiguration::first();
+        if ($websiteConfig?->disable_booking_message) {
+            return response()->json([
+                'success' => false,
+                'message' => $websiteConfig?->disable_booking_message,
+            ], 400);
+        }
 
         switch ($validated['type']) {
             case 'topup': {
@@ -474,6 +483,11 @@ class PaymentController extends Controller
                 'exists:portfolios,id'
             ]
         ]);
+
+        $websiteConfig = WebsiteConfiguration::first();
+        if ($websiteConfig?->disable_booking_message) {
+            return back()->with('error', $websiteConfig?->disable_booking_message);
+        }
 
         if ($validated['type'] === 'topup') {
             try {

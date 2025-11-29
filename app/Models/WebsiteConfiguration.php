@@ -36,6 +36,7 @@ class WebsiteConfiguration extends Model
         'happy_customers',
         'services_completed',
         'customer_satisfaction',
+        'disable_booking_message'
     ];
 
     protected $casts = [
