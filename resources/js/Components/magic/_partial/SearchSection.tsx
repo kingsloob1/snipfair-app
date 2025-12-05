@@ -153,12 +153,12 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
                     }
 
                     case isNumber(priceRange.max): {
-                        matchesPrice = stylist.price <= priceRange.max;
+                        matchesPrice = stylist.price < priceRange.max;
                         break;
                     }
 
                     case isNumber(priceRange.min): {
-                        matchesPrice = stylist.price >= priceRange.min;
+                        matchesPrice = stylist.price > priceRange.min;
                         break;
                     }
 

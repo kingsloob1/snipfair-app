@@ -38,7 +38,7 @@ class GeneralController extends Controller
                         'is_default' => false
                     ],
                     [
-                        'label' => 'R900 - R1500',
+                        'label' => 'R800 - R1500',
                         'max' => 1500,
                         'min' => 900,
                         'is_default' => false
