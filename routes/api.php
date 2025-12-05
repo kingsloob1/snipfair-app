@@ -34,6 +34,21 @@ Route::middleware('api')->group(function () {
     //Get platform config
     Route::get('platform-settings', [ApiGeneralController::class, 'getPlatformSettings'])->middleware(['throttle:1,1']);
 
+    //Public customer routes
+    Route::group(['prefix' => '/customer', 'middleware' => ['throttle:200,1']], function () {
+        // get stylist list
+        Route::get('stylist/list', [CustomerApiController::class, 'getStylists']);
+
+        // get single stylist
+        Route::get('stylist/{stylistId}', [CustomerApiController::class, 'getStylist']);
+
+        // get portfolio list
+        Route::get('portfolio/list', [CustomerApiController::class, 'getPortfolios']);
+
+        // get single portfolio
+        Route::get('portfolio/{portfolioId}', [CustomerApiController::class, 'getPortfolio']);
+    });
+
     //Login
     Route::post('login', [ApiAuthController::class, 'login']);
 
@@ -236,18 +251,6 @@ Route::middleware('api')->group(function () {
 
             // Update customer billing info
             Route::patch('/billing', [CustomerApiController::class, 'updateBillingInfo']);
-
-            // get stylist list
-            Route::get('stylist/list', [CustomerApiController::class, 'getStylists']);
-
-            // get single stylist
-            Route::get('stylist/{stylistId}', [CustomerApiController::class, 'getStylist']);
-
-            // get portfolio list
-            Route::get('portfolio/list', [CustomerApiController::class, 'getPortfolios']);
-
-            // get single portfolio
-            Route::get('portfolio/{portfolioId}', [CustomerApiController::class, 'getPortfolio']);
 
             // Customer appointment routes
             Route::group(['prefix' => '/appointment'], function () {

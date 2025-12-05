@@ -356,7 +356,7 @@ class CustomerApiController extends Controller
                 );
         } else {
             $queryBuilder = $queryBuilder
-                ->selectSub(0, 'distance');
+                ->selectRaw('0 as distance');
         }
 
         if ($user) {
@@ -387,7 +387,7 @@ class CustomerApiController extends Controller
             );
         } else {
             $queryBuilder = $queryBuilder
-                ->selectSub(0, 'favourite');
+                ->selectRaw(expression: '0 as favourite');
         }
 
         return $queryBuilder;
@@ -738,7 +738,7 @@ class CustomerApiController extends Controller
                 );
         } else {
             $queryBuilder = $queryBuilder
-                ->selectSub(0, 'distance');
+                ->selectRaw('0 as distance');
         }
 
         if ($user) {
@@ -765,7 +765,7 @@ class CustomerApiController extends Controller
                 );
         } else {
             $queryBuilder = $queryBuilder
-                ->selectSub(0, 'favourite');
+                ->selectRaw('0 as favourite');
         }
 
         return $queryBuilder;
