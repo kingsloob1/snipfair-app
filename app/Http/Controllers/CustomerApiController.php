@@ -214,11 +214,8 @@ class CustomerApiController extends Controller
         ];
     }
 
-    private function getStylistQueryBuilder(User $user)
+    private function getStylistQueryBuilder(?User $user)
     {
-        $customerLatitude = $user->location_service?->latitude;
-        $customerLongitude = $user->location_service?->longitude;
-
         $queryBuilder = User::query()
             ->select('*')
             ->selectSub(
@@ -320,33 +317,11 @@ class CustomerApiController extends Controller
                     ->selectRaw('max(price)')
                     ->whereRaw('user_id = `users`.`id`'),
                 'max_price'
-            )
-            ->selectSub(
-                DB::query()
-                    ->selectRaw(
-                        "exists(
-                            select
-                                1
-                            from
-                                `likes`
-                            inner join
-                                `stylists`
-                                on (
-                                    `likes`.`type_id` = `stylists`.`id`
-                                )
-                            where
-                                `likes`.`type` = \"profile\"
-                                and
-                                `stylists`.`user_id` = `users`.`id`
-                                and
-                                `likes`.`user_id` = {$user->id}
-                                and
-                                `likes`.`status` = true
-                        )"
-                    ),
-                'favourite'
             );
 
+
+        $customerLatitude = $user?->location_service?->latitude;
+        $customerLongitude = $user?->location_service?->longitude;
         // Compute distance only when customer has distance set
         if ($customerLatitude && $customerLongitude) {
             // use 6371 for km and 3959 for miles (Earths radius)
@@ -384,13 +359,47 @@ class CustomerApiController extends Controller
                 ->selectSub(0, 'distance');
         }
 
+        if ($user) {
+            $queryBuilder = $queryBuilder->selectSub(
+                DB::query()
+                    ->selectRaw(
+                        "exists(
+                            select
+                                1
+                            from
+                                `likes`
+                            inner join
+                                `stylists`
+                                on (
+                                    `likes`.`type_id` = `stylists`.`id`
+                                )
+                            where
+                                `likes`.`type` = \"profile\"
+                                and
+                                `stylists`.`user_id` = `users`.`id`
+                                and
+                                `likes`.`user_id` = {$user->id}
+                                and
+                                `likes`.`status` = true
+                        )"
+                    ),
+                'favourite'
+            );
+        } else {
+            $queryBuilder = $queryBuilder
+                ->selectSub(0, 'favourite');
+        }
+
         return $queryBuilder;
     }
 
     public function getStylists(Request $request)
     {
         $user = $request->user();
-        $user->load(['location_service']);
+
+        if ($user) {
+            $user->load(['location_service']);
+        }
 
         $perPage = formatPerPage($request);
         $query = $request->query('query');
@@ -415,7 +424,7 @@ class CustomerApiController extends Controller
             });
         }
 
-        if ($favourite) {
+        if ($favourite & $user) {
             $favouriteBool = filter_var($favourite, FILTER_VALIDATE_BOOLEAN);
 
             $handler = function ($qb) use ($user) {
@@ -564,7 +573,10 @@ class CustomerApiController extends Controller
     public function getStylist(Request $request, $stylistUserId)
     {
         $user = $request->user();
-        $user->load(['location_service']);
+
+        if ($user) {
+            $user->load(['location_service']);
+        }
 
         $stylist = $this->getStylistQueryBuilder($user)
             ->where('role', 'stylist')
@@ -585,7 +597,7 @@ class CustomerApiController extends Controller
 
 
         // Get actual reviews with customer information
-        $actual_reviews = Review::whereHas('appointment', function ($query) use ($stylist) {
+        $actual_reviews = !$user ? collect([]) : Review::whereHas('appointment', function ($query) use ($stylist) {
             $query->where('stylist_id', $stylist->id);
         })
             ->with(['appointment.customer'])
@@ -640,11 +652,8 @@ class CustomerApiController extends Controller
         );
     }
 
-    private function getPortfolioQueryBuilder(User $user)
+    private function getPortfolioQueryBuilder(?User $user)
     {
-        $customerLatitude = $user->location_service?->latitude;
-        $customerLongitude = $user->location_service?->longitude;
-
         $queryBuilder = Portfolio::query()
             ->selectRaw('`portfolios`.*')
             ->selectRaw('`users`.`last_login_at` as `last_login_at`')
@@ -690,27 +699,10 @@ class CustomerApiController extends Controller
                     ->selectRaw('name')
                     ->whereRaw('id = `portfolios`.`category_id`'),
                 'category_name'
-            )
-            ->selectSub(
-                DB::query()
-                    ->selectRaw(
-                        "exists(
-                            select
-                                1
-                            from
-                                `likes`
-                            where
-                                `likes`.`type` = \"portfolio\"
-                                and
-                                `likes`.`type_id` = `portfolios`.`id`
-                                and
-                                `likes`.`user_id` = {$user->id}
-                                and
-                                `likes`.`status` = true
-                        )"
-                    ),
-                'favourite'
             );
+
+        $customerLatitude = $user?->location_service?->latitude;
+        $customerLongitude = $user?->location_service?->longitude;
 
         // Compute distance only when customer has distance set
         if ($customerLatitude && $customerLongitude) {
@@ -749,13 +741,43 @@ class CustomerApiController extends Controller
                 ->selectSub(0, 'distance');
         }
 
+        if ($user) {
+            $queryBuilder = $queryBuilder
+                ->selectSub(
+                    DB::query()
+                        ->selectRaw(
+                            "exists(
+                            select
+                                1
+                            from
+                                `likes`
+                            where
+                                `likes`.`type` = \"portfolio\"
+                                and
+                                `likes`.`type_id` = `portfolios`.`id`
+                                and
+                                `likes`.`user_id` = {$user->id}
+                                and
+                                `likes`.`status` = true
+                        )"
+                        ),
+                    'favourite'
+                );
+        } else {
+            $queryBuilder = $queryBuilder
+                ->selectSub(0, 'favourite');
+        }
+
         return $queryBuilder;
     }
 
     public function getPortfolios(Request $request)
     {
         $user = $request->user();
-        $user->load(['location_service']);
+
+        if ($user) {
+            $user->load(['location_service']);
+        }
 
         $perPage = formatPerPage($request);
         $query = $request->query('query');
@@ -787,7 +809,7 @@ class CustomerApiController extends Controller
             $queryBuilder = $queryBuilder->where('portfolios.user_id', '=', $stylistId);
         }
 
-        if ($favourite) {
+        if ($favourite && $user) {
             $favouriteBool = filter_var($favourite, FILTER_VALIDATE_BOOLEAN);
 
             $handler = function ($qb) use ($user) {
@@ -928,7 +950,10 @@ class CustomerApiController extends Controller
     public function getPortfolio(Request $request, $portfolioId)
     {
         $user = $request->user();
-        $user->load(['location_service']);
+
+        if ($user) {
+            $user->load(['location_service']);
+        }
 
         $portfolio = $this->getPortfolioQueryBuilder($user)
             ->join('users', 'portfolios.user_id', '=', 'users.id', 'inner')
@@ -946,7 +971,7 @@ class CustomerApiController extends Controller
         $portfolio->increment('visits_count');
 
         // Get actual reviews with customer information
-        $actual_reviews = Review::whereHas('appointment', function ($query) use ($portfolio) {
+        $actual_reviews = !$user ? collect([]) : Review::whereHas('appointment', function ($query) use ($portfolio) {
             $query->where('portfolio_id', $portfolio->id);
         })
             ->with(['appointment.customer'])

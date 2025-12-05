@@ -2,23 +2,35 @@ import CustomButton from '@/Components/common/CustomButton';
 import { cn } from '@/lib/utils';
 import { MergedStylistPortfolioItem } from '@/types/custom_types';
 import { usePage } from '@inertiajs/react';
+import { isNumber } from 'lodash-es';
 import { Filter, Search } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import React, { useEffect, useMemo, useState } from 'react';
 
 interface SearchSectionProps {
     stylists: MergedStylistPortfolioItem[];
+    // eslint-disable-next-line no-unused-vars
     onFilteredStylists: (stylists: MergedStylistPortfolioItem[]) => void;
     category_names: string[];
     onDashboard?: boolean;
 }
+
 export const SearchSection: React.FC<SearchSectionProps> = ({
     stylists,
     onFilteredStylists,
     category_names,
     onDashboard = false,
 }) => {
-    const { url } = usePage();
+    const { url, props } = usePage();
+    const config = (props.website_configs || {}) as {
+        portfolio_price_filters: {
+            label: string;
+            max: number | null;
+            min: number | null;
+            is_default: boolean;
+        }[];
+    };
+
     useEffect(() => {
         const params = new URLSearchParams(
             new URL(url, window.location.origin).search,
@@ -31,18 +43,76 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
     const [showFilters, setShowFilters] = useState(false);
     const [searchText, setSearchText] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('All');
-    const [priceRange, setPriceRange] = useState('All Prices');
     const [rating, setRating] = useState('All');
     const [sortBy, setSortBy] = useState('Sort By Default');
     const categories = ['All', ...category_names];
-    const priceRanges = [
-        'All Prices',
-        'Below R50',
-        'R51 - 100',
-        'R101 - 150',
-        'R151 - 200',
-        'R200 - Above',
-    ];
+
+    const [priceRange, setPriceRange] = useState(
+        undefined as
+            | NonNullable<typeof config.portfolio_price_filters>[0]
+            | undefined,
+    );
+    const [priceRanges, setPriceRanges] = useState(
+        [] as NonNullable<typeof config.portfolio_price_filters>,
+    );
+    useEffect(() => {
+        let validPriceRangeList: NonNullable<
+            typeof config.portfolio_price_filters
+        > = [];
+        if (config?.portfolio_price_filters?.length) {
+            validPriceRangeList = config.portfolio_price_filters;
+        } else {
+            validPriceRangeList = [
+                {
+                    label: 'Any',
+                    max: null,
+                    min: 0,
+                    is_default: true,
+                },
+                {
+                    label: 'Below R500',
+                    max: 500,
+                    min: 0,
+                    is_default: false,
+                },
+                {
+                    label: 'R500 - R600',
+                    max: 600,
+                    min: 500,
+                    is_default: false,
+                },
+                {
+                    label: 'R600 - R800',
+                    max: 800,
+                    min: 600,
+                    is_default: false,
+                },
+                {
+                    label: 'R800 - R1500',
+                    max: 1500,
+                    min: 800,
+                    is_default: false,
+                },
+                {
+                    label: '1500 and above',
+                    max: null,
+                    min: 1500,
+                    is_default: false,
+                },
+            ];
+        }
+
+        setPriceRanges(validPriceRangeList);
+
+        const defaultPriceRange =
+            validPriceRangeList.find((pr) => pr.is_default) ||
+            validPriceRangeList[0];
+
+        if (defaultPriceRange) {
+            setPriceRange(defaultPriceRange);
+        }
+    }, [config.portfolio_price_filters]);
+
     const ratings = ['All', 'Highest Rated', 'Lowest Price', 'Online Now'];
     const sortOptions = [
         'Sort By Default',
@@ -52,14 +122,7 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
         'By Price (Highest)',
         'By Likes Count',
     ];
-    const getPriceRange = (priceStr: string): [number, number] => {
-        if (priceStr === 'All Prices') return [0, Infinity];
-        const matches = priceStr.match(/\$(\d+)(?:\s*-\s*(\d+|Above))?/);
-        if (!matches) return [0, Infinity];
-        const min = parseInt(matches[1]);
-        const max = matches[2] === 'Above' ? Infinity : parseInt(matches[2]);
-        return [min, max];
-    };
+
     const filteredStylists = useMemo(() => {
         let filtered = stylists.filter((stylist) => {
             // Search text filter
@@ -77,12 +140,34 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
             const matchesCategory =
                 selectedCategory === 'All' ||
                 stylist.category === selectedCategory;
+
             // Price range filter
-            const [minPrice, maxPrice] = getPriceRange(priceRange);
-            const matchesPrice =
-                stylist.price &&
-                stylist.price >= minPrice &&
-                stylist.price <= maxPrice;
+            let matchesPrice = true;
+            if (priceRange && stylist.price) {
+                switch (true) {
+                    case isNumber(priceRange.min) && isNumber(priceRange.max): {
+                        matchesPrice =
+                            stylist.price >= priceRange.min &&
+                            stylist.price <= priceRange.max;
+                        break;
+                    }
+
+                    case isNumber(priceRange.max): {
+                        matchesPrice = stylist.price <= priceRange.max;
+                        break;
+                    }
+
+                    case isNumber(priceRange.min): {
+                        matchesPrice = stylist.price >= priceRange.min;
+                        break;
+                    }
+
+                    default: {
+                        matchesPrice = true;
+                    }
+                }
+            }
+
             // Rating filter (simplified for demo)
             const matchesRating =
                 rating === 'All' ||
@@ -196,13 +281,23 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
                     >
                         <div className="mb-4 grid grid-cols-1 gap-4 p-0.5 md:grid-cols-3">
                             <select
-                                value={priceRange}
-                                onChange={(e) => setPriceRange(e.target.value)}
+                                value={priceRange?.label}
+                                onChange={(e) =>
+                                    setPriceRange(
+                                        priceRanges.find(
+                                            (range) =>
+                                                range.label === e.target.value,
+                                        ),
+                                    )
+                                }
                                 className="rounded-lg border border-sf-stroke bg-sf-primary-background p-2 shadow-sm focus:border-sf-primary focus:ring-2 focus:ring-sf-primary"
                             >
                                 {priceRanges.map((range) => (
-                                    <option key={range} value={range}>
-                                        {range}
+                                    <option
+                                        key={range.label}
+                                        value={range.label}
+                                    >
+                                        {range.label}
                                     </option>
                                 ))}
                             </select>

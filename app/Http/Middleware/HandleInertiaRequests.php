@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Inertia\Middleware;
 use App\Helpers\ChatHelper;
 use App\Helpers\NotificationHelper;
+use App\Http\Controllers\Api\GeneralController;
 use App\Models\Category;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\URL;
@@ -19,6 +20,10 @@ class HandleInertiaRequests extends Middleware
      * @var string
      */
     protected $rootView = 'app';
+
+    public function __construct(private GeneralController $generalController)
+    {
+    }
 
     /**
      * Determine the current asset version.
@@ -52,7 +57,7 @@ class HandleInertiaRequests extends Middleware
                 'url' => $request->fullUrl(),
             ],
             'testMode' => config('payfast.test_mode'),
-            'website_configs' => getAdminConfig(),
+            'website_configs' => $this->generalController->getPlatformSettings(),
             'category_names' => Category::all()->pluck('name'),
             'recentChats' => fn() => Auth::check()
                 ? ChatHelper::getRecentChatSummaries()
