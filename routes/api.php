@@ -34,8 +34,11 @@ Route::middleware('api')->group(function () {
     //Get platform config
     Route::get('platform-settings', [ApiGeneralController::class, 'getPlatformSettings'])->middleware(['throttle:1,1']);
 
+    //Get categories
+    Route::get('/categories', [StylistWorkController::class, 'getWorkCategories'])->middleware('throttle:300,1');
+
     //Public customer routes
-    Route::group(['prefix' => '/customer', 'middleware' => ['throttle:200,1']], function () {
+    Route::group(['prefix' => '/customer', 'middleware' => ['throttle:300,1']], function () {
         // get stylist list
         Route::get('stylist/list', [CustomerApiController::class, 'getStylists']);
 
@@ -127,8 +130,6 @@ Route::middleware('api')->group(function () {
                 Route::get('/nearby-users', [LocationServiceController::class, 'findNearbyUsers']);
             });
         });
-
-        Route::get('/categories', [StylistWorkController::class, 'getWorkCategories']);
 
         //Stylist routes
         Route::group(['prefix' => '/stylist', 'middleware' => ['is.stylist', 'email.verified']], function () {
