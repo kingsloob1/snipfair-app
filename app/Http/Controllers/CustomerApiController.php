@@ -203,11 +203,11 @@ class CustomerApiController extends Controller
                     'date' => Carbon::parse($transaction->created_at)->toIsoString(),
                     'status' => $transaction->status,
                     'stylist' => [
-                        'name' => $stylist->name,
-                        'first_name' => $stylist->first_name,
-                        'last_name' => $stylist->last_name,
-                        'email' => $stylist->email,
-                        'avatar' => $stylist->avatar
+                        'name' => $stylist?->name ?? 'N/A',
+                        'first_name' => $stylist?->first_name ?? 'N/A',
+                        'last_name' => $stylist?->last_name ?? 'N/A',
+                        'email' => $stylist?->email ?? 'N/A',
+                        'avatar' => $stylist?->avatar ?? 'N/A'
                     ],
                 ];
             }),
