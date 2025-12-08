@@ -51,6 +51,7 @@ const CookiePopup = () => {
             timeout: 10000,
         },
         userDecisionTimeout: 10000,
+        suppressLocationOnMount: true,
     });
 
     // Check existing consents on component mount
