@@ -80,13 +80,6 @@ const CookiePopup = () => {
                     window.route().current()?.startsWith(namePrefix),
             );
 
-            console.log('Location checks here is =====> ', {
-                hasUser: !!user,
-                authenticatedFromApp,
-                currentRouteName: window.route().current(),
-                isCustomerOrStylistRoute,
-            });
-
             if (!user || authenticatedFromApp) {
                 return;
             }
@@ -231,7 +224,6 @@ const CookiePopup = () => {
     }, [consentStatus.cookieConsent, updateUserLocation]);
 
     const checkExistingConsents = async () => {
-        console.log('Called check existing consents');
         const cookieConsent = getCookie('cookieConsent-snipfair');
         let locationConsent = null;
         let locationStatus: ConsentStatus['locationStatus'] = 'unknown';
@@ -240,7 +232,6 @@ const CookiePopup = () => {
             const response = await apiCall('/api/location-consent-status', {});
 
             if (response.ok) {
-                console.log('Existing consents is up and running');
                 const data = await response.json();
                 locationConsent = data.consent_given;
                 locationStatus = data.consent_given ? 'granted' : 'denied';
