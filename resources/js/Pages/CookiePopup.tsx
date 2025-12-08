@@ -75,15 +75,23 @@ const CookiePopup = () => {
     // In updateUserLocation
     const updateUserLocation = useCallback(async () => {
         try {
+            const isCustomerOrStylistRoute = ['customer.', 'stylist.'].some(
+                (namePrefix) =>
+                    window.route().current()?.startsWith(namePrefix),
+            );
+
+            console.log('Location checks here is =====> ', {
+                hasUser: !!user,
+                authenticatedFromApp,
+                currentRouteName: window.route().current(),
+                isCustomerOrStylistRoute,
+            });
+
             if (!user || authenticatedFromApp) {
                 return;
             }
 
-            if (
-                !['customer.', 'stylist.'].some((namePrefix) =>
-                    window.route().current()?.startsWith(namePrefix),
-                )
-            ) {
+            if (!isCustomerOrStylistRoute) {
                 return;
             }
 
