@@ -1,7 +1,6 @@
 import CustomButton from '@/Components/common/CustomButton';
 import { apiCall } from '@/hooks/api';
 import { getCookie, setCookie } from '@/lib/helper';
-import { PageProps } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useCallback, useEffect, useState } from 'react';
@@ -25,9 +24,13 @@ interface ConsentStatus {
 }
 
 const CookiePopup = () => {
-    const { url } = usePage();
-    const { auth } = usePage().props;
-    const auth_object = auth as PageProps;
+    const {
+        url,
+        props: {
+            'auth:from:app': authenticatedFromApp,
+            auth: { user },
+        },
+    } = usePage();
     const [isVisible, setIsVisible] = useState(false);
     const [loading, setLoading] = useState(false);
     const [consentStatus, setConsentStatus] = useState<ConsentStatus>({
@@ -53,24 +56,36 @@ const CookiePopup = () => {
     // Check existing consents on component mount
     useEffect(() => {
         if (
-            auth_object &&
-            auth_object.user &&
-            !route().current('terms') &&
-            !route().current('privacy-policy') &&
-            !route().current('cookies') &&
-            !route().current('login') &&
-            !route().current('register') &&
-            !route().current('stylist.register') &&
-            !route().current('dashboard') &&
-            !route().current('stylist.dashboard')
+            !!user &&
+            !authenticatedFromApp &&
+            !window.route().current('terms') &&
+            !window.route().current('privacy-policy') &&
+            !window.route().current('cookies') &&
+            !window.route().current('login') &&
+            !window.route().current('register') &&
+            !window.route().current('stylist.register') &&
+            !window.route().current('dashboard') &&
+            !window.route().current('stylist.dashboard')
         ) {
             checkExistingConsents();
         } else setIsVisible(false);
-    }, [url, auth_object]);
+    }, [url, user, authenticatedFromApp]);
 
     // In updateUserLocation
     const updateUserLocation = useCallback(async () => {
         try {
+            if (!user || authenticatedFromApp) {
+                return;
+            }
+
+            if (
+                !['customer.', 'stylist.'].some((namePrefix) =>
+                    window.route().current()?.startsWith(namePrefix),
+                )
+            ) {
+                return;
+            }
+
             if (!isGeolocationAvailable) {
                 toast.error('Geolocation is not supported by this browser');
                 throw new Error('Geolocation is not supported by this browser');
@@ -118,7 +133,15 @@ const CookiePopup = () => {
             console.error('Location error:', error);
             await fallbackToIPLocation();
         }
-    }, [coords, isGeolocationAvailable, isGeolocationEnabled, getPosition]);
+    }, [
+        coords,
+        isGeolocationAvailable,
+        isGeolocationEnabled,
+        getPosition,
+        url,
+        user,
+        authenticatedFromApp,
+    ]);
 
     // In handleLocationConsent
     const handleLocationConsent = async (granted: boolean) => {
@@ -185,7 +208,7 @@ const CookiePopup = () => {
     };
 
     useEffect(() => {
-        let intervalId: NodeJS.Timeout | null = null;
+        let intervalId: ReturnType<typeof setInterval> | null = null;
 
         if (consentStatus.cookieConsent === 'accepted') {
             intervalId = setInterval(
