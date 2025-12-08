@@ -100,20 +100,15 @@ const CookiePopup = () => {
                 throw new Error('Geolocation is not supported by this browser');
             }
 
-            if (!isGeolocationEnabled) {
-                toast.error('Location access denied');
-                throw new Error('Location access denied by user');
+            if (!(isGeolocationEnabled && coords)) {
+                getPosition();
+                return;
             }
 
             setConsentStatus((prev) => ({
                 ...prev,
                 locationStatus: 'loading',
             }));
-
-            if (!coords) {
-                getPosition();
-                return;
-            }
 
             const response = await apiCall('/api/update-location', {
                 method: 'POST',
