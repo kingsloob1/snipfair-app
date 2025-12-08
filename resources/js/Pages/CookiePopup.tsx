@@ -247,6 +247,10 @@ const CookiePopup = () => {
                 const data = await response.json();
                 locationConsent = data.consent_given;
                 locationStatus = data.consent_given ? 'granted' : 'denied';
+
+                if (!isGeolocationEnabled) {
+                    await updateUserLocation();
+                }
             }
         } catch (error) {
             console.error('Error checking location consent status:', error);
