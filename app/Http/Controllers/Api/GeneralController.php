@@ -12,6 +12,7 @@ class GeneralController extends Controller
         $config = getAdminConfig();
         if ($config) {
             return array_merge($config->toArray(), [
+                'api_payment_made' => true,
                 'portfolio_price_filters' => [
                     [
                         'label' => 'Any',
