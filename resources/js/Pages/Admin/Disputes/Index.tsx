@@ -34,13 +34,13 @@ interface DisputeItem {
         appointment_date: string;
         amount: number;
     };
-    customer: {
+    customer?: {
         id: number;
         first_name: string;
         last_name: string;
         avatar?: string;
     };
-    stylist: {
+    stylist?: {
         id: number;
         first_name: string;
         last_name: string;
@@ -118,7 +118,7 @@ const AdminDisputesIndex = ({
 
     const handleSearch = () => {
         router.get(
-            route('admin.disputes.index'),
+            window.route('admin.disputes.index'),
             {
                 search: searchTerm,
                 status: statusFilter,
@@ -135,7 +135,7 @@ const AdminDisputesIndex = ({
         setSearchTerm('');
         setStatusFilter('');
         setPriorityFilter('');
-        router.get(route('admin.disputes.index'));
+        router.get(window.route('admin.disputes.index'));
     };
 
     const getLastMessage = (dispute: DisputeItem) => {
@@ -161,12 +161,12 @@ const AdminDisputesIndex = ({
     const routes = [
         {
             name: 'Admin Dashboard',
-            path: route('admin.dashboard'),
+            path: window.route('admin.dashboard'),
             active: false,
         },
         {
             name: 'Disputes Management',
-            path: route('admin.disputes.index'),
+            path: window.route('admin.disputes.index'),
             active: true,
         },
     ];
@@ -334,7 +334,7 @@ const AdminDisputesIndex = ({
                                         className="w-full cursor-pointer p-6 transition-colors hover:bg-gray-50"
                                         onClick={() =>
                                             router.visit(
-                                                route(
+                                                window.route(
                                                     'admin.disputes.show',
                                                     dispute.id,
                                                 ),
@@ -407,29 +407,23 @@ const AdminDisputesIndex = ({
                                                         <div className="mb-2 grid grid-cols-1 gap-4 md:grid-cols-2">
                                                             <p className="text-sm text-gray-600">
                                                                 Customer:{' '}
-                                                                {
-                                                                    dispute
-                                                                        .customer
-                                                                        .first_name
-                                                                }{' '}
-                                                                {
-                                                                    dispute
-                                                                        .customer
-                                                                        .last_name
-                                                                }
+                                                                {dispute.customer
+                                                                    ? `${
+                                                                          dispute
+                                                                              .customer
+                                                                              ?.first_name
+                                                                      } ${dispute.customer?.last_name}`
+                                                                    : `Deleted Customer`}
                                                             </p>
                                                             <p className="text-sm text-gray-600">
                                                                 Stylist:{' '}
-                                                                {
-                                                                    dispute
-                                                                        .stylist
-                                                                        .first_name
-                                                                }{' '}
-                                                                {
-                                                                    dispute
-                                                                        .stylist
-                                                                        .last_name
-                                                                }
+                                                                {dispute.stylist
+                                                                    ? `${
+                                                                          dispute
+                                                                              .stylist
+                                                                              ?.first_name
+                                                                      } ${dispute.stylist?.last_name}`
+                                                                    : `Deleted Stylist`}
                                                             </p>
                                                         </div>
 
@@ -508,7 +502,7 @@ const AdminDisputesIndex = ({
                                         <button
                                             onClick={() =>
                                                 router.get(
-                                                    route(
+                                                    window.route(
                                                         'admin.disputes.index',
                                                     ),
                                                     {
@@ -528,7 +522,7 @@ const AdminDisputesIndex = ({
                                         <button
                                             onClick={() =>
                                                 router.get(
-                                                    route(
+                                                    window.route(
                                                         'admin.disputes.index',
                                                     ),
                                                     {

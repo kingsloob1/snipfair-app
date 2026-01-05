@@ -1,3 +1,4 @@
+/* eslint-disable jsx-a11y/label-has-associated-control */
 import CommonAvatar from '@/Components/common/forms/CommonAvatar';
 import { StylistNavigationSteps } from '@/Components/magic/StylistNavigationSteps';
 import { apiCall } from '@/hooks/api';
@@ -60,13 +61,13 @@ interface Dispute {
         appointment_date: string;
         amount: number;
     };
-    customer: {
+    customer?: {
         id: number;
         first_name: string;
         last_name: string;
         avatar?: string;
     };
-    stylist: {
+    stylist?: {
         id: number;
         first_name: string;
         last_name: string;
@@ -617,10 +618,15 @@ const AdminDisputeShow = ({ dispute }: DisputeShowProps) => {
                             <div className="space-y-3">
                                 <Link
                                     className="flex items-center space-x-3"
-                                    href={window.route(
-                                        'admin.users.customer',
-                                        dispute.customer.id,
-                                    )}
+                                    href={
+                                        dispute.customer
+                                            ? window.route(
+                                                  'admin.users.customer',
+                                                  dispute.customer.id,
+                                              )
+                                            : '#'
+                                    }
+                                    disabled={!dispute.customer}
                                 >
                                     <CommonAvatar
                                         image={
@@ -628,13 +634,18 @@ const AdminDisputeShow = ({ dispute }: DisputeShowProps) => {
                                                 ? `/storage/${dispute.customer.avatar}`
                                                 : ''
                                         }
-                                        name={`${dispute.customer.first_name} ${dispute.customer.last_name}`}
+                                        name={
+                                            dispute.customer
+                                                ? `${dispute.customer.first_name} ${dispute.customer.last_name}`
+                                                : `Deleted Customer`
+                                        }
                                         className="h-10 w-10 rounded-full object-cover"
                                     />
                                     <div>
                                         <p className="font-medium text-gray-900">
-                                            {dispute.customer.first_name}{' '}
-                                            {dispute.customer.last_name}
+                                            {dispute.customer
+                                                ? `${dispute.customer.first_name} ${dispute.customer.last_name}`
+                                                : `Deleted Customer`}
                                         </p>
                                         <p className="text-sm text-gray-600">
                                             Customer
@@ -649,10 +660,15 @@ const AdminDisputeShow = ({ dispute }: DisputeShowProps) => {
 
                                 <Link
                                     className="flex items-center space-x-3"
-                                    href={window.route(
-                                        'admin.users.stylist',
-                                        dispute.stylist.id,
-                                    )}
+                                    href={
+                                        dispute.stylist
+                                            ? window.route(
+                                                  'admin.users.stylist',
+                                                  dispute.stylist.id,
+                                              )
+                                            : '#'
+                                    }
+                                    disabled={!dispute.stylist}
                                 >
                                     <CommonAvatar
                                         image={
@@ -660,13 +676,18 @@ const AdminDisputeShow = ({ dispute }: DisputeShowProps) => {
                                                 ? `/storage/${dispute.stylist.avatar}`
                                                 : ''
                                         }
-                                        name={`${dispute.stylist.first_name} ${dispute.stylist.last_name}`}
+                                        name={
+                                            dispute.stylist
+                                                ? `${dispute.stylist.first_name} ${dispute.stylist.last_name}`
+                                                : `Deleted Stylist`
+                                        }
                                         className="h-10 w-10 rounded-full object-cover"
                                     />
                                     <div>
                                         <p className="font-medium text-gray-900">
-                                            {dispute.stylist.first_name}{' '}
-                                            {dispute.stylist.last_name}
+                                            {dispute.stylist
+                                                ? `${dispute.stylist.first_name} ${dispute.stylist.last_name}`
+                                                : `Deleted Stylist`}
                                         </p>
                                         <p className="text-sm text-gray-600">
                                             Stylist

@@ -222,8 +222,6 @@ export default function Users({
 
     const getTabDisplayText = () => {
         switch (activeTab) {
-            case 'customers':
-                return 'Customers';
             case 'all_stylists':
                 return 'All Stylists';
             case 'stylists':
@@ -234,6 +232,7 @@ export default function Users({
                 return 'Stylist Approvals';
             case 'deleted_users':
                 return 'Deleted Users';
+            case 'customers':
             default:
                 return 'Customers';
         }
