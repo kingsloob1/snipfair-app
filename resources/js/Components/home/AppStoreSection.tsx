@@ -1,6 +1,4 @@
 import { motion } from 'motion/react';
-import { toast } from 'sonner';
-
 const AppStoreSection = () => {
     return (
         <section className="relative overflow-hidden bg-gradient-to-br from-[#00010E] via-[#1a1a2e] to-[#2d1b69] py-20">
@@ -120,9 +118,12 @@ const AppStoreSection = () => {
                     <motion.button
                         whileHover={{ scale: 1.05, y: -5 }}
                         whileTap={{ scale: 0.98 }}
-                        onClick={() =>
-                            toast.info('App store version coming soon')
-                        }
+                        onClick={() => {
+                            window.open(
+                                'https://apps.apple.com/ng/app/snipfair/id6755818679',
+                                '_blank',
+                            );
+                        }}
                         className="app-btn apple-btn"
                         role="button"
                     >
@@ -135,9 +136,12 @@ const AppStoreSection = () => {
                     <motion.button
                         whileHover={{ scale: 1.05, y: -5 }}
                         whileTap={{ scale: 0.98 }}
-                        onClick={() =>
-                            toast.info('Play store version coming soon')
-                        }
+                        onClick={() => {
+                            window.open(
+                                'https://play.google.com/store/apps/details?id=com.snipfair.app&pli=1',
+                                '_blank',
+                            );
+                        }}
                         className="app-btn google-btn"
                         role="button"
                     >

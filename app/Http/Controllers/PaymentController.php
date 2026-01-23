@@ -12,6 +12,7 @@ use App\Models\AppointmentPouch;
 use App\Models\Deposit;
 use App\Models\StylistPaymentMethod;
 use Illuminate\Http\Client\HttpClientException;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\Request;
 use GuzzleHttp\Client;
 use App\Models\Transaction;  // Your Transaction model
@@ -661,17 +662,27 @@ class PaymentController extends Controller
     {
         $cacheKey = 'peach:payment:balance';
         return Cache::remember($cacheKey, 10, function () {
-            $responseJson = $this->getPeachPaymentPayoutHttpClient()->get("balance")->throw()->json();
+            try {
+                $responseJson = $this->getPeachPaymentPayoutHttpClient()->get("balance")->throw()->json();
 
-            $availableBalance = (float) Arr::get($responseJson, 'availableBalance', 0);
-            $currency = Arr::get($responseJson, 'currency', 'ZAR');
-            $lastTransactionDate = Carbon::parse(Arr::get($responseJson, 'lastTransactionDate', Carbon::now()));
+                $availableBalance = (float) Arr::get($responseJson, 'availableBalance', 0);
+                $currency = Arr::get($responseJson, 'currency', 'ZAR');
+                $lastTransactionDate = Carbon::parse(Arr::get($responseJson, 'lastTransactionDate', Carbon::now()));
 
-            return [
-                'balance' => $availableBalance / 100,
-                'currency' => $currency,
-                'lastTransactionDate' => $lastTransactionDate
-            ];
+                return [
+                    'balance' => $availableBalance / 100,
+                    'currency' => $currency,
+                    'lastTransactionDate' => $lastTransactionDate
+                ];
+            } catch (Exception $e) {
+                Log::error($e);
+                Log::error('An error occured while fetching peach payment balance');
+                return [
+                    'balance' => 0,
+                    'currency' => 'ZAR',
+                    'lastTransactionDate' => Carbon::now()
+                ];
+            }
         });
     }
 
@@ -754,6 +765,37 @@ class PaymentController extends Controller
         return $transaction;
     }
 
+    private function handlePeachPaymentPayoutFailure(Withdrawal $withdrawal, Transaction $transaction)
+    {
+        Log::warning("Handling peach payment payout failure for withdrawal {$withdrawal->id}");
+
+        $withdrawal->update([
+            'status' => 'declined'
+        ]);
+        $transaction->update([
+            'status' => 'failed'
+        ]);
+
+        // Refund amount to user balance
+        User::query()
+            ->where('id', '=', $withdrawal->user_id)
+            ->update(['balance' => DB::raw("balance + {$withdrawal->amount}")]);
+
+        defer(function () use ($withdrawal) {
+            Mail::to($withdrawal->user->email)->send(new WithdrawalRejectedEmail(
+                withdrawal: $withdrawal,
+                stylist: $withdrawal->user,
+            ));
+            sendNotification(
+                $withdrawal->user->id,
+                route('stylist.earnings'),
+                'Withdrawal Rejected',
+                'Your withdrawal of R' . $withdrawal->amount . ' has been rejected, and the amount has been refunded to your wallet.',
+                'normal',
+            );
+        });
+    }
+
     /**
      * Summary of processPeachPaymentPayout
      * @param \App\Models\Withdrawal $withdrawal
@@ -831,31 +873,7 @@ class PaymentController extends Controller
                 case 'reversed':
                 case 'failed': {
                     Log::warning("Peach payment payout for withdrawal {$withdrawal->id} failed with status {$payoutStatus}");
-                    $withdrawal->update([
-                        'status' => 'declined'
-                    ]);
-                    $transaction->update([
-                        'status' => 'failed'
-                    ]);
-
-                    // Refund amount to user balance
-                    User::query()
-                        ->where('id', '=', $withdrawal->user_id)
-                        ->update(['balance' => DB::raw("balance + {$withdrawal->amount}")]);
-
-                    defer(function () use ($withdrawal) {
-                        Mail::to($withdrawal->user->email)->send(new WithdrawalRejectedEmail(
-                            withdrawal: $withdrawal,
-                            stylist: $withdrawal->user,
-                        ));
-                        sendNotification(
-                            $withdrawal->user->id,
-                            route('stylist.earnings'),
-                            'Withdrawal Rejected',
-                            'Your withdrawal of R' . $withdrawal->amount . ' has been rejected, and the amount has been refunded to your wallet.',
-                            'normal',
-                        );
-                    });
+                    $this->handlePeachPaymentPayoutFailure($withdrawal, $transaction);
 
                     return $transaction;
                 }
@@ -866,6 +884,11 @@ class PaymentController extends Controller
                 }
             }
         } catch (HttpClientException $e) {
+            if ($e instanceof RequestException && $e->response->status() === 404) {
+                Log::warning("Peach payment payout for withdrawal {$withdrawal->id} not found");
+                return $transaction;
+            }
+
             Log::error($e);
             Log::error("An error occurred while processing peach payment withdrawal for {$withdrawal->id}");
             return $transaction;
