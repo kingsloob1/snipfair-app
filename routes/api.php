@@ -38,7 +38,7 @@ Route::middleware('api')->group(function () {
     Route::get('/categories', [StylistWorkController::class, 'getWorkCategories'])->middleware('throttle:300,1');
 
     //Public customer routes
-    Route::group(['prefix' => '/customer', 'middleware' => ['throttle:300,1']], function () {
+    Route::group(['prefix' => '/customer', 'middleware' => ['throttle:300,1', 'optional.auth.sanctum']], function () {
         // get stylist list
         Route::get('stylist/list', [CustomerApiController::class, 'getStylists']);
 

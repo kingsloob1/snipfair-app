@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Guards\OptionalSanctumAuthGuard;
 use App\Guards\QueryTokenGuard;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -29,11 +30,20 @@ class AppServiceProvider extends ServiceProvider
     {
         Vite::prefetch(concurrency: 3);
 
+        //Register the query token guard as an auth driver
         Auth::extend('auth_query_token', function ($app, $name, array $config) {
             $provider = Auth::createUserProvider($config['provider']);
             $request = $app['request'];
 
             return new QueryTokenGuard($provider, $request);
+        });
+
+        //Register the optional sanctum auth guard as an auth driver
+        Auth::extend('optional_auth_sanctum', function ($app, $name, array $config) {
+            $provider = Auth::createUserProvider($config['provider']);
+            $request = $app['request'];
+
+            return new OptionalSanctumAuthGuard($provider, $request);
         });
 
         if (App::environment(['ngrok', 'local', 'production'])) {

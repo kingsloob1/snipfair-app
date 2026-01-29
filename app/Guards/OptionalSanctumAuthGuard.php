@@ -8,7 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Laravel\Sanctum\PersonalAccessToken;
 
-class QueryTokenGuard implements Guard
+class OptionalSanctumAuthGuard implements Guard
 {
     protected $request;
     protected $provider;
@@ -46,12 +46,16 @@ class QueryTokenGuard implements Guard
 
     private function processUserUsingDefaultAuth()
     {
-        $user = Auth::guard('sanctum')->user();
-        if ($user) {
-            $this->setUser($user);
-        }
+        try {
+            $user = Auth::guard('sanctum')->user();
+            if ($user) {
+                $this->setUser($user);
+            }
 
-        return $user;
+            return $user;
+        } catch (\Exception $e) {
+            return null;
+        }
     }
 
 
@@ -64,8 +68,8 @@ class QueryTokenGuard implements Guard
             return $this->user;
         }
 
-        // Example: authenticate via auth_token in query string
-        $tokenString = urldecode($this->request->input('auth_token', ''));
+        // Example: authenticate via bearer token
+        $tokenString = $this->request->bearerToken();
 
         if (!$tokenString) {
             return $this->processUserUsingDefaultAuth();
@@ -81,7 +85,6 @@ class QueryTokenGuard implements Guard
 
         if ($user) {
             $this->setUser($user);
-            session(['auth:from:app' => true]);
         }
 
         return $this->user;
@@ -117,9 +120,8 @@ class QueryTokenGuard implements Guard
     {
         $this->user = $user;
 
-        // Log in the user to the 'web' guard to maintain session state
-        Auth::guard('web')->login($this->user);
-        session()->save(); //Ensure session is persisted to the storage
+        // set the user in the sanctum guard as well
+        Auth::guard('sanctum')->setUser($user);
         return $this;
     }
 }

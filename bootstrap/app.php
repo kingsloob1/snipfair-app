@@ -9,6 +9,7 @@ use App\Http\Middleware\EnsurePhoneIsVerified;
 use App\Http\Middleware\EnsureProfileIsComplete;
 use App\Http\Middleware\EnsureStylistProfile;
 use App\Http\Middleware\ForceJsonResponse;
+use App\Http\Middleware\OptionalSanctumAuth;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -53,6 +54,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->alias([
+            'optional.auth.sanctum' => OptionalSanctumAuth::class,
             'admin.auth' => AdminAuthenticate::class,
             'admin.role' => AdminRole::class,
             'email.verified' => EnsureEmailIsVerified::class,

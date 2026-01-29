@@ -40,6 +40,10 @@ return [
             'driver' => 'auth_query_token',
             'provider' => 'users',
         ],
+        'optional_sanctum' => [
+            'driver' => 'optional_auth_sanctum',
+            'provider' => 'users',
+        ],
         'web' => [
             'driver' => 'session',
             'provider' => 'users',

@@ -30,7 +30,9 @@ use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Query\JoinClause;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
@@ -322,6 +324,11 @@ class CustomerApiController extends Controller
 
         $customerLatitude = $user?->location_service?->latitude;
         $customerLongitude = $user?->location_service?->longitude;
+
+        Log::log('info', 'Calculating distance for customer location');
+        Log::info('User id is ====> ' . ($user ? $user->id : 'Guest'));
+        Log::info(`Customer Location: Lat {$customerLatitude}, Long: {$customerLongitude}`);
+
         // Compute distance only when customer has distance set
         if ($customerLatitude && $customerLongitude) {
             // use 6371 for km and 3959 for miles (Earths radius)
@@ -395,11 +402,17 @@ class CustomerApiController extends Controller
 
     public function getStylists(Request $request)
     {
-        $user = $request->user();
+        /**
+         * @var User
+         */
+        $user = Auth::guard('sanctum')->user();
 
         if ($user) {
             $user->load(['location_service']);
         }
+
+        Log::info('Getting stylists for user id ====> ' . ($user ? $user->id : 'Guest'));
+        Log::info('Request Parameters for fetching stylists: ' . json_encode($request->all()));
 
         $perPage = formatPerPage($request);
         $query = $request->query('query');
@@ -419,12 +432,12 @@ class CustomerApiController extends Controller
         });
 
         if ($categoryId) {
-            $queryBuilder = $queryBuilder->whereHas('stylistAppointments.portfolio', function ($qb) use ($categoryId) {
+            $queryBuilder = $queryBuilder->whereHas('portfolios', function ($qb) use ($categoryId) {
                 $qb->where('category_id', '=', $categoryId);
             });
         }
 
-        if ($favourite & $user) {
+        if ($favourite && $user) {
             $favouriteBool = filter_var($favourite, FILTER_VALIDATE_BOOLEAN);
 
             $handler = function ($qb) use ($user) {
@@ -572,7 +585,10 @@ class CustomerApiController extends Controller
 
     public function getStylist(Request $request, $stylistUserId)
     {
-        $user = $request->user();
+        /**
+         * @var User
+         */
+        $user = Auth::guard('sanctum')->user();
 
         if ($user) {
             $user->load(['location_service']);
@@ -773,7 +789,10 @@ class CustomerApiController extends Controller
 
     public function getPortfolios(Request $request)
     {
-        $user = $request->user();
+        /**
+         * @var User
+         */
+        $user = Auth::guard('sanctum')->user();
 
         if ($user) {
             $user->load(['location_service']);
@@ -949,7 +968,10 @@ class CustomerApiController extends Controller
 
     public function getPortfolio(Request $request, $portfolioId)
     {
-        $user = $request->user();
+        /**
+         * @var User
+         */
+        $user = Auth::guard('sanctum')->user();
 
         if ($user) {
             $user->load(['location_service']);
