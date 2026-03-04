@@ -276,7 +276,8 @@ Route::middleware('api')->group(function () {
 
             //Authentcated Payment routes
             Route::group(['prefix' => '/payment'], function () {
-                Route::post('/initiate/payfast', [PaymentController::class, 'initiatePayfastTxn']);
+                //This endpoint is hardcoded in app. SO until updated in the app, do not change the url or method type
+                Route::post('/initiate/payfast', [PaymentController::class, 'initiate']);
             });
 
             //Authentcated wallet routes
@@ -327,16 +328,24 @@ Route::middleware('api')->group(function () {
     Route::group(['prefix' => '/payment'], function () {
         Route::get('/pay/payfast', [PaymentController::class, 'displayPayfastPage']);
 
-        Route::get('/cancel/payfast', [PaymentController::class, 'handleCancelPayfastTxn']);
+        Route::get('/cancel/payfast', [PaymentController::class, 'handleCancelDepositTxn']);
 
-        Route::get('/success/payfast', [PaymentController::class, 'handleSuccessfulPayfastTxn']);
+        Route::get('/success/payfast', [PaymentController::class, 'handleSuccessfulDepositTxn']);
 
         Route::post('/webhook/payfast', [PaymentController::class, 'handlePayfastWebhook']);
 
         Route::post('/webhook/peachpayment', [PaymentController::class, 'handlePeachPaymentPayoutWebhook']);
+
+        Route::get('/pay/peachpayment/checkout', [PaymentController::class, 'displayPeachPaymentCheckoutPage']);
+
+        Route::get('/cancel/peachpayment/checkout', [PaymentController::class, 'handleCancelDepositTxn']);
+
+        Route::get('/success/peachpayment/checkout', [PaymentController::class, 'handleSuccessfulDepositTxn']);
+
+        Route::post('/webhook/peachpayment/checkout', [PaymentController::class, 'handlePeachPaymentCheckoutWebhook']);
     });
 });
-// Mobile App API Routes End
+// Mobile App API Routes End https://test.snipfair.com/api/payment/webhook/peachpayment/checkout
 
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {

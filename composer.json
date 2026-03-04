@@ -66,6 +66,10 @@
             "Composer\\Config::disableProcessTimeout",
             "npx concurrently -c \"#93c5fd,#c4b5fd,#fdba74,#ff0000\" \"php artisan serve\" \"php artisan queue:listen --tries=1\" \"npm run dev\" \"php artisan schedule:work\" --names='server,queue,vite,schedule worker'"
         ],
+        "dev:no:schedule": [
+            "Composer\\Config::disableProcessTimeout",
+            "npx concurrently -c \"#93c5fd,#c4b5fd,#fdba74,#ff0000\" \"php artisan serve\" \"php artisan queue:listen --tries=1\" \"npm run dev\""
+        ],
         "test": [
             "@php artisan config:clear --ansi",
             "@php artisan test"

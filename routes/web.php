@@ -162,7 +162,7 @@ Route::group(['middleware' => ['auth', 'verified']], function () {
 
         // Customer payments routes
         Route::post('/payment/initiate', [PaymentController::class, 'initiate'])->name('payment.initiate');
-        Route::post('/payment/cancel', [PaymentController::class, 'cancelDeposit'])->name('payment.cancel');
+        Route::post('/payment/cancel', [PaymentController::class, 'cancelDeposit'])->where('processor', 'peachpayment|payfast')->name('payment.cancel');
     });
 
     // Chat functionality

@@ -45,6 +45,12 @@ Schedule::command('payment:process-pending-peachpayment-withdrawals')
     ->withoutOverlapping()
     ->runInBackground();
 
+// Process pending peach payment deposits
+Schedule::command('payment:process-pending-peachpayment-deposits')
+    ->everyFifteenMinutes()
+    ->withoutOverlapping()
+    ->runInBackground();
+
 $testSchedulerLogPath = __DIR__ . '/../storage/logs/test-scheduler.log';
 Artisan::command('test:scheduler', function () use ($testSchedulerLogPath) {
     shell_exec('touch ' . $testSchedulerLogPath);

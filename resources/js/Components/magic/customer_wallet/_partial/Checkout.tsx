@@ -13,7 +13,9 @@ interface CheckoutProps extends PageProps {
 interface PaymentFlashData {
     flash?: {
         custom_response?: {
-            uuid?: string;
+            processor?: 'payfast' | 'peachpayment' | string;
+            processor_id?: string;
+            payment_url?: string;
             deposit_id?: number;
         };
     };
@@ -95,53 +97,83 @@ const Checkout = ({
             return;
         }
 
-        post(route('customer.payment.initiate'), {
+        post(window.route('customer.payment.initiate'), {
             preserveScroll: true,
             onSuccess: (response) => {
                 const flash = (response.props as unknown as PaymentFlashData)
                     .flash;
-                const { uuid, deposit_id } = flash?.custom_response || {};
+                const { deposit_id, processor, processor_id, payment_url } =
+                    flash?.custom_response || {};
 
-                if (uuid && deposit_id) {
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    (window as any).payfast_do_onsite_payment(
-                        { uuid },
-                        (result: boolean) => {
-                            if (result === true) {
-                                toast.success(
-                                    'Payment is being confirmed, you will receive a notification shortly!',
-                                );
-                                onTopupSuccess();
-                            } else {
-                                router.post(
-                                    route('customer.payment.cancel'),
-                                    {
-                                        uuid,
-                                        deposit_id,
-                                    },
-                                    {
-                                        onSuccess: () => {
-                                            toast.warning(
-                                                'Payment cancelled and declined successfully.',
-                                            );
-                                        },
-                                        onError: () => {
-                                            toast.warning(
-                                                'Payment window closed or cancelled.',
-                                            );
-                                        },
-                                    },
-                                );
-                                router.reload({
-                                    only: ['wallet', 'walletStats'],
-                                });
-                            }
-                            reset();
-                        },
-                    );
-                    onClose();
-                } else {
-                    setMessage('Failed to initiate payment.');
+                switch (processor) {
+                    case 'payfast': {
+                        if (!('payfast_do_onsite_payment' in window)) {
+                            setMessage('Payment script is not available.');
+                            return;
+                        }
+
+                        if (processor_id && deposit_id) {
+                            (window as any).payfast_do_onsite_payment(
+                                { uuid: processor_id },
+                                (result: boolean) => {
+                                    if (result === true) {
+                                        toast.success(
+                                            'Payment is being confirmed, you will receive a notification shortly!',
+                                        );
+                                        onTopupSuccess();
+                                    } else {
+                                        router.post(
+                                            window.route(
+                                                'customer.payment.cancel',
+                                            ),
+                                            {
+                                                uuid: processor_id,
+                                                deposit_id,
+                                            },
+                                            {
+                                                onSuccess: () => {
+                                                    toast.warning(
+                                                        'Payment cancelled and declined successfully.',
+                                                    );
+                                                },
+                                                onError: () => {
+                                                    toast.warning(
+                                                        'Payment window closed or cancelled.',
+                                                    );
+                                                },
+                                            },
+                                        );
+                                        router.reload({
+                                            only: ['wallet', 'walletStats'],
+                                        });
+                                    }
+                                    reset();
+                                },
+                            );
+                            onClose();
+                        } else {
+                            setMessage('Failed to initiate payment.');
+                        }
+                        break;
+                    }
+
+                    case 'peachpayment': {
+                        const windowName = 'peachpayment_checkout';
+                        const windowFeatures =
+                            'width=800,height=600,resizable=yes,scrollbars=yes,status=yes';
+
+                        // Open the URL in a new pop-up window
+                        const popupWindow = window.open(
+                            payment_url,
+                            windowName,
+                            windowFeatures,
+                        );
+
+                        // Optional: Bring the pop-up window into focus if it's already open
+                        if ('focus' in popupWindow!) {
+                            popupWindow.focus();
+                        }
+                    }
                 }
             },
             onError: (err) => {

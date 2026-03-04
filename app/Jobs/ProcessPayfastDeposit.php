@@ -2,14 +2,10 @@
 
 namespace App\Jobs;
 
-use App\Events\AppointmentStatusUpdated;
 use App\Http\Controllers\Admin\TransactionController;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Support\Facades\Mail;
-use App\Mail\DepositConfirmationEmail;
 use App\Models\Deposit;
-use App\Models\User;
 use Exception;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -41,13 +37,7 @@ class ProcessPayfastDeposit implements ShouldQueue
         $transactionId = $this->transactionId;
         $pfData = $this->pfData;
         $pfPaymentId = $pfData['pf_payment_id'] ?? null;
-        $lockKey = "payfast:payment:handler:{$pfPaymentId}";
-
-        //Only process pending deposit
-        if ($deposit->status !== 'pending') {
-            Log::warning("Payfast deposit has already been processed for deposit {$deposit->id} [pf_payment_id={$pfPaymentId}]");
-            return;
-        }
+        $lockKey = "payfast:deposit:payment:handler:{$pfPaymentId}";
 
         $cleanUpWithStatus = function (string $status) use ($deposit, $lockKey) {
             $deposit->update([
@@ -58,6 +48,16 @@ class ProcessPayfastDeposit implements ShouldQueue
 
         //Hold the lock for a day.. This ensures only one process can process this deposit
         Cache::lock($lockKey, 60 * 60 * 24)->block(20, function () use ($deposit, $transactionId, $pfData, $pfPaymentId, $cleanUpWithStatus, $transactionController) {
+            $deposit = $this->deposit->fresh();
+            $deposit->load(['appointment', 'transaction', 'user']);
+
+
+            //Only process pending deposit
+            if ($deposit->status !== 'pending') {
+                Log::warning("Payfast deposit has already been processed for deposit {$deposit->id} [pf_payment_id={$pfPaymentId}]");
+                return;
+            }
+
             $deposit->update([
                 'status' => 'processing'
             ]);
@@ -111,7 +111,7 @@ class ProcessPayfastDeposit implements ShouldQueue
                         case 'complete': {
                             $transactionController->approveDepositNative($deposit, $transaction);
 
-                            Log::info("Approved deposit for {$deposit->id} [pf_payment_id={$pfPaymentId}]");
+                            Log::info("Approved deposit from payfast with deposit id {$deposit->id} and [pf_payment_id={$pfPaymentId}]");
                             $cleanUpWithStatus('approved');
                             break;
                         }
