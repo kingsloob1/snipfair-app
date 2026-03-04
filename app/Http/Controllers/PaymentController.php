@@ -375,7 +375,7 @@ class PaymentController extends Controller
     {
         $user = $request->user();
         $websiteConfig = WebsiteConfiguration::first();
-        $paymentMethod = strtolower($websiteConfig->default_collection_method ?? 'payfast');
+        $paymentMethod = strtolower($websiteConfig->default_collection_processor ?? 'payfast');
 
         $activePaymentMethod = AdminPaymentMethod::whereRaw('lower(bank_name) = ?', [$paymentMethod])->where('is_active', '=', true)->first();
 
