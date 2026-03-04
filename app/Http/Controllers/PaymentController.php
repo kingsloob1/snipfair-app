@@ -615,6 +615,7 @@ class PaymentController extends Controller
     private function getPeachPaymentAuthToken()
     {
         $cacheKey = 'peach:payment:token';
+        Cache::forget($cacheKey);
         $authToken = Cache::get($cacheKey, null);
 
         if (!$authToken) {
@@ -623,7 +624,6 @@ class PaymentController extends Controller
             $clientSecret = config('peachpayment.client_secret');
             $authEndpoint = config('peachpayment.auth_endpoint');
 
-            $startTime = Carbon::now();
             $responseJson = Http::connectTimeout(30)->timeout(120)->retry(5, 500)->dontTruncateExceptions()->post("{$authEndpoint}/api/oauth/token", [
                 'clientId' => $clientId,
                 'clientSecret' => $clientSecret,
@@ -635,8 +635,8 @@ class PaymentController extends Controller
             $tokenType = Arr::get($responseJson, 'token_type', 'Bearer');
             $authToken = "{$tokenType} {$token}";
 
-            $reqSeconds = (int) Carbon::now()->diffInSeconds($startTime);
-            Cache::put($cacheKey, $authToken, $expiresInSeconds - ($reqSeconds + 5));
+            //Previous ttl while trusting expires_in from peach payments was expiresInSeconds - 60, but we had some instances where token was expiring a few seconds before the expected expiry time, causing failed transactions. To mitigate this, we are now setting the ttl to be expiresInSeconds - 300 (5 minutes) to ensure token is refreshed well before it expires.
+            Cache::put($cacheKey, $authToken, $expiresInSeconds - 300);
         }
 
         return $authToken;
