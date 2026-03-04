@@ -615,7 +615,6 @@ class PaymentController extends Controller
     private function getPeachPaymentAuthToken()
     {
         $cacheKey = 'peach:payment:token';
-        Cache::forget($cacheKey);
         $authToken = Cache::get($cacheKey, null);
 
         if (!$authToken) {
@@ -1164,7 +1163,7 @@ class PaymentController extends Controller
             $responseJson = $this->getPeachPaymentCheckoutHttpClient()
                 ->withHeader('accept', 'application/json')
                 ->withHeader('content-type', 'application/json')
-                ->withHeader('referrer', 'https://snipfair.com')
+                ->withHeader('Referer', config('app.url'))
                 ->post("checkout", $data)->throw()->json();
 
             $checkoutId = Arr::get($responseJson, 'checkoutId', null);
