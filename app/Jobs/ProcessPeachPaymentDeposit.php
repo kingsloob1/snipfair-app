@@ -117,6 +117,12 @@ class ProcessPeachPaymentDeposit implements ShouldQueue
 
             try {
                 $depositResultCode = Arr::get($depositData, 'result.code');
+
+                if (!$depositResultCode) {
+                    $cleanUpWithStatus('pending');
+                    return;
+                }
+
                 $peachResultCodeObj = Arr::get(self::$PEACH_PAYMENT_RESPONSE_CODES, $depositResultCode);
 
                 if (!$peachResultCodeObj) {
