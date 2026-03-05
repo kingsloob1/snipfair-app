@@ -108,18 +108,12 @@ class ProcessPeachPaymentDeposit implements ShouldQueue
 
         //Hold the lock for a day.. This ensures only one process can process this deposit
         Cache::lock($lockKey, 60 * 60 * 24)->block(20, function () use ($deposit, $depositData, $cleanUpWithStatus, $transactionController) {
-            $deposit = $this->deposit->fresh();
-            $deposit->load(['transaction', 'appointment', 'user']);
-
+            $deposit = $this->deposit;
             //Only process pending deposit
             if ($deposit->status !== 'pending') {
                 Log::warning("PeachPayment deposit has already been processed for deposit {$deposit->id} [processor_id={$deposit->processor_id}]");
                 return;
             }
-
-            $deposit->update([
-                'status' => 'processing'
-            ]);
 
             try {
                 //Appointment has not been created for deposit. Wait until appointment is available
@@ -141,26 +135,34 @@ class ProcessPeachPaymentDeposit implements ShouldQueue
                 }
 
                 $status = $peachResultCodeObj['status']; //success, uncertain, cancelled, failed
-                $transaction = $deposit->transaction;
-                $appointment = $deposit->appointment;
 
-                if ($appointment) {
-                    $appointmentDepositTxn = $appointment
-                        ->transactions()
-                        ->where('type', '=', 'payment')
-                        ->whereLike('ref', "PAY-DEPOSIT-DEBIT-%", false)
-                        ->first();
+                DB::transaction(function () use ($deposit, $status, $cleanUpWithStatus, $transactionController) {
+                    $deposit = Deposit::query()->where('id', $deposit->id)->lockForUpdate()->with(['transaction', 'appointment'])->first();
 
-                    if ($appointmentDepositTxn) {
-                        $deposit->update([
-                            'transaction_id' => $appointmentDepositTxn->id
-                        ]);
+                    $transaction = $deposit->transaction;
+                    $appointment = $deposit->appointment;
 
-                        $transaction = $appointmentDepositTxn;
+
+                    $deposit->update([
+                        'status' => 'processing'
+                    ]);
+
+                    if ($appointment) {
+                        $appointmentDepositTxn = $appointment
+                            ->transactions()
+                            ->where('type', '=', 'payment')
+                            ->whereLike('ref', "PAY-DEPOSIT-DEBIT-%", false)
+                            ->first();
+
+                        if ($appointmentDepositTxn) {
+                            $deposit->update([
+                                'transaction_id' => $appointmentDepositTxn->id
+                            ]);
+
+                            $transaction = $appointmentDepositTxn;
+                        }
                     }
-                }
 
-                DB::transaction(function () use ($appointment, $deposit, $transaction, $status, $cleanUpWithStatus, $transactionController) {
                     switch ($status) {
                         case 'success': {
                             $transactionController->approveDepositNative($deposit, $transaction);
