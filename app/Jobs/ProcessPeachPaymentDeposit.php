@@ -116,15 +116,6 @@ class ProcessPeachPaymentDeposit implements ShouldQueue
             }
 
             try {
-                //Appointment has not been created for deposit. Wait until appointment is available
-                if ($deposit->portfolio_id && !$deposit->appointment_id) {
-                    Log::info("Appointment not ready for deposit {$deposit->id}, retrying...");
-
-                    $cleanUpWithStatus('pending');
-                    self::dispatch($deposit, $depositData)->delay(now()->addSeconds(10));
-                    return;
-                }
-
                 $depositResultCode = Arr::get($depositData, 'result.code');
                 $peachResultCodeObj = Arr::get(self::$PEACH_PAYMENT_RESPONSE_CODES, $depositResultCode);
 
@@ -136,7 +127,7 @@ class ProcessPeachPaymentDeposit implements ShouldQueue
 
                 $status = $peachResultCodeObj['status']; //success, uncertain, cancelled, failed
 
-                DB::transaction(function () use ($deposit, $status, $cleanUpWithStatus, $transactionController) {
+                DB::transaction(function () use ($deposit, $status, $cleanUpWithStatus, $transactionController, $depositData) {
                     $deposit = Deposit::query()->where('id', $deposit->id)->lockForUpdate()->with(['transaction', 'appointment'])->first();
 
                     $transaction = $deposit->transaction;
@@ -165,6 +156,15 @@ class ProcessPeachPaymentDeposit implements ShouldQueue
 
                     switch ($status) {
                         case 'success': {
+                            //Appointment has not been created for deposit. Wait until appointment is available
+                            if ($deposit->portfolio_id && !$deposit->appointment_id) {
+                                Log::info("Appointment not ready for deposit {$deposit->id}, retrying...");
+
+                                $cleanUpWithStatus('pending');
+                                self::dispatch($deposit, $depositData)->delay(now()->addSeconds(10));
+                                return;
+                            }
+
                             $transactionController->approveDepositNative($deposit, $transaction);
 
                             Log::info("Approved deposit from peach payment with deposit id {$deposit->id} and [peach_payment_id={$deposit->processor_id}]");
