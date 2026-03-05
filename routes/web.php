@@ -162,6 +162,7 @@ Route::group(['middleware' => ['auth', 'verified']], function () {
 
         // Customer payments routes
         Route::post('/payment/initiate', [PaymentController::class, 'initiate'])->name('payment.initiate');
+        Route::get('/payment/check-deposit', [PaymentController::class, 'checkDeposit'])->name('payment.check-deposit');
         Route::post('/payment/cancel', [PaymentController::class, 'cancelDeposit'])->where('processor', 'peachpayment|payfast')->name('payment.cancel');
     });
 

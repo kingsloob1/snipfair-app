@@ -2,22 +2,23 @@ import CustomButton from '@/Components/common/CustomButton';
 import { PageProps } from '@/types';
 import { router, useForm, usePage } from '@inertiajs/react';
 import { User } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
-// import { toast } from 'sonner';
 
 interface CheckoutProps extends PageProps {
     testMode: boolean;
 }
 
+interface PaymentInfo {
+    processor: 'payfast' | 'peachpayment' | string;
+    processor_id: string;
+    payment_url: string;
+    deposit_id: number | string;
+}
+
 interface PaymentFlashData {
     flash?: {
-        custom_response?: {
-            processor?: 'payfast' | 'peachpayment' | string;
-            processor_id?: string;
-            payment_url?: string;
-            deposit_id?: number;
-        };
+        custom_response?: PaymentInfo;
     };
 }
 
@@ -43,11 +44,14 @@ const Checkout = ({
     portfolioId?: number;
     type?: 'topup' | 'deposit';
 }) => {
-    const { testMode, auth } = usePage<CheckoutProps>().props;
-    const [scriptLoaded, setScriptLoaded] = useState(false);
+    const { auth } = usePage<CheckoutProps>().props;
     const [message, setMessage] = useState<string | null>(null);
+    const [paymentInfo, setPaymentInfo] = useState<PaymentInfo | undefined>(
+        undefined,
+    );
 
-    const { data, setData, post, processing, reset } = useForm<FormProps>({
+    // const [scriptLoaded, setScriptLoaded] = useState(false);
+    const { data, setData, post, processing } = useForm<FormProps>({
         amount: 0,
         email: '',
         first_name: '',
@@ -55,6 +59,16 @@ const Checkout = ({
         type: '',
         portfolio_id: null,
     });
+
+    const handlePaymentMade = useCallback(() => {
+        toast.success(
+            'Payment is being confirmed, you will receive a notification shortly!',
+        );
+        router.reload({
+            only: ['wallet', 'walletStats'],
+        });
+        onTopupSuccess();
+    }, [onTopupSuccess]);
 
     useEffect(() => {
         if (auth.user) {
@@ -74,100 +88,105 @@ const Checkout = ({
         }
     }, [amount, setData, auth, type, portfolioId]);
 
-    useEffect(() => {
-        // Load Payfast engine.js dynamically
-        const script = document.createElement('script');
-        script.src = testMode
-            ? 'https://sandbox.payfast.co.za/onsite/engine.js'
-            : 'https://www.payfast.co.za/onsite/engine.js';
-        script.async = true;
-        script.onload = () => setScriptLoaded(true);
-        script.onerror = () => setMessage('Failed to load payment script');
-        document.body.appendChild(script);
+    // useEffect(() => {
+    //     // Load Payfast engine.js dynamically
+    //     const script = document.createElement('script');
+    //     script.src = testMode
+    //         ? 'https://sandbox.payfast.co.za/onsite/engine.js'
+    //         : 'https://www.payfast.co.za/onsite/engine.js';
+    //     script.async = true;
+    //     script.onload = () => setScriptLoaded(true);
+    //     script.onerror = () => setMessage('Failed to load payment script');
+    //     document.body.appendChild(script);
 
-        return () => {
-            document.body.removeChild(script);
-        };
-    }, [testMode]);
+    //     return () => {
+    //         document.body.removeChild(script);
+    //     };
+    // }, [testMode]);
 
     const handlePayNow = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!scriptLoaded) {
-            setMessage('Payment script is loading...');
+        if (paymentInfo?.payment_url) {
+            // Open the URL in a new pop-up window
+            const popupWindow = window.open(paymentInfo.payment_url, '_blank');
+
+            // Optional: Bring the pop-up window into focus if it's already open
+            if ('focus' in popupWindow!) {
+                popupWindow.focus();
+            }
             return;
         }
+
+        // if (!scriptLoaded) {
+        //     setMessage('Payment script is loading...');
+        //     return;
+        // }
 
         post(window.route('customer.payment.initiate'), {
             preserveScroll: true,
             onSuccess: (response) => {
-                const flash = (response.props as unknown as PaymentFlashData)
-                    .flash;
-                const { deposit_id, processor, processor_id, payment_url } =
-                    flash?.custom_response || {};
+                const props = response.props as PaymentFlashData;
+                const { processor, payment_url } =
+                    props?.flash?.custom_response || {};
 
                 switch (processor) {
-                    case 'payfast': {
-                        if (!('payfast_do_onsite_payment' in window)) {
-                            setMessage('Payment script is not available.');
-                            return;
-                        }
+                    // case 'payfast': {
+                    //     if (!('payfast_do_onsite_payment' in window)) {
+                    //         setMessage('Payment script is not available.');
+                    //         return;
+                    //     }
 
-                        if (processor_id && deposit_id) {
-                            (window as any).payfast_do_onsite_payment(
-                                { uuid: processor_id },
-                                (result: boolean) => {
-                                    if (result === true) {
-                                        toast.success(
-                                            'Payment is being confirmed, you will receive a notification shortly!',
-                                        );
-                                        onTopupSuccess();
-                                    } else {
-                                        router.post(
-                                            window.route(
-                                                'customer.payment.cancel',
-                                            ),
-                                            {
-                                                uuid: processor_id,
-                                                deposit_id,
-                                            },
-                                            {
-                                                onSuccess: () => {
-                                                    toast.warning(
-                                                        'Payment cancelled and declined successfully.',
-                                                    );
-                                                },
-                                                onError: () => {
-                                                    toast.warning(
-                                                        'Payment window closed or cancelled.',
-                                                    );
-                                                },
-                                            },
-                                        );
-                                        router.reload({
-                                            only: ['wallet', 'walletStats'],
-                                        });
-                                    }
-                                    reset();
-                                },
-                            );
-                            onClose();
-                        } else {
-                            setMessage('Failed to initiate payment.');
-                        }
-                        break;
-                    }
+                    //     if (processor_id && deposit_id) {
+                    //         (window as any).payfast_do_onsite_payment(
+                    //             { uuid: processor_id },
+                    //             (result: boolean) => {
+                    //                 if (result === true) {
+                    //                     toast.success(
+                    //                         'Payment is being confirmed, you will receive a notification shortly!',
+                    //                     );
+                    //                     onTopupSuccess();
+                    //                 } else {
+                    //                     router.post(
+                    //                         window.route(
+                    //                             'customer.payment.cancel',
+                    //                         ),
+                    //                         {
+                    //                             uuid: processor_id,
+                    //                             deposit_id,
+                    //                         },
+                    //                         {
+                    //                             onSuccess: () => {
+                    //                                 toast.warning(
+                    //                                     'Payment cancelled and declined successfully.',
+                    //                                 );
+                    //                             },
+                    //                             onError: () => {
+                    //                                 toast.warning(
+                    //                                     'Payment window closed or cancelled.',
+                    //                                 );
+                    //                             },
+                    //                         },
+                    //                     );
+                    //                     router.reload({
+                    //                         only: ['wallet', 'walletStats'],
+                    //                     });
+                    //                 }
+                    //                 reset();
+                    //             },
+                    //         );
+                    //         onClose();
+                    //     } else {
+                    //         setMessage('Failed to initiate payment.');
+                    //     }
+                    //     break;
+                    // }
 
+                    case 'payfast':
                     case 'peachpayment': {
-                        const windowName = 'peachpayment_checkout';
-                        const windowFeatures =
-                            'width=800,height=600,resizable=yes,scrollbars=yes,status=yes';
+                        setPaymentInfo(props.flash?.custom_response);
 
                         // Open the URL in a new pop-up window
-                        const popupWindow = window.open(
-                            payment_url,
-                            windowName,
-                            windowFeatures,
-                        );
+                        const popupWindow = window.open(payment_url, '_blank');
 
                         // Optional: Bring the pop-up window into focus if it's already open
                         if ('focus' in popupWindow!) {
@@ -212,11 +231,22 @@ const Checkout = ({
                 <div className="space-y-3">
                     <CustomButton
                         type="submit"
-                        disabled={processing || !scriptLoaded}
+                        disabled={processing}
                         className="w-full"
                     >
                         {processing ? 'Processing...' : 'Proceed to Gateway'}
                     </CustomButton>
+
+                    {paymentInfo && (
+                        <CustomButton
+                            type="submit"
+                            onClick={handlePaymentMade}
+                            disabled={processing}
+                            className="w-full"
+                        >
+                            I have Paid
+                        </CustomButton>
+                    )}
 
                     <CustomButton
                         variant="secondary"

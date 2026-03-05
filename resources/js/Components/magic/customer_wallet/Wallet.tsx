@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import TopupSection from './_partial/TopupSection';
 import TransactionHistory from './_partial/TransactionHistory';
 import WalletCard from './_partial/WalletCard';

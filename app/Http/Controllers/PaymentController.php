@@ -574,6 +574,34 @@ class PaymentController extends Controller
         }
     }
 
+    public function checkDeposit(Request $request)
+    {
+        $deposit = Deposit::find($request->deposit_id);
+        if (!$deposit) {
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Deposit not found'
+                ], 404);
+            }
+
+            return back()->with('error', 'Deposit not found');
+        }
+
+        switch ($deposit->processor) {
+            case 'peachpayment':
+                $this->checkPeachPaymentDeposit($deposit);
+                break;
+            default:
+                Log::warning("No handler specified for processor \"{$deposit->processor}\" for deposit {$deposit->id}");
+        }
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Deposit checked successfully'
+        ], 200);
+    }
+
     public function cancelDeposit(Request $request)
     {
         $deposit = Deposit::find($request->deposit_id);
@@ -1235,8 +1263,7 @@ class PaymentController extends Controller
             $responseJson = $this->getPeachPaymentCheckoutHttpClient()
                 ->withHeader('accept', 'application/json')
                 ->withHeader('content-type', 'application/json')
-                ->withHeader('referrer', 'https://snipfair.com')
-                ->post("checkout/{$deposit->processor_id}/status")->throw()->json();
+                ->get("checkout/{$deposit->processor_id}/status")->throw()->json();
 
             ProcessPeachPaymentDeposit::dispatch($deposit, $responseJson);
         } catch (Exception $e) {
