@@ -1181,6 +1181,14 @@ class PaymentController extends Controller
 
                 return false; //Dont retry for other exceptions
             })
+            ->beforeSending(function ($request) {
+                Log::info('Peach Payment Checkout Request: ' . json_encode([
+                    'method' => $request->method(),
+                    'url' => $request->url(),
+                    'headers' => $request->headers(),
+                    'body' => $request->body(),
+                ]));
+            })
             ->dontTruncateExceptions();
     }
 
