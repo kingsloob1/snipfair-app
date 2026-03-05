@@ -7,6 +7,7 @@ import {
 import { cn } from '@/lib/utils';
 import websiteConfig from '@/lib/website-config';
 import { LoaderCircle } from 'lucide-react';
+import React from 'react';
 import Checkout from '../magic/customer_wallet/_partial/Checkout';
 
 interface PaymentModalProps {

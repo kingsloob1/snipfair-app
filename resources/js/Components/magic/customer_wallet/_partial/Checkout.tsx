@@ -68,7 +68,8 @@ const Checkout = ({
             only: ['wallet', 'walletStats'],
         });
         onTopupSuccess();
-        onClose();
+
+        setTimeout(onClose, 1000);
     }, [onTopupSuccess]);
 
     useEffect(() => {
