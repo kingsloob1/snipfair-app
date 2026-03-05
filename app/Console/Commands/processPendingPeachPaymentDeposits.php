@@ -36,7 +36,7 @@ class processPendingPeachPaymentDeposits extends Command implements Isolatable
         $depositIds = $this->argument('deposit');
 
         $qb = Deposit::query()
-            ->where('status', '=', 'pending')
+            ->whereIn('status', ['pending', 'processing'])
             ->where('processor', '=', 'peachpayment')
             ->whereNotNull('processor_id');
 
@@ -50,7 +50,7 @@ class processPendingPeachPaymentDeposits extends Command implements Isolatable
             ->chunk(20, function (Collection $deposits) use ($paymentController, $command, &$checkedDepositIds) {
                 foreach ($deposits as $deposit) {
                     $command->info("Start checking deposit for id =====> {$deposit->id}");
-                    $paymentController->checkPeachPaymentDeposit($deposit);
+                    $paymentController->checkPeachPaymentDeposit($deposit, true);
 
                     $checkedDepositIds[] = $deposit->id;
                     $command->info("Stop checking deposit for id =====> {$deposit->id}");

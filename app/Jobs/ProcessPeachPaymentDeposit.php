@@ -105,104 +105,112 @@ class ProcessPeachPaymentDeposit implements ShouldQueue
         $depositData = $this->depositData;
         $lockKey = "peachpayment:deposit:payment:handler:{$deposit->processor_id}";
 
-        $cleanUpWithStatus = function (string $status) use ($deposit, $lockKey) {
-            $deposit->update([
-                'status' => $status
-            ]);
-            Cache::lock($lockKey)->forceRelease();
-        };
-
         //Hold the lock for a day.. This ensures only one process can process this deposit
-        Cache::lock($lockKey, 60 * 60 * 24)->block(20, function () use ($deposit, $depositData, $cleanUpWithStatus, $transactionController) {
+        Cache::lock($lockKey, 60 * 60 * 24)->block(20, function () use ($deposit, $lockKey, $depositData, $transactionController) {
             $deposit = $this->deposit;
+
             //Only process pending deposit
-            if ($deposit->status !== 'pending') {
+            if (!in_array($deposit->status, ['pending', 'processing'])) {
                 Log::warning("PeachPayment deposit has already been processed for deposit {$deposit->id} [processor_id={$deposit->processor_id}]");
                 return;
             }
+
+            DB::beginTransaction();
+            $cleanUpWithStatus = function (string $status, bool $shouldRollback = false) use ($deposit, $lockKey) {
+                $deposit->update([
+                    'status' => $status
+                ]);
+
+                if ($shouldRollback) {
+                    DB::rollBack();
+                } else {
+                    DB::commit();
+                }
+
+                Cache::lock($lockKey)->forceRelease();
+            };
 
             try {
                 $depositResultCode = Arr::get($depositData, 'result.code');
 
                 if (!$depositResultCode) {
-                    $cleanUpWithStatus('pending');
-                    return;
+                    return $cleanUpWithStatus('pending');
                 }
 
                 $status = self::getPaymentStatusFromResultCode($depositResultCode); //success, pending, failed
 
-                DB::transaction(function () use ($deposit, $status, $cleanUpWithStatus, $transactionController, $depositData) {
-                    $deposit = Deposit::query()->where('id', $deposit->id)->lockForUpdate()->with(['transaction', 'appointment'])->first();
+                $deposit = Deposit::query()->where('id', $deposit->id)->lockForUpdate()->with(['transaction', 'appointment'])->first();
 
-                    $transaction = $deposit->transaction;
-                    $appointment = $deposit->appointment;
+                $transaction = $deposit->transaction;
+                $appointment = $deposit->appointment;
 
 
-                    $deposit->update([
-                        'status' => 'processing'
-                    ]);
+                $deposit->update([
+                    'status' => 'processing'
+                ]);
 
-                    if ($appointment) {
-                        $appointmentDepositTxn = $appointment
-                            ->transactions()
-                            ->where('type', '=', 'payment')
-                            ->whereLike('ref', "PAY-DEPOSIT-DEBIT-%", false)
-                            ->first();
+                if ($appointment) {
+                    $appointmentDepositTxn = $appointment
+                        ->transactions()
+                        ->where('type', '=', 'payment')
+                        ->whereLike('ref', "PAY-DEPOSIT-DEBIT-%", false)
+                        ->first();
 
-                        if ($appointmentDepositTxn) {
-                            $deposit->update([
-                                'transaction_id' => $appointmentDepositTxn->id
-                            ]);
+                    if ($appointmentDepositTxn) {
+                        $deposit->update([
+                            'transaction_id' => $appointmentDepositTxn->id
+                        ]);
 
-                            $transaction = $appointmentDepositTxn;
-                        }
+                        $transaction = $appointmentDepositTxn;
                     }
+                }
 
-                    switch ($status) {
-                        case 'success': {
-                            //Appointment has not been created for deposit. Wait until appointment is available
-                            if ($deposit->portfolio_id && !$deposit->appointment_id) {
-                                Log::info("Appointment not ready for deposit {$deposit->id}, retrying...");
+                Log::info("Peach payment fetched deposit for deposit id {$deposit->id}, data is  " . json_encode($depositData));
 
-                                $cleanUpWithStatus('pending');
-                                self::dispatch($deposit, $depositData)->delay(now()->addSeconds(10));
-                                return;
-                            }
+                switch ($status) {
+                    case 'success': {
+                        //Appointment has not been created for deposit. Wait until appointment is available
+                        if ($deposit->portfolio_id && !$deposit->appointment_id) {
+                            Log::info("Appointment not ready for deposit {$deposit->id}, retrying...");
 
-                            $transactionController->approveDepositNative($deposit, $transaction);
-
-                            Log::info("Approved deposit from peach payment with deposit id {$deposit->id} and [peach_payment_id={$deposit->processor_id}]");
-                            $cleanUpWithStatus('approved');
-                            break;
-                        }
-
-                        //If it is for an appointment, ensure you refund tha amount debited from wallet back and then cancel the appointment
-                        case 'failed': {
-                            $transactionController->rejectDepositNative($deposit, $transaction);
-
-                            Log::info("Declined deposit for peach payment with deposit id {$deposit->id} and [peach_payment_id={$deposit->processor_id}]");
-                            $cleanUpWithStatus('declined');
-                            break;
-                        }
-
-                        // Depsoit is still pending. This can be due to various reasons such as 3DS authentication pending, AVS checks pending, or the payment is flagged for review. We will keep the deposit in pending state and wait for further updates from peach payment webhook to update the status of this deposit
-                        case 'pending': {
-                            Log::info("Peach payment deposit with deposit id {$deposit->id} and [peach_payment_id={$deposit->processor_id}] is in uncertain state, awaiting further updates...");
                             $cleanUpWithStatus('pending');
-                            break;
-                        }
-
-                        default: {
-                            Log::warning("No handler specified for status \"{$status}\" for deposit {$deposit->id} [peach_payment_id={$deposit->processor_id}]");
-                            $cleanUpWithStatus('pending');
+                            // self::dispatchSync($deposit, $depositData)->delay(now()->addSeconds(10));
                             return;
                         }
+
+                        $transactionController->approveDepositNative($deposit, $transaction);
+
+                        Log::info("Approved deposit from peach payment with deposit id {$deposit->id} and [peach_payment_id={$deposit->processor_id}]");
+                        $cleanUpWithStatus('approved');
+                        break;
                     }
-                });
+
+                    //If it is for an appointment, ensure you refund tha amount debited from wallet back and then cancel the appointment
+                    case 'failed': {
+                        $transactionController->rejectDepositNative($deposit, $transaction);
+
+                        Log::info("Declined deposit for peach payment with deposit id {$deposit->id} and [peach_payment_id={$deposit->processor_id}]");
+                        $cleanUpWithStatus('declined');
+                        break;
+                    }
+
+                    // Depsoit is still pending. This can be due to various reasons such as 3DS authentication pending, AVS checks pending, or the payment is flagged for review. We will keep the deposit in pending state and wait for further updates from peach payment webhook to update the status of this deposit
+                    case 'pending': {
+                        Log::info("Peach payment deposit with deposit id {$deposit->id} and [peach_payment_id={$deposit->processor_id}] is in uncertain state, awaiting further updates...");
+                        $cleanUpWithStatus('pending');
+                        break;
+                    }
+
+                    default: {
+                        Log::warning("No handler specified for status \"{$status}\" for deposit {$deposit->id} [peach_payment_id={$deposit->processor_id}]");
+                        $cleanUpWithStatus('pending');
+                        return;
+                    }
+                }
             } catch (Exception $e) {
                 Log::error('Peach payment deposit failed with error');
                 Log::error($e);
-                $cleanUpWithStatus('pending');
+                $cleanUpWithStatus('pending', true);
             }
         });
     }

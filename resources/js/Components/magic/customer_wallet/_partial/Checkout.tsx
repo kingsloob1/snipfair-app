@@ -193,6 +193,8 @@ const Checkout = ({
                         if ('focus' in popupWindow!) {
                             popupWindow.focus();
                         }
+
+                        onTopupSuccess();
                     }
                 }
             },
@@ -236,7 +238,11 @@ const Checkout = ({
                         disabled={processing}
                         className="w-full"
                     >
-                        {processing ? 'Processing...' : 'Proceed to Gateway'}
+                        {processing
+                            ? 'Processing...'
+                            : paymentInfo
+                              ? 'Open Payment Link'
+                              : 'Proceed to Gateway'}
                     </CustomButton>
 
                     {paymentInfo && (
@@ -256,7 +262,7 @@ const Checkout = ({
                         disabled={processing}
                         className="w-full"
                     >
-                        Cancel
+                        {paymentInfo ? 'Close' : 'Cancel'}
                     </CustomButton>
                 </div>
             </form>
