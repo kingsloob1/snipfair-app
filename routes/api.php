@@ -328,21 +328,23 @@ Route::middleware('api')->group(function () {
     Route::group(['prefix' => '/payment'], function () {
         Route::get('/pay/payfast', [PaymentController::class, 'displayPayfastPage']);
 
-        Route::get('/cancel/payfast', [PaymentController::class, 'handleCancelDepositTxn']);
+        Route::match(['GET', 'POST'], '/cancel/payfast', [PaymentController::class, 'handleCancelDepositTxn']);
 
-        Route::get('/success/payfast', [PaymentController::class, 'handleSuccessfulDepositTxn']);
+        Route::match(['GET', 'POST'], '/success/payfast', [PaymentController::class, 'handleSuccessfulDepositTxn']);
 
         Route::post('/webhook/payfast', [PaymentController::class, 'handlePayfastWebhook']);
 
         Route::post('/webhook/peachpayment', [PaymentController::class, 'handlePeachPaymentPayoutWebhook']);
 
-        Route::get('/pay/peachpayment/checkout', [PaymentController::class, 'displayPeachPaymentCheckoutPage']);
+        Route::match(['GET', 'POST'], '/cancel/peachpayment/checkout', [PaymentController::class, 'handleCancelDepositTxn']);
 
-        Route::get('/cancel/peachpayment/checkout', [PaymentController::class, 'handleCancelDepositTxn']);
-
-        Route::get('/success/peachpayment/checkout', [PaymentController::class, 'handleSuccessfulDepositTxn']);
+        Route::match(['GET', 'POST'], '/success/peachpayment/checkout', [PaymentController::class, 'handleSuccessfulDepositTxn']);
 
         Route::post('/webhook/peachpayment/checkout', [PaymentController::class, 'handlePeachPaymentCheckoutWebhook']);
+
+        // {"amount":"3177.04","card_bin":"420000","card_expiryMonth":"02","card_expiryYear":"2028","card_holder":"Snipfair Test Card","card_last4Digits":"0091","checkoutId":"0564447c519345a29bfe1ed55518778f","currency":"ZAR","customParameters":{"deposit_id":"144","user_id":"39"},"customer_email":"customer@mailinator.com","customer_givenName":"Juliet Schmitt","customer_merchantCustomerId":"39","customer_surname":"Schmitt","id":"8ac7a4a19cbbf601019cbd2732353bf0","merchant_name":"SB Snipfair","merchantTransactionId":"PEACHPAYEMENT-DEPOSIT-144","paymentBrand":"VISA","paymentType":"DB","recon_authCode":"006887","recon_resultCode":"000","recon_rrn":"742005430524","recon_stan":"860002","result_code":"000.100.110","result_description":"Request successfully processed in 'Merchant in Integrator Test Mode'","resultDetails_AcquirerResponse":"E0000","resultDetails_ExtendedDescription":"Transaction Successful","signature":"2accbdf4c102a720c9f9ffdb4a0856235dfc7758d5d675d0d1cea9130d081186","timestamp":"2026-03-05T08:39:55Z"}
+
+        // {"amount":"3177.04","checkoutId":"0564447c519345a29bfe1ed55518778f","currency":"ZAR","customParameters":{"deposit_id":"144","user_id":"39"},"merchant_name":"SB Snipfair","merchantTransactionId":"PEACHPAYEMENT-DEPOSIT-144","paymentType":"DB","result_code":"000.200.100","result_description":"successfully created checkout","signature":"e069680cc28a5d2657eb54be2030de6e27abcd21cac4a0abbf6045ea5c97431e","timestamp":"2026-03-05T08:15:16Z"}
     });
 });
 // Mobile App API Routes End https://test.snipfair.com/api/payment/webhook/peachpayment/checkout

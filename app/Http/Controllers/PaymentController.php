@@ -273,7 +273,7 @@ class PaymentController extends Controller
         if ($deposit) {
             switch ($deposit->processor) {
                 case 'peachpayment':
-                    $this->checkPeachPaymentDeposit($deposit);
+                    $this->checkPeachPaymentDeposit($deposit, true);
                     break;
                 default:
                     Log::warning("No handler specified for processor \"{$deposit->processor}\" for deposit {$deposit->id}");
@@ -590,7 +590,7 @@ class PaymentController extends Controller
 
         switch ($deposit->processor) {
             case 'peachpayment':
-                $this->checkPeachPaymentDeposit($deposit);
+                $this->checkPeachPaymentDeposit($deposit, true);
                 break;
             default:
                 Log::warning("No handler specified for processor \"{$deposit->processor}\" for deposit {$deposit->id}");
@@ -1282,7 +1282,7 @@ class PaymentController extends Controller
         }
     }
 
-    public function checkPeachPaymentDeposit(Deposit $deposit)
+    public function checkPeachPaymentDeposit(Deposit $deposit, $checkNow = false)
     {
         if (!($deposit->processor === 'peachpayment' && $deposit->processor_id)) {
             return [
@@ -1297,7 +1297,16 @@ class PaymentController extends Controller
                 ->withHeader('content-type', 'application/json')
                 ->get("checkout/{$deposit->processor_id}/status")->throw()->json();
 
-            ProcessPeachPaymentDeposit::dispatch($deposit, $responseJson);
+            if ($checkNow) {
+                ProcessPeachPaymentDeposit::dispatchSync($deposit, $responseJson);
+            } else {
+                ProcessPeachPaymentDeposit::dispatch($deposit, $responseJson);
+            }
+
+            return [
+                'status' => true,
+                'message' => 'Deposit check initiated successfully'
+            ];
         } catch (Exception $e) {
             Log::error('PeachPayment deposit check error: ' . $e->getMessage());
 
@@ -1308,7 +1317,7 @@ class PaymentController extends Controller
         }
     }
 
-    public function checkPeachPaymentDepositByDepositId($depositId)
+    public function checkPeachPaymentDepositByDepositId($depositId, $checkNow = false)
     {
         $deposit = Deposit::query()->where('id', '=', $depositId)->where('processor', '=', 'peachpayment')->first();
 
@@ -1319,7 +1328,7 @@ class PaymentController extends Controller
             ];
         }
 
-        return $this->checkPeachPaymentDeposit($deposit);
+        return $this->checkPeachPaymentDeposit($deposit, $checkNow);
     }
 
     public function handlePeachPaymentCheckoutWebhook(Request $request)

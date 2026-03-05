@@ -19,68 +19,6 @@ class ProcessPeachPaymentDeposit implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public static $PEACH_PAYMENT_RESPONSE_CODES = [
-        // ----------------------------------
-        // SUCCESSFUL
-        // ----------------------------------
-        "000.000.000" => ["description" => "Transaction succeeded", "status" => "success"],
-        "000.000.100" => ["description" => "successful request", "status" => "success"],
-        "000.100.105" => ["description" => "Chargeback Representment is successful", "status" => "success"],
-        "000.100.106" => ["description" => "Chargeback Representment cancellation is successful", "status" => "success"],
-        "000.100.110" => ["description" => "Request successfully processed in 'Merchant in Integrator Test Mode'", "status" => "success"],
-        "000.100.111" => ["description" => "Request successfully processed in 'Merchant in Validator Test Mode'", "status" => "success"],
-        "000.100.112" => ["description" => "Request successfully processed in 'Merchant in Connector Test Mode'", "status" => "success"],
-        "000.300.000" => ["description" => "Two-step transaction succeeded", "status" => "success"],
-        "000.300.100" => ["description" => "Risk check successful", "status" => "success"],
-        "000.300.101" => ["description" => "Risk bank account check successful", "status" => "success"],
-        "000.300.102" => ["description" => "Risk report successful", "status" => "success"],
-        "000.300.103" => ["description" => "Exemption check successful", "status" => "success"],
-        "000.310.100" => ["description" => "Account updated", "status" => "success"],
-        "000.310.101" => ["description" => "Account updated (Credit card expired)", "status" => "success"],
-        "000.310.110" => ["description" => "No updates found, but account is valid", "status" => "success"],
-        "000.400.110" => ["description" => "Authentication successful (frictionless flow)", "status" => "success"],
-        "000.400.120" => ["description" => "Authentication successful (data only flow)", "status" => "success"],
-        "000.600.000" => ["description" => "transaction succeeded due to external update", "status" => "success"],
-
-        // ----------------------------------
-        // UNCERTAIN / AWAITING EXTERNAL CONFIRMATION
-        // ----------------------------------
-        "100.400.500" => ["description" => "waiting for external risk", "status" => "uncertain"],
-        "800.400.500" => ["description" => "Waiting for confirmation of non-instant payment. Denied for now.", "status" => "uncertain"],
-        "800.400.501" => ["description" => "Waiting for confirmation of non-instant debit. Denied for now.", "status" => "uncertain"],
-        "800.400.502" => ["description" => "Waiting for confirmation of non-instant refund. Denied for now.", "status" => "uncertain"],
-
-        // ----------------------------------
-        // CANCELLED / USER ACTION
-        // ----------------------------------
-        "100.396.101" => ["description" => "Cancelled by user due to external update", "status" => "cancelled"],
-        "100.396.102" => ["description" => "Not confirmed by user", "status" => "cancelled"],
-        "100.396.104" => ["description" => "Uncertain status - probably cancelled by user", "status" => "cancelled"],
-        "100.396.106" => ["description" => "User did not agree to payment method terms", "status" => "cancelled"],
-        "100.396.201" => ["description" => "Cancelled by merchant", "status" => "cancelled"],
-        "100.397.101" => ["description" => "Cancelled by user due to external update", "status" => "cancelled"],
-
-        // ----------------------------------
-        // FAILED (REJECTIONS, ERRORS, ALL OTHERS)
-        // ----------------------------------
-        "000.400.106" => ["description" => "invalid payer authentication response (PARes) in 3DSecure Transaction", "status" => "failed"],
-        "000.400.107" => ["description" => "Communication Error to Scheme Directory Server", "status" => "failed"],
-        "000.400.108" => ["description" => "Cardholder Not Found", "status" => "failed"],
-        "000.400.109" => ["description" => "Card is not enrolled for 3DS version 2", "status" => "failed"],
-        "000.400.111" => ["description" => "Data Only request failed", "status" => "failed"],
-        "000.400.112" => ["description" => "3RI transaction not permitted", "status" => "failed"],
-        "000.400.113" => ["description" => "Protocol version not supported by the issuer ACS", "status" => "failed"],
-        "000.400.200" => ["description" => "risk management check communication error", "status" => "failed"],
-        "800.100.100" => ["description" => "transaction declined for unknown reason", "status" => "failed"],
-        "800.100.153" => ["description" => "transaction declined (invalid CVV)", "status" => "failed"],
-        "000.400.030" => ["description" => "Transaction partially failed (manual reversal needed)", "status" => "failed"],
-        "900.100.100" => ["description" => "unexpected communication error with connector/acquirer", "status" => "failed"],
-        "300.100.100" => ["description" => "Transaction declined (additional customer authentication required)", "status" => "failed"],
-        "100.380.401" => ["description" => "User Authentication Failed", "status" => "failed"],
-        "100.380.501" => ["description" => "Risk management transaction timeout", "status" => "failed"],
-        // (…you can expand this pattern for other reject & validation entries)
-    ];
-
     /**
      * Create a new job instance.
      */
@@ -88,6 +26,74 @@ class ProcessPeachPaymentDeposit implements ShouldQueue
         protected Deposit $deposit,
         protected array $depositData
     ) {
+    }
+
+    public static function getPaymentStatusFromResultCode(string $resultCode)
+    {
+        // Normalize (just in case)
+        $code = trim($resultCode);
+
+        // Success patterns (approved / processed successfully)
+        $successPatterns = [
+            '/^(000.000.|000.100.1|000.[36]|000.400.[1][12]0)/'
+        ];
+
+        // Pending / waiting for confirmation / async
+        $pendingPatterns = [
+            '/^(000.400.0[^3]|000.400.100)/', // success but flagged
+            '/^(000\.200)/', // pending processing
+            '/^(800\.400\.5|100\.400\.500)/', // waiting for consumer input
+        ];
+
+        // Explicitly cancelled / user aborted
+        $cancelledPatterns = [
+            '/^(000\.400\.[1][0-9][1-9]|000\.400\.2)/', // 3-D secure and intercard risk checks
+            '/^(800\.[17]00|800\.800\.[123])/', // Failed by issuer or provider. Use another payment method
+            '/^(900\.[1234]00|000\.400\.030)/', // Failed due to connectivity or protocol issues. Could be retried
+            '/^(800\.[56]|999\.|600\.1|800\.800\.[84])/', // System level error. Can be retried or reach support if the issue persists
+            '/^(100\.39[765])/', // Transaction failed during a background process. Can be retried or reach support if the issue persists
+            '/^(300\.100\.100)/', // Transaction declineed. Additional customer authentication may be required. Can be retried or reach support if the issue persists
+            '/^(100\.400\.[0-3]|100\.380\.100|100\.380\.11|100\.380\.4|100\.380\.5)/', // Transaction blocked due to external risk system checks.
+            '/^(800\.400\.1)/', // Transaction failed due to invalid address data. Retry if address is corrected
+            '/^(800\.400\.2|100\.390)/', // Transaction failed due to 3-D secure validation issues.
+            '/^(800\.[32])/', // Transaction matched a blocklist rule.
+            '/^(800\.1[123456]0)/', // Transaction rejected by internal risk logic.
+            '/^(600\.[23]|500\.[12]|800\.121)/', // Transaction failed due to misconfigured merchant settings.
+            '/^(100\.[13]50)/', // Transaction failed due to invalid registration data.
+            '/^(100\.250|100\.360)/', // Transaction failed due to job related parameters
+            '/^(700\.[1345][05]0)/', // Transaction failed due to inavlid reference fields.
+            '/^(700\.600|700\.601)/', // Transaction was blocked based on issuer advice. Merchants should respect this guidance and avoid retrying unless explicitly permitted by MAC control logic
+            '/^(200\.[123]|100\.[53][07]|800\.900|100\.[69]00\.500)/', // Transaction failed due to incorrect field formatting or invalid data. This includes invalid card number, expiry date, CVV, or other required fields. Retry only if the underlying issue is corrected (e.g. user corrects card number or CVV)
+            '/^(100\.800)/', // Transaction failed due to address field issues
+            '/^(100\.700|100\.900\.[123467890][00-99])/', // Transaction failed due to invalid contact details
+            '/^(100\.100|100.2[01])/', // Transaction failed due to invalid account data
+            '/^(100\.55)/', // Transaction failed due to amount constraints.
+            '/^(100\.380\.[23]|100\.380\.101)/', // Transaction blocked by internal risk scoring
+        ];
+
+        // ──────────────────────────────────────────────
+        // Check in priority order
+        // ──────────────────────────────────────────────
+
+        foreach ($successPatterns as $pattern) {
+            if (preg_match($pattern, $code)) {
+                return 'success';
+            }
+        }
+
+        foreach ($pendingPatterns as $pattern) {
+            if (preg_match($pattern, $code)) {
+                return 'pending';
+            }
+        }
+
+        foreach ($cancelledPatterns as $pattern) {
+            if (preg_match($pattern, $code)) {
+                return 'failed';
+            }
+        }
+
+        return 'pending';
     }
 
     /**
@@ -123,17 +129,7 @@ class ProcessPeachPaymentDeposit implements ShouldQueue
                     return;
                 }
 
-                $peachResultCodeObj = Arr::get(self::$PEACH_PAYMENT_RESPONSE_CODES, $depositResultCode);
-
-                if (!$peachResultCodeObj) {
-                    Log::warning("No handler specified for PeachPayment result code \"" . $depositResultCode . "\" for deposit {$deposit->id} [processor_id={$deposit->processor_id}]");
-                    $cleanUpWithStatus('pending');
-                    return;
-                }
-
-                Log::info("Pech result code object is " . json_encode($peachResultCodeObj) . " with deposit data " . json_encode($depositData) . " for deposit {$deposit->id} [processor_id={$deposit->processor_id}]");
-
-                $status = $peachResultCodeObj['status']; //success, uncertain, cancelled, failed
+                $status = self::getPaymentStatusFromResultCode($depositResultCode); //success, pending, failed
 
                 DB::transaction(function () use ($deposit, $status, $cleanUpWithStatus, $transactionController, $depositData) {
                     $deposit = Deposit::query()->where('id', $deposit->id)->lockForUpdate()->with(['transaction', 'appointment'])->first();
@@ -181,8 +177,7 @@ class ProcessPeachPaymentDeposit implements ShouldQueue
                         }
 
                         //If it is for an appointment, ensure you refund tha amount debited from wallet back and then cancel the appointment
-                        case 'failed':
-                        case 'cancelled': {
+                        case 'failed': {
                             $transactionController->rejectDepositNative($deposit, $transaction);
 
                             Log::info("Declined deposit for peach payment with deposit id {$deposit->id} and [peach_payment_id={$deposit->processor_id}]");
@@ -190,8 +185,8 @@ class ProcessPeachPaymentDeposit implements ShouldQueue
                             break;
                         }
 
-                        //If the transaction is uncertain, remain at pedning and rely on webhook updates for the final status
-                        case 'uncertain': {
+                        // Depsoit is still pending. This can be due to various reasons such as 3DS authentication pending, AVS checks pending, or the payment is flagged for review. We will keep the deposit in pending state and wait for further updates from peach payment webhook to update the status of this deposit
+                        case 'pending': {
                             Log::info("Peach payment deposit with deposit id {$deposit->id} and [peach_payment_id={$deposit->processor_id}] is in uncertain state, awaiting further updates...");
                             $cleanUpWithStatus('pending');
                             break;
