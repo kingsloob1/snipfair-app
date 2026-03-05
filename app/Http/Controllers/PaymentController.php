@@ -640,12 +640,12 @@ class PaymentController extends Controller
         }
     }
 
-    private function getPeachPaymentAuthToken()
+    private function getPeachPaymentAuthToken($forceRefresh = false)
     {
         $cacheKey = 'peach:payment:token';
         $authToken = Cache::get($cacheKey, null);
 
-        if (!$authToken) {
+        if (!$authToken || $forceRefresh) {
             $merchantId = config('peachpayment.merchant_id');
             $clientId = config('peachpayment.client_id');
             $clientSecret = config('peachpayment.client_secret');
@@ -672,7 +672,19 @@ class PaymentController extends Controller
     private function getPeachPaymentPayoutHttpClient()
     {
         $merchantId = config('peachpayment.merchant_id');
-        return Http::connectTimeout(30)->timeout(120)->baseUrl(config('peachpayment.payout_endpoint') . "/api/merchants/{$merchantId}")->withHeader('Authorization', $this->getPeachPaymentAuthToken())->dontTruncateExceptions();
+        return Http::connectTimeout(30)
+            ->timeout(120)
+            ->baseUrl(config('peachpayment.payout_endpoint') . "/api/merchants/{$merchantId}")
+            ->withHeader('Authorization', $this->getPeachPaymentAuthToken())
+            ->retry(2, 0, function ($exception, $request) {
+                if ($exception instanceof RequestException && $exception->response?->status() === 401) {
+                    $request->withHeader('Authorization', $this->getPeachPaymentAuthToken(true));
+                    return true; //retry the request with new token
+                }
+
+                return false; //Dont retry for other exceptions
+            })
+            ->dontTruncateExceptions();
     }
 
     private function getPeachPaymentBalanceResp()
@@ -1157,7 +1169,19 @@ class PaymentController extends Controller
 
     private function getPeachPaymentCheckoutHttpClient()
     {
-        return Http::connectTimeout(60)->timeout(120)->baseUrl(config('peachpayment.checkout_endpoint'))->withHeader('Authorization', $this->getPeachPaymentAuthToken())->dontTruncateExceptions();
+        return Http::connectTimeout(60)
+            ->timeout(120)
+            ->baseUrl(config('peachpayment.checkout_endpoint'))
+            ->withHeader('Authorization', $this->getPeachPaymentAuthToken())
+            ->retry(2, 0, function ($exception, $request) {
+                if ($exception instanceof RequestException && $exception->response?->status() === 401) {
+                    $request->withHeader('Authorization', $this->getPeachPaymentAuthToken(true));
+                    return true; //retry the request with new token
+                }
+
+                return false; //Dont retry for other exceptions
+            })
+            ->dontTruncateExceptions();
     }
 
     private function initiatePeachPaymentDeposit(Deposit $deposit)
