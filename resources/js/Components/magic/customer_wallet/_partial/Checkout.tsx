@@ -2,7 +2,7 @@ import CustomButton from '@/Components/common/CustomButton';
 import { PageProps } from '@/types';
 import { router, useForm, usePage } from '@inertiajs/react';
 import { User } from 'lucide-react';
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
 interface CheckoutProps extends PageProps {
@@ -68,6 +68,7 @@ const Checkout = ({
             only: ['wallet', 'walletStats'],
         });
         onTopupSuccess();
+        onClose();
     }, [onTopupSuccess]);
 
     useEffect(() => {
@@ -104,8 +105,7 @@ const Checkout = ({
     //     };
     // }, [testMode]);
 
-    const handlePayNow = (e: React.FormEvent) => {
-        e.preventDefault();
+    const handlePayNow = () => {
         if (paymentInfo?.payment_url) {
             // Open the URL in a new pop-up window
             const popupWindow = window.open(paymentInfo.payment_url, '_blank');
@@ -227,10 +227,11 @@ const Checkout = ({
                     </div>
                 </div>
             </div>
-            <form onSubmit={handlePayNow}>
+            <form>
                 <div className="space-y-3">
                     <CustomButton
                         type="submit"
+                        onClick={handlePayNow}
                         disabled={processing}
                         className="w-full"
                     >
