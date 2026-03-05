@@ -67,10 +67,8 @@ const Checkout = ({
         router.reload({
             only: ['wallet', 'walletStats'],
         });
-        onTopupSuccess();
-
         setTimeout(onClose, 1000);
-    }, [onTopupSuccess]);
+    }, [onClose]);
 
     useEffect(() => {
         if (auth.user) {

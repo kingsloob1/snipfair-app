@@ -261,7 +261,7 @@ class PaymentController extends Controller
             $deposit->update(['status' => 'declined']);
         }
 
-        return response()->redirectTo(url()->previous() ?? url('/'));
+        return redirect()->route('customer.appointments');
     }
 
     public function handleSuccessfulDepositTxn(Request $request)
@@ -280,7 +280,7 @@ class PaymentController extends Controller
             }
         }
 
-        return response()->redirectTo(url()->previous() ?? url('/'));
+        return redirect()->route('customer.appointments');
     }
 
     public function getUserWallet(Request $request)
