@@ -125,6 +125,8 @@ class ProcessPeachPaymentDeposit implements ShouldQueue
                     return;
                 }
 
+                Log::info("Pech result code object is " . json_encode($peachResultCodeObj) . " with deposit data " . json_encode($depositData) . " for deposit {$deposit->id} [processor_id={$deposit->processor_id}]");
+
                 $status = $peachResultCodeObj['status']; //success, uncertain, cancelled, failed
 
                 DB::transaction(function () use ($deposit, $status, $cleanUpWithStatus, $transactionController, $depositData) {
