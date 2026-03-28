@@ -347,7 +347,7 @@ Route::middleware('api')->group(function () {
         // {"amount":"3177.04","checkoutId":"0564447c519345a29bfe1ed55518778f","currency":"ZAR","customParameters":{"deposit_id":"144","user_id":"39"},"merchant_name":"SB Snipfair","merchantTransactionId":"PEACHPAYEMENT-DEPOSIT-144","paymentType":"DB","result_code":"000.200.100","result_description":"successfully created checkout","signature":"e069680cc28a5d2657eb54be2030de6e27abcd21cac4a0abbf6045ea5c97431e","timestamp":"2026-03-05T08:15:16Z"}
     });
 });
-// Mobile App API Routes End https://test.snipfair.com/api/payment/webhook/peachpayment/checkout
+// Mobile App API Routes End
 
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {

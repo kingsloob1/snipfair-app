@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
@@ -12,6 +11,7 @@ class Stylist extends Model
         'years_of_experience',
         'identification_id',
         'identification_file',
+        'identification_proof',
 
         // new items
         'visits_count',

@@ -677,6 +677,7 @@ class PaymentController extends Controller
             ->baseUrl(config('peachpayment.payout_endpoint') . "/api/merchants/{$merchantId}")
             ->withHeader('Authorization', $this->getPeachPaymentAuthToken())
             ->retry(2, 0, function ($exception, $request) {
+		// Force refresh of peach payment auth token and then use new token to retry the request
                 if ($exception instanceof RequestException && $exception->response?->status() === 401) {
                     $request->withHeader('Authorization', $this->getPeachPaymentAuthToken(true));
                     return true; //retry the request with new token
@@ -1174,6 +1175,7 @@ class PaymentController extends Controller
             ->baseUrl(config('peachpayment.checkout_endpoint'))
             ->withHeader('Authorization', $this->getPeachPaymentAuthToken())
             ->retry(2, 0, function ($exception, $request) {
+                // Force refresh of peach payment auth token and then use new token to retry the request
                 if ($exception instanceof RequestException && $exception->response?->status() === 401) {
                     $request->withHeader('Authorization', $this->getPeachPaymentAuthToken(true));
                     return true; //retry the request with new token
